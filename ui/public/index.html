@@ -99,7 +99,10 @@
 
       <details id="unranked-box" class="unranked">
         <summary id="unranked-summary">Vacantes sin calificar</summary>
-        <p class="muted">Encontradas pero todavía sin puntaje. "Buscar ahora" las califica.</p>
+        <div class="unranked-head">
+          <p class="muted">Encontradas pero todavía sin puntaje. Califícalas para ver por qué encajas, el sueldo y la modalidad.</p>
+          <button type="button" id="rank-btn" class="primary small" hidden><svg class="btn-icon" aria-hidden="true"><use href="#i-spark"/></svg><span>Calificar pendientes</span></button>
+        </div>
         <ul id="unranked" class="plain-list"></ul>
       </details>
     </section>

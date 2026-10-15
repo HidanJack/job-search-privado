@@ -90,8 +90,13 @@ export function createHandler(opts: ServerOptions = {}) {
           maxDays: profile.freshnessDays,
           minSalaryMxn: profile.salaryFloorMxn,
         });
-        const { ranked, unranked } = filterJobs(loadJobs(root, new Date()), filters);
-        return json({ profile, filters, ranked, unranked, results: store.all() });
+        const all = loadJobs(root, new Date());
+        const { ranked, unranked } = filterJobs(all, filters);
+        const counts = {
+          pending: all.filter((j) => j.status === "new").length,
+          rankedTotal: all.filter((j) => j.status === "ranked").length,
+        };
+        return json({ profile, filters, ranked, unranked, counts, results: store.all() });
       }
       case "/api/tracker":
         return json(loadTracker(root));
@@ -129,6 +134,12 @@ export function createHandler(opts: ServerOptions = {}) {
         const run = runs.start("search", "Buscar y calificar vacantes", [
           { prompt: "/job-scraper", tools: SEARCH_TOOLS, title: "Buscando vacantes en los portales (/job-scraper)" },
           { prompt: "/rank", tools: BASE_TOOLS, title: "Calificando las vacantes nuevas (/rank)" },
+        ]);
+        return run ? json({ id: run.id }) : json({ error: "busy" }, 409);
+      }
+      case "/api/run/rank": {
+        const run = runs.start("rank", "Calificar vacantes pendientes", [
+          { prompt: "/rank", tools: BASE_TOOLS, title: "Calificando las vacantes pendientes (/rank)" },
         ]);
         return run ? json({ id: run.id }) : json({ error: "busy" }, 409);
       }

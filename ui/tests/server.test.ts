@@ -3,7 +3,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHandler } from "../server";
-import type { SpawnedProcess, Spawner } from "../lib/runner";
+import { BASE_TOOLS, type SpawnedProcess, type Spawner } from "../lib/runner";
 
 const FIXTURES = join(import.meta.dir, "fixtures");
 const BASE = "http://127.0.0.1:8787";
@@ -105,6 +105,40 @@ describe("server", () => {
     release(0);
     await waitFor(() => h.runs.current?.status !== "running");
     expect(calls.map((c) => c[2])).toEqual(["/job-scraper", "/rank"]);
+  });
+
+  test("rank run: Origin enforced, runs only /rank with the rank tools, respects the lock", async () => {
+    const calls: string[][] = [];
+    let release!: (n: number) => void;
+    const slow: Spawner = (argv) => {
+      calls.push(argv);
+      return { stdout: new Response("").body!, exited: new Promise((r) => (release = r)), kill() {} };
+    };
+    const h = createHandler({ root: tempRoot(), spawner: slow });
+    expect((await post(h, "/api/run/rank", {}, { ...ORIGIN, Origin: "https://evil.com" })).status).toBe(403);
+    expect(calls.length).toBe(0);
+    expect((await post(h, "/api/run/rank", {})).status).toBe(200);
+    expect((await post(h, "/api/run/rank", {})).status).toBe(409);
+    expect((await post(h, "/api/run/search", {})).status).toBe(409);
+    await waitFor(() => calls.length === 1);
+    release(0);
+    await waitFor(() => h.runs.current?.status !== "running");
+    expect(calls.length).toBe(1);
+    const argv = calls[0];
+    expect(argv[0]).toBe("claude");
+    expect(argv.slice(1, 3)).toEqual(["-p", "/rank"]);
+    const tools = argv.slice(argv.indexOf("--allowedTools") + 1);
+    expect(tools).toEqual([...BASE_TOOLS]);
+    expect(argv).not.toContain("--dangerously-skip-permissions");
+    expect(h.runs.current?.kind).toBe("rank");
+  });
+
+  test("jobs API reports pending and ranked totals regardless of filters", async () => {
+    const h = createHandler({ root: tempRoot(), spawner: fakeSpawner([], []) });
+    const data = await (await get(h, "/api/jobs?maxDays=0&minSalary=99999999&includeNoSalary=0&includeUndated=0")).json();
+    expect(data.ranked.length).toBe(0);
+    expect(data.counts.rankedTotal).toBeGreaterThan(0);
+    expect(data.counts.pending).toBeGreaterThan(0);
   });
 
   test("approve marks the drafted tracker row as applied", async () => {

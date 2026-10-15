@@ -383,6 +383,9 @@ main { max-width: 1120px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
 }
 .unranked summary { cursor: pointer; font-weight: 620; border-radius: 8px; }
 .unranked[open] summary { margin-bottom: .5rem; }
+.unranked-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; }
+.unranked-head .muted { margin: 0; flex: 1 1 18rem; }
+.empty .empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .6rem; }
 .plain-list { padding-left: 1.1rem; margin: .5rem 0 0; display: grid; gap: .3rem; }
 .plain-list a { color: var(--brand-ink); font-weight: 560; text-decoration: none; }
 .plain-list a:hover { text-decoration: underline; }

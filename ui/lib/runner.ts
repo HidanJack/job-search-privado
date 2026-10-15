@@ -32,7 +32,7 @@ export const APPLY_TOOLS = [
   "Bash(rm -f cv/main_:*)",
 ];
 
-export type RunKind = "search" | "apply";
+export type RunKind = "search" | "rank" | "apply";
 
 export function buildArgv(claudeBin: string, prompt: string, tools: string[]): string[] {
   // The prompt is one argv element and always starts with "/", so it can

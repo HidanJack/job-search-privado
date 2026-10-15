@@ -155,15 +155,24 @@ function fillList(ul, items, empty, iconName) {
   }));
 }
 
-function emptyState() {
+function emptyState(pending) {
   const art = el("div", { class: "empty-art" }, icon("search"));
-  const btn = el("button", { type: "button", class: "primary" }, icon("search"), el("span", { text: "Buscar ahora" }));
-  btn.addEventListener("click", startSearch);
+  const searchBtn = el("button", { type: "button", class: pending ? "secondary" : "primary" }, icon("search"), el("span", { text: "Buscar ahora" }));
+  searchBtn.addEventListener("click", startSearch);
+  const actions = el("div", { class: "empty-actions" });
+  if (pending) {
+    const rankBtn = el("button", { type: "button", class: "primary" }, icon("spark"), el("span", { text: `Calificar pendientes (${pending})` }));
+    rankBtn.addEventListener("click", startRank);
+    actions.append(rankBtn);
+  }
+  actions.append(searchBtn);
   return el("div", { class: "empty" },
     art,
-    el("h3", { text: "Nada por aquí con estos filtros" }),
-    el("p", { text: "Prueba subir los días de publicación o bajar el sueldo mínimo. Si ya los ajustaste, busca vacantes nuevas: tarda unos minutos." }),
-    btn);
+    el("h3", { text: pending ? `Tienes ${pending} ${pending === 1 ? "vacante" : "vacantes"} sin calificar` : "Nada por aquí con estos filtros" }),
+    el("p", { text: pending
+      ? "Califícalas para ver su puntaje, por qué encajas, el sueldo y la modalidad. Tarda unos minutos."
+      : "Prueba subir los días de publicación o bajar el sueldo mínimo. Si ya los ajustaste, busca vacantes nuevas: tarda unos minutos." }),
+    actions);
 }
 
 function renderJobs(data) {
@@ -221,7 +230,12 @@ function renderJobs(data) {
     });
     box.append(card);
   }
-  if (!data.ranked.length) box.append(emptyState());
+  const pending = data.counts ? data.counts.pending : data.unranked.length;
+  state.counts = data.counts || { pending, rankedTotal: data.ranked.length };
+  if (!data.ranked.length) box.append(emptyState(pending));
+  const rankBtn = $("#rank-btn");
+  rankBtn.hidden = pending === 0;
+  $("span", rankBtn).textContent = `Calificar pendientes (${pending})`;
   // Fill the rings after paint so the conic gradient sweeps in from zero.
   requestAnimationFrame(() => requestAnimationFrame(() => {
     for (const [ring, value] of rings) ring.style.setProperty("--score", String(value));
@@ -239,7 +253,9 @@ function renderJobs(data) {
     li.append(a, document.createTextNode(` (${ageLabel(j.age_days)})`));
     return li;
   }));
-  $("#unranked-summary").textContent = `Vacantes sin calificar (${data.unranked.length})`;
+  $("#unranked-summary").textContent = pending > data.unranked.length
+    ? `Vacantes sin calificar (${pending}; ${data.unranked.length} dentro de tus filtros)`
+    : `Vacantes sin calificar (${pending})`;
 }
 
 async function refreshJobs() {
@@ -264,8 +280,12 @@ function showRunPanel(title) {
   setRunStatus("en curso", "running");
   $("#run-close").hidden = true;
   $("#run-log").replaceChildren();
-  $("#search-btn").disabled = true;
-  for (const b of document.querySelectorAll(".apply-btn")) b.disabled = true;
+  setRunButtons(true);
+}
+function setRunButtons(disabled) {
+  $("#search-btn").disabled = disabled;
+  $("#rank-btn").disabled = disabled;
+  for (const b of document.querySelectorAll(".apply-btn, .empty-actions button")) b.disabled = disabled;
 }
 function followRun(id, onEnd) {
   const log = $("#run-log");
@@ -277,7 +297,7 @@ function followRun(id, onEnd) {
       if (e.run.status === "done") setRunStatus("terminado", "ok");
       else setRunStatus("con errores", "err");
       $("#run-close").hidden = false;
-      $("#search-btn").disabled = false;
+      setRunButtons(false);
       onEnd(e.run);
       return;
     }
@@ -288,7 +308,7 @@ function followRun(id, onEnd) {
     source.close();
     setRunStatus("se perdió la conexión", "err");
     $("#run-close").hidden = false;
-    $("#search-btn").disabled = false;
+    setRunButtons(false);
   };
 }
 function runError(err) {
@@ -302,11 +322,34 @@ function alertInline(text) {
   $("#run-close").hidden = false;
 }
 
+// Reload the list after a search/rank run and say how many postings got a score.
+async function reportRanked(before) {
+  await refreshJobs();
+  const after = state.counts || before;
+  const ranked = Math.max(0, after.rankedTotal - before.rankedTotal);
+  const found = Math.max(0, (after.rankedTotal + after.pending) - (before.rankedTotal + before.pending));
+  if (ranked) toast(`${ranked} ${ranked === 1 ? "vacante calificada" : "vacantes calificadas"}${found ? ` (${found} nuevas encontradas)` : ""}`);
+  else if (found) toast(`${found} ${found === 1 ? "vacante nueva encontrada" : "vacantes nuevas encontradas"}, sin calificar todavía`);
+  else toast("Sin vacantes nuevas calificadas");
+}
+
 async function startSearch() {
+  const before = { ...(state.counts || { pending: 0, rankedTotal: 0 }) };
   try {
     const { id } = await api("/api/run/search", {});
     showRunPanel("Buscando y calificando vacantes — puede tardar varios minutos");
-    followRun(id, () => refreshJobs());
+    followRun(id, () => reportRanked(before));
+  } catch (err) {
+    runError(err);
+  }
+}
+
+async function startRank() {
+  const before = { ...(state.counts || { pending: 0, rankedTotal: 0 }) };
+  try {
+    const { id } = await api("/api/run/rank", {});
+    showRunPanel("Calificando vacantes pendientes — puede tardar varios minutos");
+    followRun(id, () => reportRanked(before));
   } catch (err) {
     runError(err);
   }
@@ -513,6 +556,7 @@ async function boot() {
     });
   }
   $("#search-btn").addEventListener("click", startSearch);
+  $("#rank-btn").addEventListener("click", startRank);
   $("#theme-btn").addEventListener("click", toggleTheme);
   applyTheme(null);
   $("#run-close").addEventListener("click", () => ($("#run-panel").hidden = true));
