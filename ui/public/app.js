@@ -13,6 +13,54 @@ const el = (tag, props = {}, ...children) => {
   return node;
 };
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+const icon = (name) => {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("aria-hidden", "true");
+  const use = document.createElementNS(SVG_NS, "use");
+  use.setAttribute("href", `#i-${name}`);
+  svg.append(use);
+  return svg;
+};
+
+// ---------- theme (explicit choice persisted; otherwise follow the OS) ----------
+const THEME_KEY = "job-ui-theme";
+const systemDark = () => window.matchMedia("(prefers-color-scheme: dark)").matches;
+function currentTheme() {
+  return document.documentElement.dataset.theme || (systemDark() ? "dark" : "light");
+}
+function applyTheme(theme) {
+  if (theme) document.documentElement.dataset.theme = theme;
+  const btn = document.getElementById("theme-btn");
+  if (btn) btn.setAttribute("aria-label", currentTheme() === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro");
+}
+try {
+  applyTheme(localStorage.getItem(THEME_KEY));
+} catch {
+  /* storage unavailable: follow the OS */
+}
+function toggleTheme() {
+  const next = currentTheme() === "dark" ? "light" : "dark";
+  applyTheme(next);
+  try {
+    localStorage.setItem(THEME_KEY, next);
+  } catch {
+    /* choice just won't persist */
+  }
+}
+
+// ---------- toasts ----------
+function toast(text) {
+  const box = $("#toasts");
+  if (!box) return;
+  const t = el("div", { class: "toast", text });
+  box.append(t);
+  setTimeout(() => {
+    t.classList.add("leaving");
+    setTimeout(() => t.remove(), 200);
+  }, 2600);
+}
+
 const FILTER_KEY = "job-ui-filters-v1";
 const MODALITY_LABEL = { remote: "Remoto", hybrid: "Híbrido", onsite: "Presencial", unknown: "Modalidad sin especificar" };
 const STATUS_LABEL = {
@@ -98,8 +146,24 @@ function salaryLabel(j) {
   }
   return text;
 }
-function fillList(ul, items, empty) {
-  ul.replaceChildren(...(items.length ? items : [empty]).map((t) => el("li", { text: t })));
+function fillList(ul, items, empty, iconName) {
+  ul.replaceChildren(...(items.length ? items : [empty]).map((t) => {
+    const li = el("li");
+    if (iconName) li.append(icon(iconName));
+    li.append(el("span", { text: t }));
+    return li;
+  }));
+}
+
+function emptyState() {
+  const art = el("div", { class: "empty-art" }, icon("search"));
+  const btn = el("button", { type: "button", class: "primary" }, icon("search"), el("span", { text: "Buscar ahora" }));
+  btn.addEventListener("click", startSearch);
+  return el("div", { class: "empty" },
+    art,
+    el("h3", { text: "Nada por aquí con estos filtros" }),
+    el("p", { text: "Prueba subir los días de publicación o bajar el sueldo mínimo. Si ya los ajustaste, busca vacantes nuevas: tarda unos minutos." }),
+    btn);
 }
 
 function renderJobs(data) {
@@ -109,14 +173,22 @@ function renderJobs(data) {
   $("#profile-banner").hidden = data.profile.ready;
   const box = $("#jobs");
   box.replaceChildren();
+  box.setAttribute("aria-busy", "false");
   const tpl = $("#card-tpl");
+  const rings = [];
   for (const j of data.ranked) {
     const card = tpl.content.firstElementChild.cloneNode(true);
     $(".title", card).textContent = j.title;
-    $(".company", card).textContent = [j.company, j.location].filter(Boolean).join(" · ");
+    $(".company", card).textContent = j.company || "Empresa no indicada";
+    const loc = $(".location", card);
+    if (j.location) $(".location-text", card).textContent = j.location;
+    else loc.classList.add("is-empty");
     const score = $(".score", card);
-    score.textContent = j.rank_score ?? "—";
-    score.classList.add(j.rank_score >= 75 ? "high" : j.rank_score >= 60 ? "mid" : "low");
+    const hasScore = typeof j.rank_score === "number";
+    $(".score-num", score).textContent = hasScore ? String(j.rank_score) : "—";
+    score.setAttribute("aria-label", hasScore ? `Encaje: ${j.rank_score} de 100` : "Sin puntaje");
+    score.classList.add(!hasScore ? "is-empty" : j.rank_score >= 75 ? "high" : j.rank_score >= 60 ? "mid" : "low");
+    if (hasScore) rings.push([score, Math.max(0, Math.min(100, j.rank_score))]);
     const meta = $(".meta", card);
     if (j.age_days !== null && j.age_days <= data.profile.freshnessDays) meta.append(el("span", { class: "chip new", text: "Nueva" }));
     meta.append(
@@ -124,10 +196,12 @@ function renderJobs(data) {
       el("span", { class: "chip", text: ageLabel(j.age_days) }),
       el("span", { class: "chip", text: j.portal || "portal desconocido" }),
     );
-    if (j.rank_verdict) meta.append(el("span", { class: "chip", text: j.rank_verdict }));
-    $(".salary", card).textContent = salaryLabel(j);
-    fillList($(".reasons", card), j.fit_reasons.length ? j.fit_reasons : j.strengths, "Sin detalle; vuelve a calificar con Buscar ahora.");
-    fillList($(".gaps", card), j.gaps, "Nada importante.");
+    if (j.rank_verdict) meta.append(el("span", { class: "chip verdict", text: j.rank_verdict }));
+    const salary = $(".salary", card);
+    salary.textContent = salaryLabel(j);
+    salary.classList.toggle("unknown", j.salary_mxn_month === null);
+    fillList($(".reasons", card), j.fit_reasons.length ? j.fit_reasons : j.strengths, "Sin detalle; vuelve a calificar con Buscar ahora.", "check");
+    fillList($(".gaps", card), j.gaps, "Nada importante.", "gap");
     const link = $(".link", card);
     if (j.url) link.href = j.url;
     else link.remove();
@@ -142,14 +216,20 @@ function renderJobs(data) {
     }
     $(".skip-btn", card).addEventListener("click", async () => {
       await api("/api/jobs/skip", { key: j.key });
+      toast("Vacante descartada");
       refreshJobs();
     });
     box.append(card);
   }
+  if (!data.ranked.length) box.append(emptyState());
+  // Fill the rings after paint so the conic gradient sweeps in from zero.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    for (const [ring, value] of rings) ring.style.setProperty("--score", String(value));
+  }));
   const f = data.filters;
   $("#jobs-summary").textContent = data.ranked.length
-    ? `${data.ranked.length} vacantes calificadas cumplen tus filtros (máx. ${f.maxDays} días, desde ${mxn.format(f.minSalaryMxn)} al mes), ordenadas por prioridad.`
-    : "Ninguna vacante calificada cumple tus filtros. Prueba aflojarlos o pulsa Buscar ahora.";
+    ? `${data.ranked.length} ${data.ranked.length === 1 ? "vacante cumple" : "vacantes cumplen"} tus filtros (máx. ${f.maxDays} días, desde ${mxn.format(f.minSalaryMxn)} al mes), ordenadas por prioridad.`
+    : "";
 
   const ul = $("#unranked");
   ul.replaceChildren(...data.unranked.map((j) => {
@@ -171,10 +251,17 @@ async function refreshJobs() {
 }
 
 // ---------- runs (SSE progress) ----------
+function setRunStatus(text, kind) {
+  const pill = $("#run-status");
+  pill.textContent = text;
+  pill.classList.toggle("ok", kind === "ok");
+  pill.classList.toggle("err", kind === "err");
+  $("#run-panel").classList.toggle("is-done", kind !== "running");
+}
 function showRunPanel(title) {
   $("#run-panel").hidden = false;
   $("#run-title").textContent = title;
-  $("#run-status").textContent = "en curso";
+  setRunStatus("en curso", "running");
   $("#run-close").hidden = true;
   $("#run-log").replaceChildren();
   $("#search-btn").disabled = true;
@@ -187,7 +274,8 @@ function followRun(id, onEnd) {
     const e = JSON.parse(msg.data);
     if (e.type === "end") {
       source.close();
-      $("#run-status").textContent = e.run.status === "done" ? "terminado" : "con errores";
+      if (e.run.status === "done") setRunStatus("terminado", "ok");
+      else setRunStatus("con errores", "err");
       $("#run-close").hidden = false;
       $("#search-btn").disabled = false;
       onEnd(e.run);
@@ -198,7 +286,7 @@ function followRun(id, onEnd) {
   };
   source.onerror = () => {
     source.close();
-    $("#run-status").textContent = "se perdió la conexión";
+    setRunStatus("se perdió la conexión", "err");
     $("#run-close").hidden = false;
     $("#search-btn").disabled = false;
   };
@@ -210,7 +298,7 @@ function runError(err) {
 function alertInline(text) {
   $("#run-panel").hidden = false;
   $("#run-title").textContent = text;
-  $("#run-status").textContent = "";
+  setRunStatus("", "idle");
   $("#run-close").hidden = false;
 }
 
@@ -247,7 +335,11 @@ function knockoutTable(list) {
   const table = el("table", { class: "table" });
   table.append(el("tr", {}, el("th", { text: "Requisito" }), el("th", { text: "Tú" })));
   const label = { meets: "Cumples", "does not meet": "No cumples", unclear: "No está claro" };
-  for (const k of list) table.append(el("tr", {}, el("td", { text: k.requirement }), el("td", { text: label[k.answer] || k.answer })));
+  const tone = { meets: "ko-yes", "does not meet": "ko-no", unclear: "ko-unclear" };
+  for (const k of list) {
+    const answer = el("span", { class: `status-tag ${tone[k.answer] || ""}`, text: label[k.answer] || k.answer });
+    table.append(el("tr", {}, el("td", { text: k.requirement }), el("td", {}, answer)));
+  }
   return table;
 }
 function docFrame(label, path) {
@@ -266,6 +358,7 @@ async function formFieldsBlock(path) {
       try {
         await navigator.clipboard.writeText(text);
         btn.textContent = "Copiado";
+        toast("Respuestas copiadas");
       } catch {
         btn.textContent = "Selecciona y copia a mano";
       }
@@ -289,12 +382,12 @@ async function openReview(url, result, title) {
     go.addEventListener("click", () => startApply(url, { title, acknowledgeKnockouts: true }));
     const drop = el("button", { type: "button", class: "ghost", text: "Mejor no" });
     drop.addEventListener("click", () => $("#review").close());
-    body.append(el("p", { class: "notice", text: "No cumples al menos un requisito eliminatorio: los ATS suelen rechazar en automático por esto, sin importar el resto del perfil." }), el("div", { class: "actions" }, go, drop));
+    body.append(el("p", { class: "notice warn", text: "No cumples al menos un requisito eliminatorio: los ATS suelen rechazar en automático por esto, sin importar el resto del perfil." }), el("div", { class: "actions" }, go, drop));
     $("#review").showModal();
     return;
   }
   if (result.stage === "error") {
-    body.append(el("p", { class: "notice", text: "No se pudieron generar los documentos. Puedes intentar de nuevo." }));
+    body.append(el("p", { class: "notice warn", text: "No se pudieron generar los documentos. Puedes intentar de nuevo." }));
     $("#review").showModal();
     return;
   }
@@ -331,7 +424,7 @@ async function openReview(url, result, title) {
   const textarea = el("textarea", { placeholder: "¿Qué quieres que cambie? Ej.: resalta más Kubernetes, quita el párrafo de Knoto…", maxlength: "2000" });
   const sendFeedback = el("button", { type: "button", class: "primary", text: "Regenerar con estos cambios" });
   feedbackBox.append(textarea, el("div", { class: "actions" }, sendFeedback));
-  const status = el("p", { class: "muted" });
+  const status = el("p", { class: "status-line" });
 
   approve.addEventListener("click", async () => {
     // Open synchronously inside the click so the browser does not block the tab.
@@ -339,6 +432,7 @@ async function openReview(url, result, title) {
     try {
       await api("/api/applications/approve", { url });
       status.textContent = "Listo: se abrió la vacante y la marqué como enviada. Sube los archivos de arriba en el formulario.";
+      toast("Marcada como enviada");
     } catch (err) {
       status.textContent = err.data?.error === "row_not_found"
         ? "Se abrió la vacante, pero no encontré su fila en borrador en el tracker; márcala con /outcome."
@@ -374,9 +468,13 @@ async function openReview(url, result, title) {
 function rateTable(table, rates, label) {
   table.replaceChildren(el("tr", {}, el("th", { text: label }), el("th", { text: "Enviadas" }), el("th", { text: "Con respuesta" }), el("th", { text: "Tasa" })));
   const entries = Object.entries(rates).sort((a, b) => b[1].sent - a[1].sent);
-  if (!entries.length) table.append(el("tr", {}, el("td", { text: "Todavía no hay aplicaciones enviadas." })));
+  if (!entries.length) table.append(el("tr", {}, el("td", { colspan: "4", class: "muted", text: "Todavía no hay aplicaciones enviadas." })));
   for (const [name, r] of entries) {
-    table.append(el("tr", {}, el("td", { text: name }), el("td", { text: String(r.sent) }), el("td", { text: String(r.responded) }), el("td", { text: `${Math.round(r.rate * 100)}%` })));
+    const pct = Math.round(r.rate * 100);
+    const fill = el("span");
+    fill.style.width = `${pct}%`;
+    const rate = el("div", { class: "rate" }, el("div", { class: "rate-bar" }, fill), el("span", { text: `${pct}%` }));
+    table.append(el("tr", {}, el("td", { text: name }), el("td", { text: String(r.sent) }), el("td", { text: String(r.responded) }), el("td", {}, rate)));
   }
 }
 async function refreshTracking() {
@@ -388,7 +486,7 @@ async function refreshTracking() {
   }
   $("#pipeline").replaceChildren(...Object.entries(data.pipeline)
     .filter(([, n]) => n > 0)
-    .map(([s, n]) => el("div", { class: "stage" }, el("strong", { text: String(n) }), document.createTextNode(STATUS_LABEL[s] || s))));
+    .map(([s, n]) => el("div", { class: `stage s-${s}` }, el("strong", { text: String(n) }), el("span", { text: STATUS_LABEL[s] || s }))));
   if (!$("#pipeline").children.length) $("#pipeline").append(el("p", { class: "muted", text: "Todavía no hay aplicaciones registradas." }));
   rateTable($("#by-channel"), data.byChannel, "Canal");
   rateTable($("#by-portal"), data.byPortal, "Portal");
@@ -396,7 +494,11 @@ async function refreshTracking() {
   rows.replaceChildren(el("tr", {}, ...["Fecha", "Empresa", "Puesto", "Estado", "Canal", "Encaje"].map((h) => el("th", { text: h }))));
   for (const r of [...data.rows].reverse()) {
     const status = (r.status || "").trim().toLowerCase().replace(/\s+/g, "_");
-    rows.append(el("tr", {}, ...[r.date, r.company, r.role, STATUS_LABEL[status] || r.status, r.channel, r.fit_rating].map((v) => el("td", { text: v || "" }))));
+    const tag = el("span", { class: `status-tag s-${status}`, text: STATUS_LABEL[status] || r.status || "" });
+    rows.append(el("tr", {},
+      ...[r.date, r.company, r.role].map((v) => el("td", { text: v || "" })),
+      el("td", {}, tag),
+      ...[r.channel, r.fit_rating].map((v) => el("td", { text: v || "" }))));
   }
 }
 
@@ -411,6 +513,8 @@ async function boot() {
     });
   }
   $("#search-btn").addEventListener("click", startSearch);
+  $("#theme-btn").addEventListener("click", toggleTheme);
+  applyTheme(null);
   $("#run-close").addEventListener("click", () => ($("#run-panel").hidden = true));
   $("#review-close").addEventListener("click", () => $("#review").close());
 
