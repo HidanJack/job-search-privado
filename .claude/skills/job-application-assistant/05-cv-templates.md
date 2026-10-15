@@ -1,5 +1,5 @@
 ---
-framework_version: 1.4.6
+framework_version: 1.4.7
 ---
 
 # CV Templates and Tailoring Guide
@@ -59,7 +59,7 @@ Expected output: `Output written on main_<company>_<role>.pdf (2 pages, ...)`. A
     linkcolor=blue,
     filecolor=magenta,
     urlcolor=blue,
-    pdftitle={[YOUR_NAME] - CV},
+    pdftitle={Luis Catalán Reyes - CV},
     % Keep pdfpagemode=UseNone: this block runs after moderncv's own
     % \AtEndPreamble (moderncv.cls sets pdfpagemode there), so a FullScreen
     % value here would win and open every CV in fullscreen presentation mode.
@@ -69,13 +69,13 @@ Expected output: `Output written on main_<company>_<role>.pdf (2 pages, ...)`. A
 \usepackage{import}
 
 % Personal data
-\name{[FIRST_NAME]}{[LAST_NAME]}
+\name{Luis}{Catalán Reyes}
 % If you have no address to list, DELETE this whole line. \address{}{}{} fails
 % with "There's no line here to end" on every moderncv version.
-\address{[YOUR_ADDRESS]}{}{}
-\phone[mobile]{[YOUR_PHONE]}
-\email{[YOUR_EMAIL]}
-\extrainfo{\href{[YOUR_LINKEDIN_URL]}{LinkedIn}, \href{[YOUR_GITHUB_URL]}{GitHub}}
+\address{Mexico City (CDMX), Mexico}{}{}
+\phone[mobile]{+52 55 6427 2782}
+\email{luis.catalan.r@hotmail.com}
+\extrainfo{\href{https://www.linkedin.com/in/luis-catalán-reyes-032a48329}{LinkedIn}, \href{https://github.com/HidanJack}{GitHub}, \href{https://hidanjack.github.io}{hidanjack.github.io}}
 
 \begin{document}
 \makecvtitle
@@ -137,11 +137,14 @@ When the role sits outside your home domain, **lead with the domain-transfer arg
 **Create 2-3 profile statement templates for your main role types:**
 
 <!-- SETUP: These are populated based on your background -->
-**For [YOUR_PRIMARY_ROLE_TYPE] roles:**
-> [YOUR_PROFILE_STATEMENT_TEMPLATE_1]
+**For Backend Developer / Software Engineer (Python) roles:**
+> Python backend engineer with 3+ years building production data systems for bank reconciliation: ETL over 1M+ records, OCR and PDF reverse engineering, and a graph-based matching engine rewritten in Rust (PyO3). Led a Kubernetes multi-tenant migration and found and fixed a cross-tenant authorization flaw before production. Uses AI agents (Claude Code) with design-first specs, tests and review.
 
-**For [YOUR_SECONDARY_ROLE_TYPE] roles:**
-> [YOUR_PROFILE_STATEMENT_TEMPLATE_2]
+**For Data Engineer roles:**
+> Data engineer focused on messy real-world financial data: ETL pipelines with Pandas/Polars over 1M+ records, OCR and deterministic PDF text extraction (~95% OCR accuracy; 100% OCR-free decoding of obfuscated fonts), end-to-end regression over 211 real bank PDFs, and graph-based reconciliation (NetworkX, Neo4j, Rust/PyO3).
+
+**For AI Engineer / Python Developer (AI) roles:**
+> Python engineer who builds LLM features with reliability controls: on-device LLM app with guardrails (code verifies sensitive data, the LLM only drafts) and a 20-case eval harness on real ground truth; designs multi-agent workflows on Claude Code (7 own agents) with specs, TDD and adversarial review; production experience in document AI (OCR, YOLOv10).
 
 Statements labeled *[Used for: <company>_<role>]* were extracted from archived application drafts by `/setup` Path A. They are **phrasing references, never fact sources**: when drafting from one, every factual claim still comes from `01-candidate-profile.md` - a past tailored draft does not vouch for its own accuracy.
 

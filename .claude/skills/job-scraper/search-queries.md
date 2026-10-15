@@ -1,6 +1,6 @@
 # Search Queries for Job Scraper
 
-<!-- SETUP: Customize these queries based on your skills, target roles, and location -->
+<!-- Personalized 2026-10-15 for Luis Catalán (Python backend / data / AI engineer, CDMX, remote or hybrid). Target titles: Python Developer, Backend Developer, Data Engineer, Software Engineer, Desarrollador/a de software, Analista/Programador Python. -->
 
 ## Installed portal CLIs (primary for `/scrape`)
 
@@ -43,6 +43,15 @@ hn-hiring-search search -q rust --latam
 getonbrd-search  search -q rust --latam
 ```
 
+**AI engineering / LLM (Python)**
+```
+getonbrd-search  search -q "ia" --latam --jobage 4
+getonbrd-search  search -q "llm" --latam --jobage 4
+himalayas-search search -q "ai engineer python" --latam --jobage 4
+remoteok-search  search --tags ai,python --latam --jobage 4
+hn-hiring-search search -q "llm python" --latam
+```
+
 **Remote LatAm / Mexico sweep (any backend role)**
 ```
 getonbrd-search  search --category programming --country MX --jobage 4
@@ -57,14 +66,15 @@ Each line is `bun run .agents/skills/<portal>/cli/src/cli.ts <args>`.
 
 ## Search Sites
 
-Primary (your market's job boards - scaffold one with `/add-portal`):
-- **[YOUR_JOB_BOARD]** - your market's largest general job board
-- **linkedin.com/jobs** - LinkedIn job listings (filter: [YOUR_COUNTRY] / [YOUR_CITY]); also covered by `linkedin-search` CLI
-- **[YOUR_INDUSTRY_JOB_BOARD]** - a niche/industry board for your field (optional)
-- **[YOUR_ADDITIONAL_JOB_BOARD]** - another major board for your market (optional)
+Primary (Mexico; no CLI - WebSearch `site:` fallback only, never automated scraping):
+- **occ.com.mx** - largest general job board in Mexico (ToS forbids mass collection: WebSearch only, low volume)
+- **mx.computrabajo.com** - large Mexican board (anti-bot; WebSearch only)
+- **mx.indeed.com** - prefer the official Indeed connector when available; otherwise WebSearch
+- **linkedin.com/jobs** - filter: Mexico / Ciudad de México; also covered by `linkedin-search` CLI
+- **getonbrd.com** - LatAm tech board (CLI installed)
 
 Secondary (company career pages via Google):
-- Direct Google searches with `site:` filters for known target companies
+- Direct Google searches with `site:` filters for known target companies; Greenhouse/Lever/Ashby boards (`site:boards.greenhouse.io`, `site:jobs.lever.co`, `site:jobs.ashbyhq.com`) with "Mexico" or "LATAM"
 
 ## Query Categories
 
@@ -72,34 +82,41 @@ Queries are grouped by priority. Write **each category in every language from yo
 
 **Organize by function, not job title.** The same underlying work carries different titles across companies and markets (a "Data Scientist" role at one employer may be posted as "Insights Analyst" or "Data Consultant" at another). Name each priority category after the function it covers, and list several plausible job titles as query variants within that category rather than betting an entire priority tier on one exact title string.
 
-### Priority 1: [YOUR_PRIMARY_ROLE_TYPE]
+### Priority 1: Python backend engineering
 
 These match your strongest and most desired career direction.
 
 ```
-site:[YOUR_JOB_BOARD] "[YOUR_PRIMARY_JOB_TITLE_1]" [YOUR_CITY]
-site:[YOUR_JOB_BOARD] "[YOUR_PRIMARY_JOB_TITLE_2]" [YOUR_CITY]
-site:[YOUR_JOB_BOARD] "[YOUR_KEY_SKILL]" [YOUR_CITY]
-site:linkedin.com/jobs "[YOUR_PRIMARY_JOB_TITLE_1]" [YOUR_COUNTRY]
+site:occ.com.mx "desarrollador python" "Ciudad de México"
+site:occ.com.mx "backend developer" python remoto
+site:mx.computrabajo.com "desarrollador python"
+site:linkedin.com/jobs "Python Developer" Mexico remote
+site:linkedin.com/jobs "Backend Engineer" Python LATAM
+site:boards.greenhouse.io "Python" "Mexico"
+site:jobs.lever.co "Backend" "LATAM"
 ```
 
-### Priority 2: [YOUR_DOMAIN_EXPERTISE]
+### Priority 2: Data engineering and financial-data automation
 
-These match your domain expertise.
-
-```
-site:[YOUR_JOB_BOARD] [YOUR_DOMAIN_KEYWORD_1] [YOUR_CITY] OR [YOUR_REGION]
-site:[YOUR_JOB_BOARD] [YOUR_DOMAIN_KEYWORD_2] [YOUR_COUNTRY]
-site:linkedin.com/jobs [YOUR_DOMAIN_KEYWORD_1] [YOUR_CITY] [YOUR_COUNTRY]
-```
-
-### Priority 3: [YOUR_ADJACENT_ROLE_TYPE]
-
-Adjacent roles you could pivot into.
+These match your domain expertise (ETL, reconciliation, fintech, document AI/OCR).
 
 ```
-site:[YOUR_JOB_BOARD] "[YOUR_ADJACENT_TITLE_1]" [YOUR_KEY_SKILL] [YOUR_CITY]
-site:[YOUR_JOB_BOARD] "[YOUR_ADJACENT_TITLE_2]" [YOUR_KEY_SKILL] [YOUR_CITY]
+site:occ.com.mx "data engineer" OR "ingeniero de datos" "Ciudad de México"
+site:mx.computrabajo.com "ingeniero de datos" python
+site:linkedin.com/jobs "Data Engineer" Python Mexico
+site:linkedin.com/jobs fintech conciliación python Mexico
+site:linkedin.com/jobs "OCR" OR "document AI" python remote LATAM
+```
+
+### Priority 3: AI engineering (Python + LLMs / agents)
+
+Adjacent roles you could pivot into (AI engineer, Python developer IA).
+
+```
+site:linkedin.com/jobs "AI Engineer" Python Mexico
+site:occ.com.mx "python" "inteligencia artificial" "Ciudad de México"
+site:linkedin.com/jobs "agentic" OR "LLM" Python remote LATAM
+site:jobs.ashbyhq.com "AI Engineer" "LATAM"
 ```
 
 ### Priority 4: Broader Technical / Consulting
@@ -107,19 +124,20 @@ site:[YOUR_JOB_BOARD] "[YOUR_ADJACENT_TITLE_2]" [YOUR_KEY_SKILL] [YOUR_CITY]
 Wider net for general technical roles.
 
 ```
-site:[YOUR_JOB_BOARD] [YOUR_KEY_SKILL] developer [YOUR_CITY]
-site:linkedin.com/jobs "[YOUR_KEY_SKILL] developer" [YOUR_CITY]
-site:[YOUR_JOB_BOARD] "technical consultant" [YOUR_DOMAIN] [YOUR_CITY]
+site:occ.com.mx "programador python" "Ciudad de México"
+site:mx.computrabajo.com "analista programador" python
+site:linkedin.com/jobs "Software Engineer" Python Mexico remote
+site:occ.com.mx "consultor" python datos
 ```
 
 ## Location Filter
 
-When evaluating results, verify the job location is within reasonable commute distance from your home. Define acceptable areas:
-- [YOUR_CITY] and surrounding areas
-- [ACCEPTABLE_AREA_1]
-- [ACCEPTABLE_AREA_2]
-- [BORDERLINE_AREA] (borderline - ~X min by transit)
-- [TOO_FAR_AREA] (too far)
+Remote roles open to Mexico/LATAM are always acceptable. For hybrid/on-site roles, define acceptable areas:
+- Ciudad de México (any alcaldía) - acceptable
+- Remote (Mexico, LATAM, "Americas" time zones, worldwide) - ideal
+- Zona metropolitana del Valle de México (Edomex next to CDMX) - acceptable for hybrid
+- Other Mexican cities, hybrid or on-site - too far (relocation is a deal-breaker)
+- Remote restricted to US/EU residents only - not eligible
 
 ## Language Filter
 

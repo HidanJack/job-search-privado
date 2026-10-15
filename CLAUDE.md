@@ -1,10 +1,10 @@
-# Job Application Assistant for [YOUR_NAME]
+# Job Application Assistant for Luis Catalán Reyes
 
 <!-- SETUP: This file is populated by running /setup -->
 <!-- After running /setup, all [PLACEHOLDER] tokens will be replaced with your actual information -->
 
 ## Role
-This repo is a job application workspace. Claude acts as a career advisor and application assistant for [YOUR_NAME], helping with:
+This repo is a job application workspace. Claude acts as a career advisor and application assistant for Luis Catalán Reyes, helping with:
 1. **Job fit evaluation** - Assess job postings against your profile (skills, experience, behavioral traits)
 2. **CV tailoring** - Adapt existing CV templates (LaTeX/moderncv) to target specific roles
 3. **Cover letter writing** - Draft targeted cover letters using existing templates (LaTeX)
@@ -13,82 +13,85 @@ This repo is a job application workspace. Claude acts as a career advisor and ap
 
 ## Candidate Profile
 
-<!-- This section is auto-populated by /setup. You can also fill it in manually. -->
+> **CONFIDENTIALITY (hard rule):** never name Intelitax's end clients in any CV, cover letter, form answer or outreach message - describe them generically ("a manufacturing client", "a media-sector client"). Full rule in `01-candidate-profile.md`.
 
 ### Identity
-- **Name:** [YOUR_NAME]
-- **Location:** [YOUR_CITY], [YOUR_COUNTRY] ([YOUR_COMMUTE_CONSTRAINTS])
+- **Name:** Luis Catalán Reyes
+- **Location:** Ciudad de México (CDMX), Mexico (prefers remote or hybrid; on-site in CDMX acceptable; no relocation)
 - **Languages:**
   | Language | Level |
   |----------|-------|
-  | [LANGUAGE] | [LEVEL] |
+  | Spanish | Native |
+  | English | B1 overall - reading/writing ~B2, speaking ~A2 (confirmed 2026-10-15). Written English documents fine; spoken-English requirements are FLAGGED as a gap, never auto-rejected |
   <!-- Every language you work in professionally, with your level (CEFR, "native," "professional
   working proficiency," whatever your CV/LinkedIn use - no need to force it into one scale). An
   undeclared language is a hard deal-breaker if a posting requires it; a declared language at a
   lower level than a posting wants is flagged for your own judgment, not auto-rejected. See
   04-job-evaluation.md's Language Gate. -->
-- **CV language:** [YOUR_CV_LANGUAGE] <!-- `match posting` = each CV in the posting's language when it is declared above (Spanish posting -> Spanish CV, international remote -> English); or one fixed language for every CV. /setup asks -->
+- **CV language:** match posting <!-- `match posting` = each CV in the posting's language when it is declared above (Spanish posting -> Spanish CV, international remote -> English); or one fixed language for every CV. /setup asks -->
 - **Freshness window:** 4 days <!-- /rank gives postings at most this old a priority bonus (10-ats-and-screening.md, "Apply early") -->
 - **FX to MXN:** USD=18.5 <!-- rates /rank uses for salary_mxn_month; add more as CODE=rate, comma-separated -->
-- **Salary floor:** [YOUR_SALARY_FLOOR] <!-- e.g. 30000 MXN/month; used for the application-form salary field, never printed in a CV or letter -->
+- **Salary floor:** 30000 MXN/month <!-- e.g. 30000 MXN/month; used for the application-form salary field, never printed in a CV or letter -->
+- **Work authorization:** Mexican citizen based in CDMX; no US work authorization assumed - international roles via remote contractor/EOR. UNCONFIRMED - ask Luis before answering a visa/authorization knockout.
+- **Never in documents:** photo, age, marital status, CURP, expected salary. Cédula Profesional No. 11454578 only when asked.
 
-- **Status:** [YOUR_EMPLOYMENT_STATUS]
-- **LinkedIn headline:** "[YOUR_LINKEDIN_HEADLINE]"
+- **Status:** Employed - Software Developer at Intelitax (Jan 2025 - present); actively searching since ~Aug 2026
+- **LinkedIn headline:** "Python Developer · Data Engineer · AI-Augmented Engineering"
 
 ### Education
-<!-- List your degrees, most recent first -->
-- **[DEGREE_LEVEL] in [FIELD]** ([YEAR_START]-[YEAR_END]) - [INSTITUTION]
-  - Thesis: "[THESIS_TITLE]"
-  - Topics: [KEY_TOPICS]
+- **Licenciatura en Ciencias de la Informática (not completed)** - UPIICSA, Instituto Politécnico Nacional (dates not in sources)
+- **Bachillerato Técnico en Informática** - CONALEP Estado de México 236 (dates not in sources)
 
 ### Professional Experience
-<!-- List your roles, most recent first -->
-- **[JOB_TITLE]** ([START_DATE] - [END_DATE]) - **[COMPANY]** ([LOCATION])
-  - [KEY_RESPONSIBILITY_1]
-  - [KEY_RESPONSIBILITY_2]
-  - [KEY_ACHIEVEMENT]
+- **Software Developer** (Jan 2025 - Present) - **Intelitax / Soluciones Analíticas para Empresas S.A. de C.V.** (Ciudad de México)
+  - ETL pipelines for financial data from CSV/Excel/TXT, 1M+ records; OCR from bank PDFs (~95% accuracy)
+  - In-house library decoding two kinds of obfuscated PDF fonts (Type1/CFF, Type3) with 100% OCR-free extraction
+  - Graph-based reconciliation engine rewritten in Rust (PyO3): real case 82 -> 2 unmatched movements; led Kubernetes/EKS multi-tenant migration, found and fixed a cross-tenant authorization vulnerability and a race condition before production
+- **Information Analyst** (Aug 2023 - Aug 2024) - **Grupo Gabssa**
+  - Automated business data analysis, consolidation and reporting with Python
+- **Technology Analyst** (Aug 2022 - Aug 2023) - **Ingeniería Integral Consultores México**
+  - Python analysis scripts for technology requirements; IT infrastructure support
 
 ### Technical Skills
-- **Primary:** [YOUR_PRIMARY_SKILLS]
-- **Secondary:** [YOUR_SECONDARY_SKILLS]
-- **Domain:** [YOUR_DOMAIN_EXPERTISE]
-- **Software:** [YOUR_TOOLS_AND_SOFTWARE]
+- **Primary:** Python (Pandas, Polars, FastAPI, Flask, pytest), ETL, OCR/PDF processing, graph matching (NetworkX, Neo4j), Rust via PyO3
+- **Secondary:** TypeScript/React/React Native, Docker/Podman, Kubernetes (EKS), nginx, AWS S3, Kafka, Azure, SQL, on-device LLMs (llama.rn, Ollama)
+- **Domain:** Mexican bank reconciliation and accounting automation, financial document AI, multi-tenant platform security
+- **Software:** Git, GitHub Actions, Claude Code (AI agents, MCP, evals, guardrails), draw.io, Selenium
 
 ### Certifications
-<!-- List relevant certifications with dates -->
-- **[CERTIFICATION_NAME]** - [HOURS]h - completed [DATE]
+- **Python Profesional**; **Backend con Microservicios**; **Ruta y Fundamentos de Arquitectura de Software**
+- **DevOps: Bases y Conceptos**; **Git**; **GitHub Actions**; **Replicación de Bases de Datos**
+- **Fundamentos de IA**; **Desarrollo con IA: de 0 a Producción**
+- **Fundamentos de Azure**; **Despliegue Web en Azure**; **Cisco CCNA (Intro, Routing & Switching, Scaling Networks)**
+- **Microsoft Office Specialist** (Excel, Word, PowerPoint); **Python - Santander Open Academy**
 
 ### Publications
-<!-- List peer-reviewed publications, if any -->
-- [AUTHOR_LIST] ([YEAR]). [TITLE]. [JOURNAL].
+- None
 
 ### Awards
-<!-- List relevant awards, hackathons, competitions -->
-- [AWARD_NAME] - [EVENT] ([YEAR])
+- None stated
 
 ### Behavioral Profile
-<!-- Your behavioral assessment results (PI, DISC, Myers-Briggs, or self-assessment) -->
-- **[TRAIT_1]** - [DESCRIPTION]
-- **[TRAIT_2]** - [DESCRIPTION]
-- **Strengths:** [YOUR_STRENGTHS]
-- **Growth areas:** [YOUR_GROWTH_AREAS]
-- **Thrives in:** [YOUR_IDEAL_ENVIRONMENT]
+- **Verify-first** - audits his own work; found security and concurrency defects before production (inferred from evidence)
+- **Design-first** - diagrams and phased plans with tests before code (inferred from evidence)
+- **Strengths:** rigor, reverse engineering, end-to-end ownership, measurable results
+- **Growth areas:** spoken English (speaking ~A2); degree not completed
+- **Thrives in:** hard real-data problems with room to design the architecture; remote/hybrid
+- No formal assessment on file - see `02-behavioral-profile.md` (PENDING items)
 
 ### What Excites You
-<!-- What motivates you professionally -->
-- [PASSION_1]
-- [PASSION_2]
+- Building something that truly solves a problem for someone (portfolio statement)
+- Hard technical problems: reverse engineering, performance (Rust), reliable AI systems
+- Continuous learning - "never finishing learning" is what he loves most about the field
 
 ### Target Sectors
-<!-- Industries and companies you're targeting -->
-- [SECTOR_1]: [EXAMPLE_COMPANIES]
-- [SECTOR_2]: [EXAMPLE_COMPANIES]
+- Fintech / accounting & tax automation: companies building reconciliation, invoicing (CFDI) or financial data products
+- Data/AI product companies and remote-first tech (LatAm and international) hiring Python backend, data or AI engineers
 
 ### Deal-breakers
-<!-- Hard constraints on job search. Language requirements are handled separately and
-automatically from your Languages table above - don't duplicate them here. -->
-- [DEALBREAKER_1]
-- [DEALBREAKER_2]
+- Relocation out of CDMX
+- Salary below 30,000 MXN/month
+- PENDING - ask Luis for others
 
 ## Repo Structure
 - `cv/` - LaTeX CV variants (moderncv template, banking style)

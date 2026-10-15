@@ -1,8 +1,8 @@
-%% Example CV - [YOUR_NAME]
+%% Master CV - Luis Catalán Reyes
 %% Comprehensive overview of all competencies, experience, and achievements.
 %% Use as a master reference when tailoring role-specific CVs.
+%% Never name Intelitax end clients in any tailored version.
 %%
-%% SETUP: Run /setup to populate this with your actual information.
 %% Compile with: lualatex main_example.tex
 %% (pdflatex often fails on modern MiKTeX with fontawesome5 font-expansion errors.)
 
@@ -40,7 +40,7 @@
     linkcolor=blue,
     filecolor=magenta,
     urlcolor=blue,
-    pdftitle={[YOUR_NAME] - CV},
+    pdftitle={Luis Catalán Reyes - CV},
     % Keep pdfpagemode=UseNone: this block runs after moderncv's own
     % \AtEndPreamble (moderncv.cls sets pdfpagemode there), so a FullScreen
     % value here would win and open every CV in fullscreen presentation mode.
@@ -48,15 +48,14 @@
 }}
 \usepackage[scale=0.80]{geometry}
 \usepackage{import}
+\usepackage{needspace}
 
 % personal data
-\name{[First]}{[Last]}
-% If you have no address to list, DELETE this whole line. \address{}{}{} fails
-% with "There's no line here to end" on every moderncv version.
-\address{[Your Address, City, Country]}{}{}
-\phone[mobile]{[+XX XXXXXXXXXX]}
-\email{[your.email@example.com]}
-\extrainfo{\href{[https://linkedin.com/in/your-profile]}{LinkedIn}, \href{[https://github.com/your-username]}{GitHub}}
+\name{Luis}{Catalán Reyes}
+\address{Mexico City (CDMX), Mexico}{}{}
+\phone[mobile]{+52 55 6427 2782}
+\email{luis.catalan.r@hotmail.com}
+\extrainfo{\href{https://www.linkedin.com/in/luis-catalán-reyes-032a48329}{LinkedIn}, \href{https://github.com/HidanJack}{GitHub}, \href{https://hidanjack.github.io}{hidanjack.github.io}}
 
 \begin{document}
 
@@ -67,7 +66,7 @@
 % ============================================================
 
 \vspace{6pt}
-\small{[Write a 3-5 line profile statement tailored to the role you're applying for. Focus on what makes you uniquely qualified. Example: "Data scientist with a PhD in [field] and X years of industry experience. Combines deep domain expertise in [domain] with strong applied machine learning and Python development skills. Experienced in developing end-to-end ML pipelines, from data ingestion to stakeholder-facing dashboards."]}
+\small{Python backend and data engineer with 3+ years of experience building production systems for bank reconciliation and financial document processing: ETL over more than 1 million records, OCR and reverse engineering of obfuscated PDF fonts, and a graph-based matching engine rewritten in Rust (PyO3). Led a multi-tenant Kubernetes migration and found and fixed a cross-tenant authorization vulnerability before production. Uses AI agents (Claude Code) to accelerate implementation while keeping design, code review and testing under his own responsibility.}
 
 % ============================================================
 %     CORE COMPETENCIES
@@ -77,15 +76,15 @@
 \vspace{1pt}
 \begin{itemize}
 
-\item \textbf{[Skill Category 1]}: [Specific skills, frameworks, tools. Be concrete.]
+\item \textbf{Backend \& Data}: Python (advanced), Pandas, Polars, NumPy, FastAPI, Flask, REST microservices, SQL, ETL pipelines configurable via JSON/YAML, Kafka, AWS S3.
 
-\item \textbf{[Skill Category 2]}: [Specific skills, frameworks, tools.]
+\item \textbf{Document AI \& OCR}: Tesseract, OpenCV, YOLOv10 layout detection, PyMuPDF, docTR, binary parsing of embedded CFF/Type1/Type3 fonts.
 
-\item \textbf{[Skill Category 3]}: [Specific skills, frameworks, tools.]
+\item \textbf{Graphs \& Performance}: NetworkX, Neo4j/Cypher, RapidFuzz, scipy optimization, Rust extensions via PyO3 with rayon parallelism.
 
-\item \textbf{[Skill Category 4]}: [Domain expertise, methods, approaches.]
+\item \textbf{Platform \& Quality}: Docker/Podman, Kubernetes (EKS), nginx, multi-tenant auth (JWT), GitHub Actions, pytest, golden tests, TDD.
 
-\item \textbf{[Skill Category 5]}: [Tools, platforms, software.]
+\item \textbf{AI-Augmented Engineering}: Claude Code, multi-agent workflows, MCP (Model Context Protocol), LLM evals, guardrails, on-device LLMs (llama.rn, Ollama).
 
 \end{itemize}
 
@@ -98,31 +97,67 @@
 \begin{itemize}
 
 % --- Most Recent Role ---
-\item{\cventry{[YYYY-Present]}{[Job Title]}{[Company]}{[City, Country]}{}{\vspace{1pt}
+\item{\cventry{Jan 2025 - Present}{Software Developer}{Intelitax / Soluciones Analíticas para Empresas}{Mexico City, Mexico}{}{\vspace{1pt}
 \begin{itemize}
-    \item {[Achievement or responsibility 1 - be specific, use numbers where possible]}
-    \item {[Achievement or responsibility 2]}
-    \item {[Achievement or responsibility 3]}
-    \item {[Achievement or responsibility 4]}
+    \item {Built ETL pipelines that clean, normalize and consolidate financial data from CSV, Excel and TXT sources, processing more than 1 million records.}
+    \item {Implemented OCR extraction from Mexican bank-statement PDFs (Tesseract, OpenCV, YOLOv10) with about 95\% accuracy, and validated the full pipeline with a regression run over 211 real PDFs from 11 banks.}
+    \item {Designed an in-house reverse-engineering library that decodes two kinds of obfuscated embedded PDF fonts (custom binary CFF parser for Type1; font fingerprinting plus glyph-shape matching for Type3), extracting text 100\% without OCR behind one unified API.}
+    \item {Built a multi-criteria graph-based reconciliation engine (NetworkX, Neo4j) and rewrote its core in Rust (PyO3, rayon); on a real client case, unmatched movements dropped from 82 to 2. Diagnosed and fixed 6 logic bugs introduced while porting.}
+    \item {Redesigned the matcher with architecture diagrams as the source of truth, a phased reversible migration behind feature flags, and a 3-level golden-test harness built from zero.}
+    \item {Led the migration to a multi-tenant platform on Kubernetes/EKS integrated with a third-party auth service (nginx auth\_request, JWT); in self-initiated audits found and fixed a cross-tenant authorization vulnerability and a race condition before production.}
+    \item {Integrated AI agents (Claude Code) into development with engineering controls: design-first diagrams, specifications, TDD and adversarial review; built 7 own agents for requirements, architecture, feasibility checks on real data and synthetic-user usability tests.}
 \end{itemize}}}
 
 \vspace{3pt}
 
 % --- Previous Role ---
-\item{\cventry{[YYYY-YYYY]}{[Job Title]}{[Company]}{[City, Country]}{}{\vspace{1pt}
+\needspace{5\baselineskip}
+\item{\cventry{Aug 2023 - Aug 2024}{Information Analyst}{Grupo Gabssa}{Mexico}{}{\vspace{1pt}
 \begin{itemize}
-    \item {[Achievement or responsibility 1]}
-    \item {[Achievement or responsibility 2]}
-    \item {[Achievement or responsibility 3]}
+    \item {Automated analysis, consolidation and reporting of business data with Python scripts, reducing manual processing work.}
 \end{itemize}}}
 
 \vspace{3pt}
 
 % --- Earlier Role ---
-\item{\cventry{[YYYY-YYYY]}{[Job Title]}{[Company]}{[City, Country]}{}{\vspace{1pt}
+\needspace{5\baselineskip}
+\item{\cventry{Aug 2022 - Aug 2023}{Technology Analyst}{Ingeniería Integral Consultores México}{Mexico}{}{\vspace{1pt}
 \begin{itemize}
-    \item {[Achievement or responsibility 1]}
-    \item {[Achievement or responsibility 2]}
+    \item {Developed Python analysis scripts for technology requirements and supported IT infrastructure.}
+\end{itemize}}}
+
+\end{itemize}
+
+% ============================================================
+%     INDEPENDENT PROJECTS
+% ============================================================
+
+\section{Independent Projects}
+\vspace{1pt}
+\begin{itemize}
+
+\needspace{5\baselineskip}
+\item{\cventry{}{Python, React Native, TypeScript, llama.rn, SQLite}{Knoto - 100\% on-device AI assistant}{Personal project}{}{\vspace{1pt}
+\begin{itemize}
+    \item {Personal assistant that connects life documents in a knowledge graph and answers questions with a local LLM running entirely on the phone, without cloud services.}
+    \item {Guardrails against hallucination: deterministic code computes and verifies sensitive data (IDs, ages, kinship) and the LLM only drafts the answer; 20-case evaluation harness with ground truth from real documents; 22 test suites.}
+    \item {Migrated the architecture from a server (FastAPI) to fully on-device; an A/B test of quantized model builds found 8/8 vs 3/4 correct answers on relational questions.}
+\end{itemize}}}
+
+\vspace{3pt}
+
+\needspace{5\baselineskip}
+\item{\cventry{}{Python, FastAPI, WebSockets, React Native}{GG (Git Guardian) - real-time Git notifications}{Personal project}{}{\vspace{1pt}
+\begin{itemize}
+    \item {Three-component system built in 4 days (local agent, async backend, mobile app) that watches Git repositories and notifies unbacked changes in real time, with heuristic commit-message suggestions and dual authentication (JWT for users, hashed API keys for devices).}
+\end{itemize}}}
+
+\vspace{3pt}
+
+\needspace{5\baselineskip}
+\item{\cventry{2026}{Python, scipy, RapidFuzz}{CFDI reconciliation with optimal assignment}{}{}{\vspace{1pt}
+\begin{itemize}
+    \item {Hexagonal architecture (domain, application, infrastructure) that reconciles payments against CFDI invoices as a minimum-cost assignment problem (Hungarian algorithm), with tests per layer and end to end.}
 \end{itemize}}}
 
 \end{itemize}
@@ -135,16 +170,23 @@
 \vspace{1pt}
 \begin{itemize}
 
-\item{\cventry{[YYYY-YYYY]}{[Degree] in [Field]}{[Institution]}{[City, Country]}{}{\vspace{1pt}
-Thesis: ``[Thesis Title].'' [Brief description of research focus.]
-}}
+\item{\cventry{}{Licenciatura in Informatics Sciences (not completed)}{UPIICSA - Instituto Politécnico Nacional}{Mexico City, Mexico}{}{}}
 
 \vspace{3pt}
 
-\item{\cventry{[YYYY-YYYY]}{[Degree] in [Field]}{[Institution]}{[City, Country]}{}{\vspace{1pt}
-[Brief description or key topics.]
-}}
+\item{\cventry{}{Technical High School Diploma in Informatics}{CONALEP Estado de México 236}{Mexico}{}{}}
 
+\end{itemize}
+
+% ============================================================
+%     CERTIFICATIONS
+% ============================================================
+
+\section{Certifications}
+\vspace{1pt}
+\begin{itemize}
+\item {Professional Python; Backend with Microservices; Software Architecture (fundamentals and path); AI Fundamentals; AI Development from Zero to Production.}
+\item {DevOps Fundamentals; Git; GitHub Actions; Database Replication; Azure Fundamentals; Web Deployment on Azure; Cisco CCNA (Introduction to Networks, Routing and Switching, Scaling Networks).}
 \end{itemize}
 
 % ============================================================
@@ -154,27 +196,7 @@ Thesis: ``[Thesis Title].'' [Brief description of research focus.]
 \section{Languages}
 \vspace{1pt}
 \begin{itemize}
-\item {[Language 1] (native), [Language 2] (fluent), [Language 3] (intermediate).}
-\end{itemize}
-
-% ============================================================
-%     PUBLICATIONS (optional)
-% ============================================================
-
-\section{Publications}
-\vspace{1pt}
-\begin{itemize}
-\item {[Author(s)] ([Year]). [Title]. [Journal/Conference]. \href{[DOI_URL]}{DOI link}}
-\end{itemize}
-
-% ============================================================
-%     HONORS AND AWARDS (optional)
-% ============================================================
-
-\section{Honors and Awards}
-\vspace{1pt}
-\begin{itemize}
-\item{\textbf{[Award Name]} -- [Event/Organization] ([Year]).}
+\item {Spanish (native), English (intermediate - strong reading and writing).}
 \end{itemize}
 
 % ============================================================

@@ -1,5 +1,5 @@
 ---
-framework_version: 1.2.6
+framework_version: 1.2.7
 ---
 
 # Job Evaluation Framework
@@ -46,6 +46,11 @@ Judge the level comparison the same way you judge everything else in this framew
 
 **Worked example:** a candidate whose Languages table lists Spanish (Native) and English (B1/B2). A posting requiring "fluent Russian" → **FAIL**, Russian isn't declared at all. A posting requiring "fluent English" → **FLAG**, English is declared but "fluent" plausibly exceeds B1/B2 — score and draft the application, but tell the candidate this posting's bar may be a stretch and let them decide. A posting requiring "conversational English" or unspecified English → **PASS**, B1/B2 clears a "conversational" bar cleanly.
 
+**Candidate-specific rule (Luis, confirmed 2026-10-15):** English is B1 overall - reading/writing ~B2, speaking ~A2. Split English requirements by channel:
+- Postings that require **fluent or conversational spoken English**, English-language interviews, client-facing calls in English, or daily stand-ups with English-speaking teams → **FLAG, never FAIL**. Record `language_gate: FLAG` with a `language_note` quoting the requirement, and add **"spoken English"** as an explicit item in `gaps` (and mention it in `fit_reasons` context when relevant) so it is visible in `/rank` output and the UI.
+- Postings that only need **written/reading English** (documentation, code review, async communication, English CV) → **PASS**.
+- Writing his CV and cover letter in English for international postings is fine - the gap is spoken, not written.
+
 ## Scoring Dimensions
 
 Evaluate each job posting against these five dimensions:
@@ -60,9 +65,9 @@ How well do the required/preferred skills align with the candidate's capabilitie
 | 40-59 | Partial match, significant upskilling needed |
 | 0-39 | Fundamental mismatch |
 
-**Strong match areas:** [YOUR_PRIMARY_SKILLS]
-**Moderate match areas:** [YOUR_SECONDARY_SKILLS]
-**Weak match areas:** [SKILLS_YOU_LACK]
+**Strong match areas:** Python backend and data pipelines (ETL with Pandas/Polars, FastAPI/Flask, REST microservices), OCR and PDF/document processing (Tesseract, OpenCV, YOLOv10, PyMuPDF, binary font parsing), graph-based matching/reconciliation (NetworkX, Neo4j), Python+Rust via PyO3, Docker/Kubernetes deployment, testing discipline (pytest, golden tests, TDD), AI-augmented engineering with Claude Code (agents, evals, guardrails, MCP)
+**Moderate match areas:** TypeScript/React and React Native, AWS (S3/EKS), Azure, Kafka, on-device LLMs (llama.rn, Ollama), embeddings/semantic search, computer vision (InsightFace/ONNX), SQL databases
+**Weak match areas:** Go, Java, Scala, Spark/Databricks, Airflow/dbt at scale, Terraform, formal cloud certifications (AWS/GCP), data warehouses (Snowflake/BigQuery/Redshift), large-team leadership, spoken English (B1, speaking ~A2)
 
 ### 2. Experience Match (0-100)
 Does work history align with what they're looking for? Match on the function and nature of the work performed, not the literal job title - a "Data Consultant" and a "Data Scientist" role can be functionally identical.
@@ -74,9 +79,9 @@ Does work history align with what they're looking for? Match on the function and
 | 40-59 | Adjacent experience, would need to make the case |
 | 0-39 | Unrelated experience |
 
-**Strong:** [YOUR_DIRECT_EXPERIENCE_DOMAINS]
-**Moderate:** [YOUR_ADJACENT_EXPERIENCE]
-**Entry-level:** [ROLES_WITH_LIMITED_EXPERIENCE]
+**Strong:** Python backend/data engineering in fintech/accounting automation (bank reconciliation, financial document processing, ETL over 1M+ records), ~3.5 years total Python work experience (Aug 2022 - present), document AI/OCR in production
+**Moderate:** Platform/infra work (Kubernetes migration, multi-tenant auth), AI/LLM application engineering (on-device LLM app, evals), full-stack with React/React Native
+**Entry-level:** ML research / model training roles, dedicated DevOps/SRE roles, people-management or staff/principal roles
 
 ### 3. Behavioral/Culture Fit (0-100)
 Does the role and company culture match the behavioral profile?
@@ -107,19 +112,19 @@ Does this role advance career goals and contain tasks that energize?
 | 0-39 | Dead end or backwards step |
 
 **Career goals:**
-- [YOUR_CAREER_GOAL_1]
-- [YOUR_CAREER_GOAL_2]
-- [YOUR_CAREER_GOAL_3]
+- Backend Developer / Data Engineer / Software Engineer role (Python-first) building systems that solve a concrete problem for someone - his stated motivation is real impact, not the trendy framework
+- Grow toward architecture decisions (design-first, diagrams, phased migrations) and high-performance work (Rust/PyO3)
+- Roles that value AI-augmented engineering (agents, evals, guardrails) as a real practice
 
 **Motivation filter:** Evaluate not just whether you *can* do the tasks, but whether the tasks will *energize* you. Consider:
-- Tasks that energize: [YOUR_ENERGIZING_TASKS]
-- Tasks that drain: [YOUR_DRAINING_TASKS]
+- Tasks that energize (evidence: his own projects): hard data/document problems, reverse engineering, designing architecture before code, building end-to-end systems, measurable results, continuous learning
+- Tasks that drain: not stated in sources - ask Luis; until then do not assume
 - Non-task factors: leadership style, department culture, company values, degree of autonomy
 
 **Life situation alignment:** Consider personal constraints:
-- **Security**: [YOUR_FINANCIAL_SITUATION_CONTEXT]
-- **Flexibility**: [YOUR_SCHEDULE_CONSTRAINTS]
-- **Professional development**: [YOUR_GROWTH_PRIORITIES]
+- **Security**: has been searching ~2 months (since ~Aug 2026) with no interviews; currently employed. Salary floor 30,000 MXN/month.
+- **Flexibility**: prefers remote or hybrid; on-site in CDMX acceptable
+- **Professional development**: architecture, Rust/high-performance, AI engineering, spoken English (B1, speaking ~A2)
 
 ### 6. Salary Benchmark (Optional)
 

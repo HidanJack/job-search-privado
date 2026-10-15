@@ -79,7 +79,7 @@ Each agent returns a JSON array, one object per job:
 }
 ```
 
-`language_gate`/`language_note` come from `04-job-evaluation.md`'s Language Gate — distinct from `language` above, which just records what language the posting is written in.
+`language_gate`/`language_note` come from `04-job-evaluation.md`'s Language Gate — distinct from `language` above, which just records what language the posting is written in. When the Language Gate's candidate-specific rule flags a spoken-language requirement (e.g. fluent/conversational spoken English, interviews in English), the agent also lists that requirement as an explicit item in `gaps` (e.g. "spoken English: posting asks for fluent conversation; profile is speaking ~A2"), so it shows in the dashboard next to `fit_reasons`.
 
 `salary` is copied from the posting only when it states figures - `null` otherwise, never estimated (a benchmark belongs to `/apply`, not triage). `modality` is what the posting states; `unknown` when it does not say. `fit_reasons` are what the local dashboard shows under each job as "why I fit": plain sentences, no markup, no URLs, grounded like `strengths`.
 

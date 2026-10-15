@@ -1,12 +1,12 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Cover Letter - [Company], [Role]
+% Cover Letter - example, Backend Engineer (Python) at a fintech
 %
-% Example cover letter with placeholder content. This is the structural
-% reference for /apply (see 06-cover-letter-templates.md) and the CI smoke
-% test for cover.cls: it must always compile with xelatex to exactly 1 page.
-% It demonstrates the correct itemize pattern: the list sits OUTSIDE
-% \lettercontent{} (whose trailing \\ errors on \end{itemize}) and is
-% wrapped in Raleway-Medium so the bullet font matches the body.
+% Structural reference for /apply (see 06-cover-letter-templates.md) and the
+% smoke test for cover.cls: it must always compile with xelatex to exactly
+% 1 page. The company paragraph is deliberately category-level because this is
+% an example: /apply must replace it with one verified, company-specific fact.
+% The list sits OUTSIDE \lettercontent{} (whose trailing \\ errors on
+% \end{itemize}) and is wrapped in Raleway-Medium so the bullet font matches.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \documentclass[]{cover}
@@ -23,7 +23,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     TITLE NAME
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\namesection{}{\Huge{[YOUR NAME]}}{  \href{mailto:your.email@example.com}{your.email@example.com} | [+XX XXXXXXXXXX] |  \urlstyle{same}\href{https://www.linkedin.com/in/yourprofile}{LinkedIn}
+\namesection{}{\Huge{Luis Catalán Reyes}}{  \href{mailto:luis.catalan.r@hotmail.com}{luis.catalan.r@hotmail.com} | +52 55 6427 2782 |  \urlstyle{same}\href{https://www.linkedin.com/in/luis-catalán-reyes-032a48329}{LinkedIn}
 }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -31,23 +31,20 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \currentdate{\today}
-\lettercontent{Dear [Hiring Manager / Team],}
+\lettercontent{Dear Hiring Team,}
 
-\lettercontent{[Opening paragraph: name the role and where you found it, state your strongest connection to it in one sentence, and preview why you are a fit. Keep it to 2--3 sentences.]}
+\lettercontent{Your team automates the reconciliation of payments and invoices, which is exactly the problem I have worked on every day since January 2025 at Intelitax, where I build the Python and Rust systems that reconcile Mexican bank statements against accounting records.}
 
-\lettercontent{[Body paragraph: your most relevant experience, framed toward the tasks in the posting. Follow with 3--5 concrete bullets:]}
+\lettercontent{Two results map directly to the backend work described in the posting:}
 
 {\raggedright\fontspec[Path = OpenFonts/fonts/raleway/]{Raleway-Medium}\fontsize{11pt}{13pt}\selectfont
 \begin{itemize}
-    \item \textbf{[Achievement 1]:} [concrete result with a number where possible]
-    \item \textbf{[Achievement 2]:} [skill or project mapped to a posting requirement]
-    \item \textbf{[Achievement 3]:} [evidence for a nice-to-have requirement]
+    \item \textbf{Matching engine:} I rewrote a graph-based reconciliation core in Rust (PyO3); on a real client case, unmatched movements fell from 82 to 2.
+    \item \textbf{Data extraction:} my library decodes two kinds of obfuscated PDF fonts, so bank statements are read without OCR, and a regression run covers 211 real PDFs from 11 banks.
 \end{itemize}\par}
 \vspace{6pt}
 
-\lettercontent{[Connection paragraph: why this company specifically. Reference a verified specific: a product, a stated priority, a team. Never generic.]}
-
-\lettercontent{[Personal fit paragraph: behavioral strengths and what you bring to the team, 2--3 sentences.]}
+\lettercontent{I also led our move to a multi-tenant Kubernetes platform, where my own audit found a cross-tenant authorization flaw that we fixed before production. I can start within the notice period of my current role, work in the Mexico City time zone, and write technical English daily.}
 
 \lettercontent{I look forward to hearing from you.}
 
@@ -56,6 +53,6 @@
 % doubled break triggers "There's no line here to end."
 \closing{Kind regards,}
 
-\signature{[YOUR NAME]}
+\signature{Luis Catalán Reyes}
 \end{flushright}
 \end{document}
