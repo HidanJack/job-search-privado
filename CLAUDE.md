@@ -27,7 +27,10 @@ This repo is a job application workspace. Claude acts as a career advisor and ap
   undeclared language is a hard deal-breaker if a posting requires it; a declared language at a
   lower level than a posting wants is flagged for your own judgment, not auto-rejected. See
   04-job-evaluation.md's Language Gate. -->
-- **CV language:** [YOUR_CV_LANGUAGE] <!-- English unless your market expects otherwise; /setup asks -->
+- **CV language:** [YOUR_CV_LANGUAGE] <!-- `match posting` = each CV in the posting's language when it is declared above (Spanish posting -> Spanish CV, international remote -> English); or one fixed language for every CV. /setup asks -->
+- **Freshness window:** 4 days <!-- /rank gives postings at most this old a priority bonus (10-ats-and-screening.md, "Apply early") -->
+- **FX to MXN:** USD=18.5 <!-- rates /rank uses for salary_mxn_month; add more as CODE=rate, comma-separated -->
+- **Salary floor:** [YOUR_SALARY_FLOOR] <!-- e.g. 30000 MXN/month; used for the application-form salary field, never printed in a CV or letter -->
 
 - **Status:** [YOUR_EMPLOYMENT_STATUS]
 - **LinkedIn headline:** "[YOUR_LINKEDIN_HEADLINE]"
@@ -145,3 +148,6 @@ ATS parsers read the PDF's embedded text layer, not the rendered page. Extract i
 - [ ] Email and phone appear as **literal text** in the extraction (icon-glyph noise like `MOBILE-ALT`/`Envelope` is harmless, but a contact detail carried only by an icon or hyperlink is invisible to ATS)
 - [ ] Reading order of the extracted text matches the visual order (single-column stock template is safe; multi-column custom templates are where this breaks)
 - [ ] Posting keywords covered or honestly absent - synonym-only matches tightened to the posting's exact term where truthfully applicable, keywords the profile genuinely supports added to experience bullets, genuine gaps left visible and **never stuffed**
+- [ ] `verify_pdf.py --ats-integrity` passes on the CV (and the letter, if written): no ligature glyphs, no instructions addressed to an AI screener, no hidden text (white, invisible or under 3pt) - see `10-ats-and-screening.md`
+- [ ] Knockout requirements from `/apply` Step 0.5 answered truthfully; no photo, age, marital status, CURP or expected salary in either document
+- [ ] Cover letter (when written) passes `tools/check_cover_letter.py`: 150-250 body words, no banned stock phrasing

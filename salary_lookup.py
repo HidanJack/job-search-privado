@@ -34,6 +34,15 @@ SPELLING_VARIANTS = {
 
 # Legal suffixes and noise to strip when matching company names
 STRIP_PATTERNS = [
+    # Mexican / LatAm legal forms, longest first so "S.A.P.I. de C.V." is not
+    # left half-stripped by the plain "S.A." rule. Short forms require their dots
+    # so a name containing "sa" or "sc" as letters is never truncated.
+    r"\bs\.?\s?a\.?\s?(?:p\.?\s?i\.?|b\.?)\s+de\s+c\.?\s?v\.?(?!\w)",
+    r"\bs\.?\s?de\s+r\.?\s?l\.?(?:\s+de\s+c\.?\s?v\.?)?(?!\w)",
+    r"\bs\.?\s?a\.?\s+de\s+c\.?\s?v\.?(?!\w)",
+    r"\bs\.\s?a\.\s?s\.(?!\w)", r"\bs\.\s?a\.(?!\w)", r"\bs\.\s?c\.(?!\w)",
+    r"\bs\.\s?r\.\s?l\.(?!\w)", r"\bltda\.?(?!\w)", r"\bsapi\b", r"\bsrl\b",
+    r"\bm[eé]xico\b", r"\blatam\b", r"\blatinoam[eé]rica\b",
     r"\ba/s\b", r"\baps\b", r"\bi/s\b", r"\bp/s\b", r"\bk/s\b",
     r"\bivs\b", r"\bamba\b", r"\ba\.m\.b\.a\.?\b",
     r"\(vg\)", r"\(.*?\)",  # (VG) and other parentheticals

@@ -72,11 +72,16 @@ Each agent returns a JSON array, one object per job:
   "deadline": "YYYY-MM-DD" | null,
   "strengths": ["1-3 bullets, grounded in the posting text"],
   "gaps": ["1-3 bullets, honest"],
+  "fit_reasons": ["2-4 short sentences in the user's conversation language: why this job fits, each tied to a posting requirement and a profile fact"],
+  "modality": "remote" | "hybrid" | "onsite" | "unknown",
+  "salary": { "min": <number|null>, "max": <number|null>, "currency": "<ISO 4217, e.g. MXN, USD>", "period": "hour" | "day" | "week" | "month" | "year" } | null,
   "language": "<posting language>"
 }
 ```
 
 `language_gate`/`language_note` come from `04-job-evaluation.md`'s Language Gate — distinct from `language` above, which just records what language the posting is written in.
+
+`salary` is copied from the posting only when it states figures - `null` otherwise, never estimated (a benchmark belongs to `/apply`, not triage). `modality` is what the posting states; `unknown` when it does not say. `fit_reasons` are what the local dashboard shows under each job as "why I fit": plain sentences, no markup, no URLs, grounded like `strengths`.
 
 Scoring uses the dimension definitions from `04-job-evaluation.md` verbatim. The honesty rule applies to triage too: gaps are stated, never smoothed over, and a posting that is a poor fit gets a low score even if it looks prestigious.
 
@@ -115,7 +120,9 @@ Back in the main context, for each scored job:
    treated exactly like an absent one and reported once in the Step 5 summary with its
    portal.
 
-Sort by overall score (descending), urgency as tiebreaker.
+8. **Freshness priority** (`10-ats-and-screening.md` section 6, "Apply early"): a posting at most the freshness window old (default **4 days**; CLAUDE.md's `Freshness window:` line overrides it) gets a 🆕 marker and +5 priority; one older than 14 days gets -5. This adjusts `priority_score` only - `rank_score` and the verdict band stay the framework's pure fit score, and age never vetoes (rule 7's reasoning holds: old postings can still be live). The research supports the direction, not the magnitude, which is why the adjustment is small. Computed by `rank_state.py apply` from the stored `posted_date`; an entry without one gets no adjustment.
+
+Sort by `priority_score` (descending), then overall score, urgency as the last tiebreaker. `apply`'s output is already in that order.
 
 ---
 
@@ -124,12 +131,15 @@ Sort by overall score (descending), urgency as tiebreaker.
 Concatenate the Step 2 agents' JSON arrays into one temporary file - a scratch or working-directory path outside the repo tree, never committed - rather than restating them in prose, then write the results back with the tool. It reads `job_scraper/seen_jobs.json`, edits the entries and writes it atomically, so the state never passes through the conversation in either direction:
 
 ```bash
-python3 tools/rank_state.py apply --results "<path to that temporary file>"
+python3 tools/rank_state.py apply --results "<path to that temporary file>" [--fresh-days N] [--fx USD=18.5,EUR=20.1]
 ```
+
+Pass `--fresh-days` when CLAUDE.md sets a `Freshness window:` and `--fx` when it sets `FX to MXN:` rates; the defaults are 4 days and USD=18.5.
 
 What it writes per entry - all additive to the scraper's schema:
 
 - Ranked jobs: `"status": "ranked"` plus `"rank_score": <overall>`, `"rank_verdict": "<band>"`, `"rank_date": "YYYY-MM-DD"`, `"location_verdict": "PASS"/"FAIL"/"FLAG"` (never the bare `location` key - that is the scraper's place field, e.g. "Aarhus, Denmark", and overwriting it with a verdict destroys the commute-filter data; an entry ranked before this rename may carry a legacy PASS/FAIL/FLAG string in `location`, which the tool reads as the verdict when `location_verdict` is absent and moves to `location_verdict` as it rewrites the entry), `"language_gate": "PASS"/"FAIL"/"FLAG"`, `"language_note"` (dropped when `language_gate` is `PASS`), `"deadline": "YYYY-MM-DD" | null` from the same Step 2 JSON (replacing the stored value when the agent returned a different one - a fresh fetch is the freshest source; left alone when the agent returned `null`, because absence is not a correction - a fetch that degraded to a listing page returns no deadline, and taking that as "the posting dropped its deadline" would erase a real date and, because rule 6 leaves an entry with no stored `deadline` alone, quietly make that job immortal to the sweep), plus `"strengths": [...]` and `"gaps": [...]` copied from the scoring agent's Step 2 JSON for that job. These veto fields are as important to persist as the score itself - without them, nothing later (a re-read of `seen_jobs.json`, a debugging session, the user asking "why was this excluded") can recover why a job did or didn't make the shortlist.
+- Dashboard fields on ranked jobs, written by the same call: `"fit_reasons": [...]` (verbatim, at most 4, replaced on re-score like `strengths`/`gaps`), `"modality"` (one of `remote`/`hybrid`/`onsite`/`unknown`; anything else is stored as `unknown`), the agent's `"salary"` object (`"min"`, `"max"`, `"currency"`, `"period"`) normalised into `"salary_min"`, `"salary_max"`, `"salary_currency"`, `"salary_period"` and `"salary_mxn_month"` (the range midpoint, or the single stated bound, converted to MXN per month with the `--fx` rate; `null` when the posting states no figure or the currency has no configured rate - never guessed), and `"priority_score"` (`rank_score` plus rule 8's freshness adjustment). The schema of every field the local dashboard reads is documented in section 7 of `.claude/skills/job-application-assistant/10-ats-and-screening.md`.
 - Dead or past-deadline jobs: `"status": "expired"`.
 - Entries retired by Step 3's rule 6 sweep: `"status": "expired"` for those too, written by `sweep --write`, with every other field on them untouched. The sweep reasons over entries this run never scored, so without its own write its conclusion would live only in the report and the same expiry would be re-derived from the same stored date on every future run.
 
@@ -152,9 +162,9 @@ Swept <S> previously ranked entries (<E> newly expired, <C> closing soon).
 
 ### Shortlist
 
-| # | Score | Verdict | Title | Company | Location | Deadline | | URL |
-|---|-------|---------|-------|---------|----------|----------|---|-----|
-| 1 | 78 | Strong Fit | ... | ... | ... | ... | 🔥 | [Link](...) |
+| # | Score | Verdict | Title | Company | Location | Modality | MXN/month | Deadline | | URL |
+|---|-------|---------|-------|---------|----------|----------|-----------|----------|---|-----|
+| 1 | 78 | Strong Fit | ... | ... | ... | remote | 45,000 | ... | 🆕🔥 | [Link](...) |
 
 ### Why these ranked highest
 **1. <Title> at <Company> (78)** - [2-3 strength bullets and the honest gap, from the agent's findings]
@@ -180,6 +190,8 @@ Rules for the presentation:
 - A shortlisted job with `language_gate: FLAG` gets a ⚠ marker next to its Title (same treatment as a location FLAG) and its `language_note` quoted in that job's "Why these ranked highest" writeup, so the language-level gap is visible without digging into the raw JSON.
 - Every claim traces to fetched posting text or the profile - no invented details.
 - Say explicitly that these are **triage scores from the posting text only**, and that `/apply` will re-evaluate with company research before anything is drafted.
+- `MXN/month` shows `salary_mxn_month`, or `n/d` when the posting states no figure - never an estimate.
+- Under the shortlist, suggest `/referral <company>` for the top entries: a referral reaches interview ~40% of the time against ~3% cold (`10-ats-and-screening.md` section 6).
 - Then ask: "Want to apply to any of these? Give me the number(s) and I'll start with the full `/apply` workflow."
 - If the user picks one, run the `/apply` workflow on that job's URL, passing the triage verdict as prior context but **re-running the full Step 1 evaluation** - triage never substitutes for it.
 

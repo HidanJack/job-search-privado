@@ -585,5 +585,99 @@ class Apply(RankStateCase):
         self.assertEqual(stored["strengths"], ["new"])
 
 
+def scored(key="a", **over):
+    base = {
+        "key": key,
+        "status": "scored",
+        "deadline": None,
+        "scores": {d: 70 for d in ("technical", "experience", "behavioral", "career")},
+        "location_verdict": "PASS",
+        "language_gate": "PASS",
+        "language": "es",
+        "strengths": ["s"],
+        "gaps": ["g"],
+    }
+    base.update(over)
+    return base
+
+
+class SalaryModalityFreshness(RankStateCase):
+    """Fields the local dashboard filters on (10-ats-and-screening.md)."""
+
+    def results(self, payload):
+        path = self.tmp / "results.json"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        return str(path)
+
+    def test_usd_yearly_range_converts_to_mxn_month_midpoint(self):
+        self.write_state({"a": entry()})
+        salary = {"min": 48000, "max": 60000, "currency": "usd", "period": "year"}
+        self.run_tool("apply", "--results", self.results([scored(salary=salary)]))
+        stored = self.read_state()["a"]
+        self.assertEqual(stored["salary_currency"], "USD")
+        self.assertEqual(stored["salary_period"], "year")
+        self.assertEqual(stored["salary_mxn_month"], round(54000 / 12 * 18.5))
+
+    def test_custom_fx_and_single_bound(self):
+        self.write_state({"a": entry()})
+        salary = {"min": None, "max": 4000, "currency": "EUR", "period": "month"}
+        self.run_tool("apply", "--results", self.results([scored(salary=salary)]), "--fx", "EUR=20")
+        self.assertEqual(self.read_state()["a"]["salary_mxn_month"], 80000)
+
+    def test_unknown_currency_is_never_converted(self):
+        self.write_state({"a": entry()})
+        salary = {"min": 1000, "max": 2000, "currency": "COP", "period": "month"}
+        self.run_tool("apply", "--results", self.results([scored(salary=salary)]))
+        stored = self.read_state()["a"]
+        self.assertEqual(stored["salary_min"], 1000)
+        self.assertIsNone(stored["salary_mxn_month"])
+
+    def test_no_salary_stated_stores_nulls(self):
+        self.write_state({"a": entry()})
+        self.run_tool("apply", "--results", self.results([scored(salary=None)]))
+        stored = self.read_state()["a"]
+        self.assertIsNone(stored["salary_min"])
+        self.assertIsNone(stored["salary_mxn_month"])
+
+    def test_modality_and_fit_reasons_persist(self):
+        self.write_state({"a": entry()})
+        reasons = ["Pide Python y ETL, tu stack principal.", "Remoto LatAm.", "x", "y", "z"]
+        self.run_tool("apply", "--results", self.results([scored(modality="Remote", fit_reasons=reasons)]))
+        stored = self.read_state()["a"]
+        self.assertEqual(stored["modality"], "remote")
+        self.assertEqual(stored["fit_reasons"], reasons[:4])
+
+    def test_unknown_modality_falls_back(self):
+        self.write_state({"a": entry()})
+        self.run_tool("apply", "--results", self.results([scored(modality="on the moon")]))
+        self.assertEqual(self.read_state()["a"]["modality"], "unknown")
+
+    def test_fresh_posting_outranks_stale_one_with_same_score(self):
+        self.write_state({
+            "old": entry(posted_date="2026-08-01"),
+            "new": entry(title="Data Engineer", posted_date="2026-09-01T10:00:00Z"),
+        })
+        out = self.run_tool("apply", "--results", self.results([scored("old"), scored("new")]))
+        self.assertEqual([r["key"] for r in out["ranked"]], ["new", "old"])
+        by_key = {r["key"]: r for r in out["ranked"]}
+        self.assertTrue(by_key["new"]["fresh"])
+        self.assertEqual(by_key["new"]["age_days"], 2)
+        self.assertFalse(by_key["old"]["fresh"])
+        self.assertEqual(by_key["new"]["score"], by_key["old"]["score"])
+        self.assertGreater(by_key["new"]["priority_score"], by_key["old"]["priority_score"])
+
+    def test_fresh_days_window_is_configurable(self):
+        self.write_state({"a": entry(posted_date="2026-08-27")})
+        out = self.run_tool("apply", "--results", self.results([scored()]), "--fresh-days", "7")
+        self.assertTrue(out["ranked"][0]["fresh"])
+
+    def test_missing_posted_date_gets_no_adjustment(self):
+        self.write_state({"a": entry()})
+        out = self.run_tool("apply", "--results", self.results([scored()]))
+        row = out["ranked"][0]
+        self.assertIsNone(row["age_days"])
+        self.assertEqual(row["priority_score"], row["score"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -170,6 +170,34 @@ class TestMatchScoreExactMatch(unittest.TestCase):
         self.assertEqual(match_score("Arla Foods", "Arla Foods A.M.B.A."), 100)
 
 
+class TestLatamLegalSuffixes(unittest.TestCase):
+    """Mexican/LatAm legal forms strip like the Danish ones (A/S, ApS)."""
+
+    def test_common_forms_strip_to_the_bare_name(self):
+        for name in (
+            "Soluciones Analíticas S.A. de C.V.",
+            "Soluciones Analíticas SA de CV",
+            "Soluciones Analíticas S.A.P.I. de C.V.",
+            "Soluciones Analíticas S.A.B. de C.V.",
+            "Soluciones Analíticas S. de R.L. de C.V.",
+            "Soluciones Analíticas S. de R.L.",
+            "Soluciones Analíticas S.C.",
+            "Soluciones Analíticas S.A.S.",
+            "Soluciones Analíticas Ltda.",
+            "Soluciones Analíticas México",
+        ):
+            with self.subTest(name=name):
+                self.assertEqual(normalize(name), normalize("Soluciones Analíticas"))
+
+    def test_undotted_letters_inside_a_name_survive(self):
+        # "sa"/"sc" without the dots are letters of a word, never a legal form.
+        self.assertEqual(normalize("Casa Saba"), "casasaba")
+        self.assertEqual(normalize("Oscorp SC Labs"), "oscorpsclabs")
+
+    def test_suffix_variant_still_matches(self):
+        self.assertEqual(match_score("Grupo Gabssa", "Grupo Gabssa S.A. de C.V."), 100)
+
+
 class TestMatchScoreSubstring(unittest.TestCase):
     def test_query_contained_in_entry_gives_high_score(self):
         score = match_score("Carlsberg", "Carlsberg Danmark A/S")

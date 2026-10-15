@@ -14,6 +14,12 @@ the raw text layer an ATS parser actually sees.
 layer for a year joined to a Unicode dash - the en-dash LaTeX makes from `--`, which
 a Workday import dropped along with the date (`05-cv-templates.md`, "Date fields
 must be ASCII ranges") - and fails naming each hit with its code point.
+
+`--ats-integrity` runs the checks from `10-ats-and-screening.md` that guard the
+text layer itself: ligature code points (U+FB00-FB06, which turn "workflow" into a
+token no keyword matcher finds), prompt-injection phrasing aimed at AI screeners,
+and - with pypdf - text drawn invisibly (white fill, render mode 3, or under 3pt).
+Recruiters treat hidden text as grounds for rejection, so this is a hard failure.
 """
 
 import argparse
@@ -125,6 +131,147 @@ def find_non_ascii_date_ranges(text):
     return hits
 
 
+# Alphabetic presentation forms. A text layer carrying these instead of the plain
+# letters breaks literal keyword matching ("efﬁcient" is not "efficient").
+LIGATURE_CODEPOINTS = "ﬀﬁﬂﬃﬄﬅﬆ"
+
+
+def find_ligature_codepoints(text):
+    """Return (code point, word) for every ligature glyph in the raw text layer."""
+    hits = []
+    for match in re.finditer(rf"\S*[{LIGATURE_CODEPOINTS}]\S*", text):
+        lig = next(c for c in match.group(0) if c in LIGATURE_CODEPOINTS)
+        hits.append((lig, match.group(0)))
+    return hits
+
+
+# Instructions addressed to an AI screener rather than to a human reader. A CV or
+# cover letter never has a legitimate reason to contain these, in either language.
+INJECTION_PATTERNS = [
+    r"ignore\s+(?:all\s+)?(?:the\s+)?(?:previous|prior|above)\s+instructions?",
+    r"disregard\s+(?:all\s+)?(?:the\s+)?(?:previous|prior|above)",
+    r"(?:as|you\s+are)\s+an?\s+(?:ai|llm|language\s+model)\s*(?:screener|recruiter|assistant|reviewer|,)",
+    r"(?:rank|rate|score|recommend)\s+(?:this|the)\s+(?:candidate|applicant|resume|cv)\s+(?:as\s+)?(?:highly|first|top|the\s+best|10)",
+    r"(?:this|the)\s+candidate\s+is\s+(?:a\s+)?(?:perfect|ideal|excellent)\s+(?:match|fit)",
+    r"note\s+to\s+(?:the\s+)?(?:ai|llm|chatgpt|gpt|claude|screener|recruiting\s+(?:ai|software))",
+    r"ignora\s+(?:todas\s+)?(?:las\s+)?instrucciones\s+(?:anteriores|previas)",
+    r"(?:eres|como)\s+una?\s+(?:ia|inteligencia\s+artificial|modelo\s+de\s+lenguaje)\b",
+    r"(?:califica|recomienda|clasifica)\s+(?:a\s+)?(?:este|esta)\s+(?:candidat[oa]|cv|curr[ií]culum)",
+]
+_INJECTION = re.compile("|".join(f"(?:{p})" for p in INJECTION_PATTERNS), re.IGNORECASE)
+
+
+def find_injection_phrases(text):
+    """Return every phrase in the folded text that reads as an instruction to an AI."""
+    return [m.group(0) for m in _INJECTION.finditer(normalize_text(text))]
+
+
+MIN_VISIBLE_PT = 3.0
+_WHITE = 0.95
+
+
+def _is_white(operands):
+    values = []
+    for value in operands:
+        try:
+            values.append(float(value))
+        except (TypeError, ValueError):
+            return False
+    if len(values) in (1, 3):  # gray or RGB: 1 is white
+        return all(v >= _WHITE for v in values)
+    if len(values) == 4:  # CMYK: 0 is white
+        return all(v <= 1 - _WHITE for v in values)
+    return False
+
+
+def _matmul(a, b):
+    return [
+        a[0] * b[0] + a[1] * b[2],
+        a[0] * b[1] + a[1] * b[3],
+        a[2] * b[0] + a[3] * b[2],
+        a[2] * b[1] + a[3] * b[3],
+        a[4] * b[0] + a[5] * b[2] + b[4],
+        a[4] * b[1] + a[5] * b[3] + b[5],
+    ]
+
+
+def find_hidden_text(pdf_path):
+    """Return (page, reason, text) for text drawn so a human cannot see it.
+
+    Covers the three common techniques: white fill colour, text render mode 3
+    (invisible) and a rendered size under MIN_VISIBLE_PT. Returns None when pypdf
+    is unavailable, so callers can report a degraded check instead of a pass.
+    Text on a deliberately white-on-colour band would also be flagged; the stock
+    templates have none, and a custom template that does should be checked by eye.
+    """
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        return None
+    hits = []
+    reader = PdfReader(str(pdf_path))
+    for number, page in enumerate(reader.pages, start=1):
+        state = {"white": False, "invisible": False}
+        stack = []
+
+        def before(op, args, cm, tm, state=state, stack=stack):
+            if op == b"q":
+                stack.append(dict(state))
+            elif op == b"Q" and stack:
+                state.update(stack.pop())
+            elif op in (b"rg", b"g", b"k", b"sc", b"scn"):
+                state["white"] = _is_white(args)
+            elif op == b"Tr" and args:
+                try:
+                    state["invisible"] = int(args[0]) == 3
+                except (TypeError, ValueError):
+                    pass
+
+        def visit(text, cm, tm, font_dict, font_size, state=state, number=number):
+            if not text or not text.strip():
+                return
+            m = _matmul(list(tm), list(cm))
+            size = abs(float(font_size or 0)) * (m[2] ** 2 + m[3] ** 2) ** 0.5
+            if state["invisible"]:
+                reason = "render mode 3 (invisible)"
+            elif state["white"]:
+                reason = "white fill"
+            elif 0 < size < MIN_VISIBLE_PT:
+                reason = f"{size:.1f}pt text"
+            else:
+                return
+            hits.append((number, reason, " ".join(text.split())))
+
+        page.extract_text(visitor_operand_before=before, visitor_text=visit)
+    return hits
+
+
+def ats_integrity_problems(pdf_path, text):
+    """Collect every --ats-integrity failure as a human-readable string."""
+    problems = []
+    ligatures = find_ligature_codepoints(text)
+    if ligatures:
+        listed = "; ".join(f"U+{ord(c):04X} in {w[:40]!r}" for c, w in ligatures[:10])
+        problems.append(
+            f"{len(ligatures)} ligature glyph(s) in the text layer break literal keyword "
+            f"matching - disable ligatures in the template: {listed}"
+        )
+    injections = find_injection_phrases(text)
+    if injections:
+        problems.append(
+            "instruction(s) addressed to an AI screener - never allowed in a CV or "
+            f"cover letter: {injections[:5]}"
+        )
+    hidden = find_hidden_text(pdf_path)
+    if hidden:
+        listed = "; ".join(f"p{p} {why}: {t[:40]!r}" for p, why, t in hidden[:10])
+        problems.append(
+            f"{len(hidden)} hidden text run(s) a reader cannot see but a parser reads - "
+            f"recruiters treat this as grounds for rejection: {listed}"
+        )
+    return problems, hidden is None
+
+
 def _extract_pypdf(pdf_path):
     """Return (text, pages) or None if pypdf is unavailable, raises, or yields no text."""
     try:
@@ -168,6 +315,7 @@ def verify_pdf(
     required_text=(),
     dump_text=None,
     ascii_dates=False,
+    ats_integrity=False,
 ):
     pdf_path = Path(pdf_path)
     if not pdf_path.is_file():
@@ -217,6 +365,17 @@ def verify_pdf(
                 f"ASCII hyphen (05-cv-templates.md, 'Date fields must be ASCII ranges'): "
                 f"{listed} (extractor: {extractor})"
             )
+
+    if ats_integrity:
+        problems, degraded = ats_integrity_problems(pdf_path, extracted_text)
+        if problems:
+            raise VerificationError(" | ".join(problems) + f" (extractor: {extractor})")
+        if degraded:
+            print(
+                "warning: pypdf unavailable - hidden-text check skipped "
+                "(ligature and injection checks ran)",
+                file=sys.stderr,
+            )
     return extractor, extracted_text, actual_pages
 
 
@@ -256,6 +415,14 @@ def build_parser():
             "never folds, unlike --contains"
         ),
     )
+    parser.add_argument(
+        "--ats-integrity",
+        action="store_true",
+        help=(
+            "fail on ligature glyphs in the text layer, instructions addressed to an "
+            "AI screener, or invisible text (white fill, render mode 3, under 3pt)"
+        ),
+    )
     return parser
 
 
@@ -283,6 +450,7 @@ def main(argv=None):
             args.contains,
             dump_text=args.dump_text,
             ascii_dates=args.ascii_dates,
+            ats_integrity=args.ats_integrity,
         )
     except VerificationError as exc:
         print(f"Error: {args.pdf}: {exc}", file=sys.stderr)

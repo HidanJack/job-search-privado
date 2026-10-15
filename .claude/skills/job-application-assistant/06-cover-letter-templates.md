@@ -1,5 +1,5 @@
 ---
-framework_version: 1.0.2
+framework_version: 1.1.0
 ---
 
 # Cover Letter Templates and Tailoring Guide
@@ -133,8 +133,9 @@ The font wrapper is mandatory — if you just move `\begin{itemize}` outside `\l
 ### Length - Hard 1-Page Limit
 - Target: 1 page including signature block
 - Maximum: **never exceed 1 page**
-- **Word budget: 250-300 words** of body text (not counting LaTeX markup). This is the safe maximum. 350 words will overflow.
+- **Word budget: 150-250 words** of body text (not counting LaTeX markup, salutation or sign-off), per `10-ats-and-screening.md` section 5. 300 words is the layout's safe maximum and 350 overflows, but the screening-era target is shorter: a hiring manager skims. `tools/check_cover_letter.py` enforces the range.
 - **Always count**: opening paragraph + bullet list paragraph + closing paragraph = 3 blocks. Add a 4th only if the others are short.
+- **Write a letter only when it adds something** (direct application, optional field on Greenhouse/Lever/Ashby, startup, stack change to explain). Skip it on Easy Apply or a form without a field - `/apply` Step 1 decides.
 - When adding company-specific content, trim other content to compensate rather than adding net length
 
 ### Line Spacing
@@ -158,7 +159,11 @@ Escape these wherever they appear in body text:
 ### Non-English Cover Letters
 - Same template structure, just write content in the posting's language
 - Adjust date format to local convention
-- Adjust closing to local convention (e.g. "Med venlig hilsen," for Danish)
+- Adjust closing to local convention (e.g. "Saludos cordiales," or "Atentamente," for Spanish, "Med venlig hilsen," for Danish), and the salutation likewise ("Estimado equipo de selección de [Empresa]:" - Spanish uses a colon after the salutation)
+- No photo, age, marital status, CURP or expected salary in the letter (`10-ats-and-screening.md` section 4)
+
+### Banned stock phrasing
+Hiring managers single these out as unedited AI output (`10-ats-and-screening.md` section 5). The authoritative list is `BANNED_PHRASES` in `tools/check_cover_letter.py`; representative entries: "I am excited to apply", "passionate about", "fast-paced environment", "leverage", "I believe I would be a great fit", "proven track record", "me apasiona", "entorno dinámico", "con gran entusiasmo". Replace each with a concrete fact about this company or this candidate, never a synonym.
 
 ## Checklist Before Finalizing
 - [ ] No em-dashes (use commas or periods instead)

@@ -24,6 +24,11 @@ strengths/gaps persistence, idempotent skip of already-ranked entries); the
 sweep follows rule 6 exactly (defensive date parsing, an absent deadline left
 alone, `--all` making a retired entry revivable).
 
+`apply` also persists the dashboard fields (`fit_reasons`, `modality`, the
+salary fields with `salary_mxn_month` converted via `--fx`) and a
+`priority_score` that adds a small freshness adjustment (`--fresh-days`) to the
+unchanged `rank_score`; the schema is in 10-ats-and-screening.md section 7.
+
 Nothing here fetches a posting or judges a fit. Scoring stays with the model;
 this only removes the state file from the conversation.
 
@@ -31,6 +36,7 @@ Usage:
   python3 tools/rank_state.py candidates [--all] [--focus TEXT] [--limit N]
   python3 tools/rank_state.py sweep [--write] [--exclude KEY,KEY]
   python3 tools/rank_state.py apply --results results.json [--dry-run]
+                                    [--fresh-days N] [--fx USD=18.5,EUR=20.1]
 
 Both subcommands print JSON on stdout. Exit 0 on success, 1 on a usage or
 state error, or on `apply` when any result could not be written.
@@ -57,6 +63,26 @@ BANDS = ((75, "Strong Fit"), (60, "Good Fit"), (45, "Moderate Fit"), (30, "Weak 
 DEFAULT_LIMIT = 10
 URGENT_DAYS = 7
 ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+# Freshness (10-ats-and-screening.md, "Apply early"): postings seen within the
+# window get a priority bonus, old ones a penalty. Direction is supported by the
+# research, the magnitude is not - so it moves `priority_score` only and never
+# touches `rank_score`, which stays the framework's pure fit score.
+DEFAULT_FRESH_DAYS = 4
+STALE_DAYS = 14
+FRESH_BONUS = 5
+STALE_PENALTY = 5
+
+MODALITIES = ("remote", "hybrid", "onsite", "unknown")
+SALARY_PERIODS = {
+    "hour": 40 * 52 / 12,
+    "day": 5 * 52 / 12,
+    "week": 52 / 12,
+    "month": 1.0,
+    "year": 1 / 12,
+}
+DEFAULT_FX = {"MXN": 1.0, "USD": 18.5}
+CURRENCY = re.compile(r"^[A-Z]{3}$")
 
 
 def load_state(path: Path) -> tuple[dict, dict]:
@@ -95,6 +121,89 @@ def parse_iso(value) -> date | None:
         return date.fromisoformat(value.strip())
     except ValueError:
         return None
+
+
+def parse_posted(value) -> date | None:
+    """Like parse_iso, but also accepts a full ISO timestamp's date prefix -
+    portal CLIs emit `2026-10-15T12:05:25Z` while older entries store a date."""
+    if isinstance(value, str) and len(value) >= 10:
+        return parse_iso(value[:10])
+    return None
+
+
+def parse_fx(spec: str | None) -> dict:
+    """`USD=18.5,EUR=20.1` -> rates to MXN, merged over the defaults."""
+    rates = dict(DEFAULT_FX)
+    for part in (spec or "").split(","):
+        if not part.strip():
+            continue
+        code, _, rate = part.partition("=")
+        code = code.strip().upper()
+        try:
+            value = float(rate)
+        except ValueError:
+            raise SystemExit(f"--fx: bad rate in {part!r} (expected CODE=number)")
+        if not CURRENCY.match(code) or value <= 0:
+            raise SystemExit(f"--fx: bad entry {part!r}")
+        rates[code] = value
+    return rates
+
+
+def normalize_salary(raw, fx: dict) -> dict:
+    """Validate the scoring agent's salary object and add `salary_mxn_month`.
+
+    Returns the persisted salary fields; every value is None when the posting
+    states no usable figure. `salary_mxn_month` is the range midpoint (or the
+    single stated bound) converted to MXN per month, and None when the currency
+    has no configured rate - an unconverted figure is never guessed at.
+    """
+    out = {
+        "salary_min": None,
+        "salary_max": None,
+        "salary_currency": None,
+        "salary_period": None,
+        "salary_mxn_month": None,
+    }
+    if not isinstance(raw, dict):
+        return out
+
+    def number(value):
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        return float(value) if value > 0 else None
+
+    low, high = number(raw.get("min")), number(raw.get("max"))
+    if low is None and high is None:
+        return out
+    if low is not None and high is not None and low > high:
+        low, high = high, low
+    currency = str(raw.get("currency") or "").strip().upper() or None
+    period = str(raw.get("period") or "").strip().lower() or None
+    out.update(
+        salary_min=low,
+        salary_max=high,
+        salary_currency=currency if currency and CURRENCY.match(currency) else None,
+        salary_period=period if period in SALARY_PERIODS else None,
+    )
+    rate = fx.get(out["salary_currency"]) if out["salary_currency"] else None
+    factor = SALARY_PERIODS.get(out["salary_period"]) if out["salary_period"] else None
+    if rate and factor:
+        bounds = [b for b in (low, high) if b is not None]
+        out["salary_mxn_month"] = round(sum(bounds) / len(bounds) * factor * rate)
+    return out
+
+
+def freshness(posted, today: date, fresh_days: int) -> tuple[int | None, int]:
+    """(age in days or None, priority adjustment)."""
+    parsed = parse_posted(posted)
+    if parsed is None:
+        return None, 0
+    age = max(0, (today - parsed).days)
+    if age <= fresh_days:
+        return age, FRESH_BONUS
+    if age > STALE_DAYS:
+        return age, -STALE_PENALTY
+    return age, 0
 
 
 def norm(text) -> str:
@@ -324,6 +433,16 @@ def cmd_apply(args) -> int:
             value = result.get(field)
             if isinstance(value, list):
                 entry[field] = [str(b) for b in value][:3]
+        # Same verbatim, replace-never-accumulate rule as strengths/gaps.
+        reasons = result.get("fit_reasons")
+        if isinstance(reasons, list):
+            entry["fit_reasons"] = [str(b) for b in reasons][:4]
+        modality = str(result.get("modality") or "unknown").lower()
+        entry["modality"] = modality if modality in MODALITIES else "unknown"
+        if "salary" in result:
+            entry.update(normalize_salary(result.get("salary"), args.fx))
+        age, adjustment = freshness(entry.get("posted_date"), today, args.fresh_days)
+        entry["priority_score"] = score + adjustment
 
         rows.append(
             {
@@ -342,13 +461,19 @@ def cmd_apply(args) -> int:
                 "urgent": bool(parsed and today <= parsed <= today + timedelta(days=URGENT_DAYS)),
                 "strengths": entry.get("strengths", []),
                 "gaps": entry.get("gaps", []),
+                "fit_reasons": entry.get("fit_reasons", []),
+                "modality": entry["modality"],
+                "salary_mxn_month": entry.get("salary_mxn_month"),
+                "age_days": age,
+                "fresh": age is not None and age <= args.fresh_days,
+                "priority_score": entry["priority_score"],
             }
         )
 
     if not args.dry_run:
         save_state(args.state, doc)
 
-    rows.sort(key=lambda r: (r["score"], r["urgent"]), reverse=True)
+    rows.sort(key=lambda r: (r["priority_score"], r["score"], r["urgent"]), reverse=True)
     veto = lambda r: r["location_verdict"] == "FAIL" or r["language_gate"] == "FAIL"
     vetoed = [r for r in rows if veto(r)]
     ranked = [r for r in rows if not veto(r)]
@@ -405,6 +530,18 @@ def main() -> int:
     app = sub.add_parser("apply", parents=[common], help="write scoring results back and print the ranking")
     app.add_argument("--results", required=True, help="JSON array from the scoring agents")
     app.add_argument("--dry-run", action="store_true")
+    app.add_argument(
+        "--fresh-days",
+        type=int,
+        default=DEFAULT_FRESH_DAYS,
+        help=f"postings at most this old get a priority bonus (default {DEFAULT_FRESH_DAYS})",
+    )
+    app.add_argument(
+        "--fx",
+        type=parse_fx,
+        default=dict(DEFAULT_FX),
+        help="rates to MXN for salary_mxn_month, e.g. USD=18.5,EUR=20.1 (USD=18.5 by default)",
+    )
     app.set_defaults(func=cmd_apply)
 
     args = ap.parse_args()
