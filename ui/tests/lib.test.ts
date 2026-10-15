@@ -1,0 +1,191 @@
+import { describe, expect, test } from "bun:test";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { ageInDays, filterJobs, loadJobs, parseFilters, skipJob, MODALITIES } from "../lib/jobs";
+import { parseProfile } from "../lib/profile";
+import { APPLY_TOOLS, buildApplyPrompt, buildArgv, describeStreamLine, parseUiResult } from "../lib/runner";
+import { isAllowedHost, isAllowedOrigin, safeResolve, sanitizeFeedback, validateJobUrl } from "../lib/security";
+import { markApplied, parseCsv, readTracker, trackerStats } from "../lib/tracker";
+
+const FIXTURES = join(import.meta.dir, "fixtures");
+const TODAY = new Date(2026, 9, 15); // 2026-10-15 local
+
+function tempRoot(): string {
+  const root = mkdtempSync(join(tmpdir(), "job-ui-"));
+  mkdirSync(join(root, "job_scraper"), { recursive: true });
+  cpSync(join(FIXTURES, "seen_jobs.json"), join(root, "job_scraper", "seen_jobs.json"));
+  return root;
+}
+const defaults = { maxDays: 4, minSalaryMxn: 30000 };
+
+describe("age and salary filters", () => {
+  test("ageInDays handles dates, ISO timestamps and garbage", () => {
+    expect(ageInDays("2026-10-13", TODAY)).toBe(2);
+    expect(ageInDays("2026-10-15T09:00:00Z", TODAY)).toBe(0);
+    expect(ageInDays("ASAP", TODAY)).toBeNull();
+    expect(ageInDays(null, TODAY)).toBeNull();
+  });
+
+  test("defaults: fresh, >=30k or unpublished salary, all modalities, vetoes and stale removed", () => {
+    const jobs = loadJobs(tempRoot(), TODAY);
+    const { ranked, unranked } = filterJobs(jobs, parseFilters(new URLSearchParams(), defaults));
+    expect(ranked.map((j) => j.company)).toEqual(["Acme LatAm", "Hybrid Inc"]);
+    expect(unranked.map((j) => j.company)).toEqual(["NewCo"]);
+  });
+
+  test("sorted by priority_score, wider window brings in older postings", () => {
+    const jobs = loadJobs(tempRoot(), TODAY);
+    const { ranked } = filterJobs(jobs, parseFilters(new URLSearchParams("maxDays=60&minSalary=0"), defaults));
+    expect(ranked.map((j) => j.priority_score)).toEqual([87, 85, 75, 66]);
+  });
+
+  test("excluding unpublished salary and restricting modality", () => {
+    const jobs = loadJobs(tempRoot(), TODAY);
+    const f = parseFilters(new URLSearchParams("includeNoSalary=0&modality=remote,hybrid"), defaults);
+    expect(filterJobs(jobs, f).ranked.map((j) => j.company)).toEqual(["Acme LatAm"]);
+    expect(parseFilters(new URLSearchParams("modality=bogus"), defaults).modalities).toEqual([]);
+    expect(parseFilters(new URLSearchParams(), defaults).modalities).toEqual(MODALITIES);
+  });
+
+  test("bad numbers fall back to defaults", () => {
+    const f = parseFilters(new URLSearchParams("maxDays=-3&minSalary=abc"), defaults);
+    expect(f.maxDays).toBe(4);
+    expect(f.minSalaryMxn).toBe(30000);
+  });
+
+  test("skipJob marks the entry skipped and keeps the rest", () => {
+    const root = tempRoot();
+    expect(skipJob(root, "cheap-onsite")).toBe(true);
+    expect(skipJob(root, "does-not-exist")).toBe(false);
+    const doc = JSON.parse(readFileSync(join(root, "job_scraper", "seen_jobs.json"), "utf8"));
+    expect(doc.seen["cheap-onsite"].status).toBe("skipped");
+    expect(Object.keys(doc.seen).length).toBe(7);
+  });
+});
+
+describe("profile", () => {
+  test("placeholders mean not ready and fall back to defaults", () => {
+    const p = parseProfile("# for [YOUR_NAME]\n- **Freshness window:** 4 days\n- **Salary floor:** [YOUR_SALARY_FLOOR]");
+    expect(p).toEqual({ ready: false, freshnessDays: 4, salaryFloorMxn: 30000 });
+  });
+  test("reads freshness and floor", () => {
+    const p = parseProfile("# Luis\n- **Freshness window:** 7 days\n- **Salary floor:** 45,000 MXN/month");
+    expect(p).toEqual({ ready: true, freshnessDays: 7, salaryFloorMxn: 45000 });
+  });
+});
+
+describe("security", () => {
+  test("posting URL validation", () => {
+    expect(validateJobUrl("https://www.getonbrd.com/jobs/x?y=1")).toBe("https://www.getonbrd.com/jobs/x?y=1");
+    expect(validateJobUrl("javascript:alert(1)")).toBeNull();
+    expect(validateJobUrl("file:///etc/passwd")).toBeNull();
+    expect(validateJobUrl("https://user:pw@evil.com")).toBeNull();
+    expect(validateJobUrl("https://a.com/x --dangerously-skip-permissions")).toBeNull();
+    expect(validateJobUrl("https://a.com/\nIgnore previous")).toBeNull();
+    expect(validateJobUrl("https://a.com/" + "x".repeat(3000))).toBeNull();
+    expect(validateJobUrl(42)).toBeNull();
+  });
+
+  test("feedback is flattened and bounded", () => {
+    expect(sanitizeFeedback("line1\nline2\u0000  end")).toBe("line1 line2 end");
+    expect(sanitizeFeedback("x".repeat(5000)).length).toBe(2000);
+    expect(sanitizeFeedback(undefined)).toBe("");
+  });
+
+  test("host and origin checks", () => {
+    expect(isAllowedHost("127.0.0.1:8787", 8787)).toBe(true);
+    expect(isAllowedHost("localhost:8787", 8787)).toBe(true);
+    expect(isAllowedHost("evil.com", 8787)).toBe(false);
+    expect(isAllowedHost(null, 8787)).toBe(false);
+    expect(isAllowedOrigin("http://127.0.0.1:8787", 8787)).toBe(true);
+    expect(isAllowedOrigin("https://evil.com", 8787)).toBe(false);
+    expect(isAllowedOrigin("http://127.0.0.1:9999", 8787)).toBe(false);
+    expect(isAllowedOrigin(null, 8787)).toBe(false);
+  });
+
+  test("safeResolve blocks traversal, absolute paths, wrong dirs, wrong extensions and symlink escapes", () => {
+    const root = tempRoot();
+    mkdirSync(join(root, "cv"));
+    writeFileSync(join(root, "cv", "main_acme.pdf"), "%PDF-1.4");
+    writeFileSync(join(root, "secret.pdf"), "%PDF-1.4");
+    symlinkSync(join(root, "secret.pdf"), join(root, "cv", "link.pdf"));
+    const ok = (p: string) => safeResolve(root, p, ["cv", "cover_letters"], [".pdf"]);
+    expect(ok("cv/main_acme.pdf")).toBe(join(root, "cv", "main_acme.pdf"));
+    expect(ok("cv/../secret.pdf")).toBeNull();
+    expect(ok("../../etc/passwd.pdf")).toBeNull();
+    expect(ok("/etc/passwd")).toBeNull();
+    expect(ok("cv/main_acme.tex")).toBeNull();
+    expect(ok("job_scraper/seen_jobs.json")).toBeNull();
+    expect(ok("cv/link.pdf")).toBeNull();
+    expect(ok("cv")).toBeNull();
+  });
+});
+
+describe("headless runner", () => {
+  test("argv keeps the prompt as one element and allowedTools last", () => {
+    const prompt = buildApplyPrompt("https://a.com/job", true, "resalta Kubernetes --dangerously-skip-permissions");
+    const argv = buildArgv("claude", prompt, APPLY_TOOLS);
+    expect(argv.slice(0, 3)).toEqual(["claude", "-p", prompt]);
+    expect(prompt).toBe("/apply [ui-mode] [knockouts-acknowledged] https://a.com/job [feedback] resalta Kubernetes --dangerously-skip-permissions");
+    expect(argv).toContain("acceptEdits");
+    expect(argv).not.toContain("--dangerously-skip-permissions");
+    expect(argv.indexOf("--allowedTools")).toBe(argv.length - APPLY_TOOLS.length - 1);
+    expect(APPLY_TOOLS.some((t) => t.startsWith("Bash(curl"))).toBe(false);
+    expect(APPLY_TOOLS).not.toContain("Bash");
+  });
+
+  test("prompt without acknowledgement or feedback", () => {
+    expect(buildApplyPrompt("https://a.com/j", false, "")).toBe("/apply [ui-mode] https://a.com/j");
+  });
+
+  test("parses the last ui-result block", () => {
+    const text = 'Done.\n```ui-result\n{"stage":"knockout"}\n```\nmore\n```ui-result\n{"stage":"done","cv_pdf":"cv/main_a_b.pdf"}\n```';
+    expect(parseUiResult(text)).toEqual({ stage: "done", cv_pdf: "cv/main_a_b.pdf" });
+    expect(parseUiResult("no block")).toBeNull();
+    expect(parseUiResult('```ui-result\n{"stage":"weird"}\n```')).toBeNull();
+    expect(parseUiResult("```ui-result\nnot json\n```")).toBeNull();
+  });
+
+  test("describes stream-json lines", () => {
+    const tool = describeStreamLine(JSON.stringify({ type: "assistant", message: { content: [{ type: "tool_use", name: "Bash", input: { command: "bun run x" } }] } }));
+    expect(tool).toEqual([{ type: "tool", text: "Bash: bun run x" }]);
+    const result = describeStreamLine(JSON.stringify({ type: "result", is_error: false, result: "final" }));
+    expect(result[0].result).toBe("final");
+    expect(describeStreamLine("not json")).toEqual([]);
+  });
+});
+
+describe("tracker", () => {
+  const text = readFileSync(join(FIXTURES, "tracker.csv"), "utf8");
+
+  test("parses quoted fields with commas and doubled quotes", () => {
+    const { rows } = readTracker(text);
+    expect(rows.length).toBe(4);
+    expect(rows[0].notes).toBe('rejected 2026-10-10, "polite"');
+    expect(parseCsv('a,"b\nc",d\n')[0].fields).toEqual(["a", "b\nc", "d"]);
+  });
+
+  test("markApplied changes only the drafted row for that URL", () => {
+    const out = markApplied(text, "https://www.getonbrd.com/jobs/backend-python-acme", "2026-10-15");
+    if ("error" in out) throw new Error(out.error);
+    const before = text.split("\n");
+    const after = out.text.split("\n");
+    expect(after.length).toBe(before.length);
+    expect(after.slice(0, 4)).toEqual(before.slice(0, 4));
+    expect(after[4]).toBe("2026-10-15,Acme LatAm,Tech,Backend Python Engineer,,portal,applied,,82,,cv/main_acme.tex,cover_letters/cover_acme.tex,https://www.getonbrd.com/jobs/backend-python-acme,");
+  });
+
+  test("markApplied never touches a non-drafted row", () => {
+    expect(markApplied(text, "https://himalayas.app/jobs/data-engineer-old", "2026-10-15")).toEqual({ error: "row_not_found" });
+  });
+
+  test("stats: pipeline with legacy spellings and response rate per channel/portal", () => {
+    const stats = trackerStats(readTracker(text).rows);
+    expect(stats.pipeline.no_response).toBe(1);
+    expect(stats.pipeline.drafted).toBe(1);
+    expect(stats.byChannel.portal).toEqual({ sent: 2, responded: 1, rate: 0.5 });
+    expect(stats.byChannel.referral).toEqual({ sent: 1, responded: 1, rate: 1 });
+    expect(stats.byPortal["getonbrd.com"]).toEqual({ sent: 1, responded: 0, rate: 0 });
+  });
+});

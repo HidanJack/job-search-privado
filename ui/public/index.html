@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mi búsqueda de empleo</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <h1>Mi búsqueda de empleo</h1>
+      <nav class="tabs" role="tablist">
+        <button type="button" class="tab active" data-tab="jobs" role="tab">Vacantes</button>
+        <button type="button" class="tab" data-tab="tracking" role="tab">Seguimiento</button>
+      </nav>
+      <button type="button" id="search-btn" class="primary">Buscar ahora</button>
+    </div>
+  </header>
+
+  <main>
+    <p id="profile-banner" class="banner" hidden>
+      Tu perfil todavía no está completo. Abre Claude Code en esta carpeta y corre <code>/setup</code>:
+      sin perfil, ni la calificación ni los CV van a salir bien.
+    </p>
+
+    <section id="run-panel" class="run-panel" hidden>
+      <div class="run-head">
+        <strong id="run-title">Trabajando…</strong>
+        <span id="run-status" class="pill"></span>
+        <button type="button" id="run-close" class="ghost" hidden>Cerrar</button>
+      </div>
+      <ol id="run-log" class="run-log"></ol>
+    </section>
+
+    <section id="tab-jobs">
+      <form id="filters" class="filters">
+        <label>Publicada hace máximo
+          <span class="inline"><input type="number" name="maxDays" min="0" max="365"> días</span>
+        </label>
+        <label>Sueldo mínimo
+          <span class="inline"><input type="number" name="minSalary" min="0" step="1000"> MXN/mes</span>
+        </label>
+        <fieldset>
+          <legend>Modalidad</legend>
+          <label class="check"><input type="checkbox" name="modality" value="remote"> Remoto</label>
+          <label class="check"><input type="checkbox" name="modality" value="hybrid"> Híbrido</label>
+          <label class="check"><input type="checkbox" name="modality" value="onsite"> Presencial</label>
+          <label class="check"><input type="checkbox" name="modality" value="unknown"> Sin especificar</label>
+        </fieldset>
+        <fieldset>
+          <legend>Incluir también</legend>
+          <label class="check"><input type="checkbox" name="includeNoSalary"> Sueldo no publicado</label>
+          <label class="check"><input type="checkbox" name="includeUndated"> Sin fecha de publicación</label>
+        </fieldset>
+      </form>
+
+      <p id="jobs-summary" class="muted"></p>
+      <div id="jobs" class="cards"></div>
+
+      <details id="unranked-box" class="unranked">
+        <summary id="unranked-summary">Vacantes sin calificar</summary>
+        <p class="muted">Encontradas pero todavía sin puntaje. "Buscar ahora" las califica.</p>
+        <ul id="unranked" class="plain-list"></ul>
+      </details>
+    </section>
+
+    <section id="tab-tracking" hidden>
+      <h2>Mis aplicaciones</h2>
+      <div id="pipeline" class="pipeline"></div>
+      <div class="grid-2">
+        <div>
+          <h3>Tasa de respuesta por canal</h3>
+          <table class="table" id="by-channel"></table>
+        </div>
+        <div>
+          <h3>Tasa de respuesta por portal</h3>
+          <table class="table" id="by-portal"></table>
+        </div>
+      </div>
+      <p class="muted">Respuesta = cualquier estado distinto de borrador, enviada o sin respuesta.</p>
+      <h3>Detalle</h3>
+      <div class="table-wrap"><table class="table" id="tracker-rows"></table></div>
+    </section>
+  </main>
+
+  <dialog id="review" class="review">
+    <div class="review-head">
+      <h2 id="review-title">Revisión</h2>
+      <button type="button" id="review-close" class="ghost">Cerrar</button>
+    </div>
+    <div id="review-body"></div>
+  </dialog>
+
+  <template id="card-tpl">
+    <article class="card">
+      <div class="card-head">
+        <div>
+          <h3 class="title"></h3>
+          <p class="company"></p>
+        </div>
+        <div class="score" title="Puntaje de encaje"></div>
+      </div>
+      <p class="meta"></p>
+      <p class="salary"></p>
+      <div class="why">
+        <h4>Por qué encajas</h4>
+        <ul class="reasons"></ul>
+      </div>
+      <div class="gaps-box">
+        <h4>Qué te falta</h4>
+        <ul class="gaps"></ul>
+      </div>
+      <div class="actions">
+        <button type="button" class="primary apply-btn">Postular</button>
+        <button type="button" class="review-btn" hidden>Revisar documentos</button>
+        <a class="link" target="_blank" rel="noopener noreferrer">Ver vacante</a>
+        <button type="button" class="ghost skip-btn">Descartar</button>
+      </div>
+    </article>
+  </template>
+</body>
+</html>

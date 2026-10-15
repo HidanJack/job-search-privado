@@ -1,0 +1,5 @@
+date,company,sector,role,role_type,channel,status,contact_person,fit_rating,notes,cv_file,cover_letter_file,source,deadline
+2026-10-01,OldCo,Tech,Data Engineer,,portal,rejected,,80,"rejected 2026-10-10, ""polite""",cv/main_oldco.tex,,https://himalayas.app/jobs/data-engineer-old,
+2026-10-02,Referred Co,Tech,Backend,,referral,interview,Ana,85,,cv/main_ref.tex,,https://ref.example.com/job,
+2026-10-03,Quiet Co,Tech,Backend,,portal,no response,,60,,cv/main_quiet.tex,,https://www.getonbrd.com/jobs/quiet,
+2026-10-14,Acme LatAm,Tech,Backend Python Engineer,,portal,drafted,,82,,cv/main_acme.tex,cover_letters/cover_acme.tex,https://www.getonbrd.com/jobs/backend-python-acme,

@@ -96,6 +96,9 @@ gmail_sync/
 # Generated reports (personal output from /html-report)
 reports/
 
+# Local dashboard state (ui/server.ts): last /apply result per posting URL
+ui/state/
+
 # Upskill reports (personal output). Depth-independent like the job_scraper
 # rules above: the upskill skill resolves `upskill/` relative to its own
 # directory, so a report can land at .claude/skills/upskill/upskill/*.md

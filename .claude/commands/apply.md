@@ -16,6 +16,16 @@ This rule is the input side of the Step 3 Factual Grounding Audit, not a competi
 - Run the full verification checklist exactly once, at the end (Step 6). The reviewer focuses on content critique, not verification.
 - Step 5 (compile and inspect PDFs) is mandatory and non-skippable — page-break decisions are unpredictable, and source files that look fine often produce broken PDFs (orphaned entry titles, cover letters spilling to page 2, bullet fonts mismatching).
 
+**Non-interactive mode (local dashboard).** When `$ARGUMENTS` starts with the marker `[ui-mode]`, the run was launched headless by the local dashboard (`ui/server.ts`, `claude -p`) and nobody can answer a question mid-run. Strip the markers before Step 0 and apply these overrides; every other rule in this workflow is unchanged:
+- `[knockouts-acknowledged]` means the user has already seen this posting's knockout table in the dashboard and chose to continue. Without it, a `does not meet` knockout in Step 0.5 ends the run right there with `"stage": "knockout"` in the result block below, instead of asking.
+- `[feedback]` followed by text (always last) is the user's change request on a previous draft of this same posting: redraft addressing it. It never overrides the Step 3 Factual Grounding Audit.
+- Never ask the user anything. Where a step says to ask, take the conservative choice (an `unclear` knockout stays `unclear`, an ungrounded fact is left out) and record the open question in `questions`.
+- Application-form fields: when the posting has free-text fields (see "Application-Form Fields" in Step 6), draft them without offering and save them to `documents/applications/<company>_<role>/form_fields.txt`.
+- End the final message with exactly one fenced block tagged `ui-result` holding a single JSON object, which the dashboard parses (paths relative to the repo root, `null` when absent):
+  ```ui-result
+  {"stage": "done | knockout | error", "company": "...", "role": "...", "url": "...", "cv_pdf": "cv/main_<company>_<role>.pdf", "cover_pdf": "cover_letters/cover_<company>_<role>.pdf", "cover_letter_skipped_reason": null, "form_fields": "documents/applications/<company>_<role>/form_fields.txt", "fit_score": 0, "knockouts": [{"requirement": "...", "answer": "meets | does not meet | unclear"}], "keywords": {"covered": [], "missing": []}, "questions": [], "message": "one or two sentences for the user"}
+  ```
+
 ---
 
 ## Step 0: Parse Input

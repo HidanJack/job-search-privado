@@ -98,6 +98,8 @@ REQUIRED_IGNORE_RULES = [
     "job_search_tracker.csv",
     "gmail_sync/",
     "reports/",
+    # Local dashboard state: last /apply result per posting (company, role, file paths).
+    "ui/state/",
     "upskill/*.md",
     # Depth-independent twin of the rule above. The upskill *skill* resolves
     # `upskill/` relative to its own directory - the same observed behavior
