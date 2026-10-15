@@ -27,6 +27,8 @@ salary_data.json
 **/job_scraper/seen_jobs.json
 **/job_scraper/notion_sync.json
 **/job_scraper/*.md
+# tools/scrape_state.py input (removed after a successful merge)
+**/job_scraper/incoming*.json
 *_BehavioralReport.pdf
 linkedin_Profile.pdf
 
@@ -122,3 +124,6 @@ company_research/*.json
 
 # Brainstorm mockups (superpowers visual companion) - never ship
 .superpowers/
+
+# gentle-ai skill-registry cache created by headless Claude runs
+.atl/

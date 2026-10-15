@@ -10,6 +10,16 @@ import { join } from "node:path";
  * outbound request) and any unrestricted Bash.
  */
 export const BASE_TOOLS = ["Read", "Glob", "Grep", "Write", "Edit", "WebFetch", "WebSearch", "Agent", "Skill"];
+/**
+ * /job-scraper stores results only through tools/scrape_state.py (SKILL.md
+ * Step 4). Listed here as well as in settings.json so the one write path the
+ * run depends on never hinges on a permission prompt print mode cannot show.
+ */
+export const SEARCH_TOOLS = [
+  ...BASE_TOOLS,
+  "Bash(python tools/scrape_state.py:*)",
+  "Bash(python3 tools/scrape_state.py:*)",
+];
 export const APPLY_TOOLS = [
   ...BASE_TOOLS,
   "Bash(cd cv && lualatex:*)",

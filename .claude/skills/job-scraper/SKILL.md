@@ -5,7 +5,7 @@ description: >
   (LinkedIn, local job boards, and any skills added with /add-portal). Deduplicates
   across runs. Triggers on: job scrape, find jobs, search jobs, new jobs, job search,
   scrape jobs, /scrape
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(bun --version), Bash(bun run .agents/skills/*/cli/src/cli.ts *), Bash(python tools/job_key.py:*), Bash(python3 tools/job_key.py:*), WebFetch, WebSearch, Agent, AskUserQuestion
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(bun --version), Bash(bun run .agents/skills/*/cli/src/cli.ts *), Bash(python tools/job_key.py:*), Bash(python3 tools/job_key.py:*), Bash(python tools/scrape_state.py:*), Bash(python3 tools/scrape_state.py:*), WebFetch, WebSearch, Agent, AskUserQuestion
 ---
 
 # Job Scraper
@@ -140,6 +140,18 @@ For each new job, do a rapid fit check (NOT the full evaluation from `04-job-eva
 **Language override:** before assigning a match level, check the posting against `04-job-evaluation.md`'s Language Gate (a required language you haven't declared at all in your CLAUDE.md Languages table). A required language that's entirely undeclared overrides skill fit: mark it **Low** regardless of how well the skills align, and name it in the highlight bullets so it isn't buried under an otherwise-good-looking match. A **declared** language at a requirement that reads higher than your declared level is *not* an override — score fit normally, but add a red-flag bullet under that job's highlights (Step 5) quoting the posting's requirement next to your declared level, so the gap is visible without being auto-downgraded.
 
 ### Step 4: Deduplicate & Store
+
+**Store with `tools/scrape_state.py`, always.** Write ALL fetched jobs (new and skipped) as one JSON array with the Write tool to `job_scraper/incoming.json`, then run:
+
+```bash
+python3 tools/scrape_state.py add --file job_scraper/incoming.json
+```
+
+It derives every key with `tools/job_key.py`'s `make_key`, applies the dedup rules below (URL under any key, then company+title), never rewrites an existing entry (a `ranked` or `expired` status survives), sets `first_seen` to today, writes `seen_jobs.json` atomically, removes the input file, and prints `{"added", "skipped", "total"}`. Each array item carries exactly `title, company, url, posted_date, deadline, fit, status, portal, source` as defined in point 2. Invalid input is rejected with a JSON error on stderr and nothing is written - fix the reported item and rerun.
+
+**Never write an ad-hoc script to store results** (in `/tmp` or anywhere else) and never hand-edit `seen_jobs.json` for this step: an improvised script is a command no allowlist can pre-approve, so a headless run (the dashboard) has no one to approve it and the whole run's results are lost.
+
+The points below document the key and schema the helper implements.
 
 1. Derive each entry's key with the helper, never by slugifying in the moment:
 

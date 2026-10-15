@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ageInDays, filterJobs, loadJobs, parseFilters, skipJob, MODALITIES } from "../lib/jobs";
 import { parseProfile } from "../lib/profile";
-import { APPLY_TOOLS, buildApplyPrompt, buildArgv, describeStreamLine, parseUiResult } from "../lib/runner";
+import { APPLY_TOOLS, SEARCH_TOOLS, buildApplyPrompt, buildArgv, describeStreamLine, parseUiResult } from "../lib/runner";
 import { isAllowedHost, isAllowedOrigin, safeResolve, sanitizeFeedback, validateJobUrl } from "../lib/security";
 import { markApplied, parseCsv, readTracker, trackerStats } from "../lib/tracker";
 
@@ -133,6 +133,12 @@ describe("headless runner", () => {
     expect(argv.indexOf("--allowedTools")).toBe(argv.length - APPLY_TOOLS.length - 1);
     expect(APPLY_TOOLS.some((t) => t.startsWith("Bash(curl"))).toBe(false);
     expect(APPLY_TOOLS).not.toContain("Bash");
+  });
+
+  test("search run may store results only through scrape_state.py", () => {
+    const bash = SEARCH_TOOLS.filter((t) => t.startsWith("Bash"));
+    expect(bash).toEqual(["Bash(python tools/scrape_state.py:*)", "Bash(python3 tools/scrape_state.py:*)"]);
+    expect(SEARCH_TOOLS).not.toContain("Bash");
   });
 
   test("prompt without acknowledgement or feedback", () => {

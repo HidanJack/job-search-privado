@@ -3,7 +3,7 @@ import { join, resolve } from "node:path";
 import { filterJobs, loadJobs, parseFilters, skipJob } from "./lib/jobs";
 import { loadProfile } from "./lib/profile";
 import {
-  APPLY_TOOLS, BASE_TOOLS, ResultStore, RunManager, buildApplyPrompt, bunSpawner, type Spawner,
+  APPLY_TOOLS, BASE_TOOLS, ResultStore, SEARCH_TOOLS, RunManager, buildApplyPrompt, bunSpawner, type Spawner,
 } from "./lib/runner";
 import { isAllowedHost, isAllowedOrigin, safeResolve, sanitizeFeedback, validateJobUrl } from "./lib/security";
 import { loadTracker, updateTrackerFile } from "./lib/tracker";
@@ -127,7 +127,7 @@ export function createHandler(opts: ServerOptions = {}) {
     switch (pathname) {
       case "/api/run/search": {
         const run = runs.start("search", "Buscar y calificar vacantes", [
-          { prompt: "/job-scraper", tools: BASE_TOOLS, title: "Buscando vacantes en los portales (/job-scraper)" },
+          { prompt: "/job-scraper", tools: SEARCH_TOOLS, title: "Buscando vacantes en los portales (/job-scraper)" },
           { prompt: "/rank", tools: BASE_TOOLS, title: "Calificando las vacantes nuevas (/rank)" },
         ]);
         return run ? json({ id: run.id }) : json({ error: "busy" }, 409);

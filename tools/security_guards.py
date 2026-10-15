@@ -60,6 +60,9 @@ ALLOWED_PERMISSIONS = {
     "Bash(python3 tools/rank_state.py:*)",
     "Bash(python tools/job_key.py:*)",
     "Bash(python3 tools/job_key.py:*)",
+    # /scrape Step 4's only sanctioned write path; confined to job_scraper/.
+    "Bash(python tools/scrape_state.py:*)",
+    "Bash(python3 tools/scrape_state.py:*)",
     "Bash(python tools/verify_pdf.py:*)",
     "Bash(python3 tools/verify_pdf.py:*)",
     "Bash(python tools/verify_layout.py:*)",
@@ -76,6 +79,9 @@ REQUIRED_IGNORE_RULES = [
     "**/job_scraper/seen_jobs.json",
     "**/job_scraper/notion_sync.json",
     "**/job_scraper/*.md",
+    # scrape_state.py input: the run's postings, removed after a good merge but
+    # left behind when a merge is rejected.
+    "**/job_scraper/incoming*.json",
     "*_BehavioralReport.pdf",
     "linkedin_Profile.pdf",
     "cv/main_*.*",
