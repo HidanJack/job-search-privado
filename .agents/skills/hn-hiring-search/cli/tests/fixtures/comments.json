@@ -1,0 +1,60 @@
+{
+ "hits": [
+  {
+   "objectID": "50095921",
+   "comment_text": "NeuralFrame | Senior Backend Engineer, Medical Data Pipeline (Python + Rust) | REMOTE (US only, US time zones; no visa sponsorship) | Full-time | $170k–$210k + 0.1%–0.25% equity<p>We build software that hospitals, cancer registries and researchers use. You&#x27;d own the pipeline that pulls data from hospital systems and transforms it for analytics and research.<p>Where Rust fits: part of our hospital data acquisition layer, the code that talks to hospital systems, is written in Rust. You&#x27;d work on both sides: Rust where performance and correctness matter most, async Python for the rest of the pipeline. Rust experience is a strong plus. Whether you learned it at work or on your own, we want to hear what you built with it.<p>Stack: Rust, async Python (mypy, pytest, ruff, uv), PostgreSQL and MongoDB, Dagster, Terraform&#x2F;OpenTofu, AWS (ECS&#x2F;Fargate, RDS, Lambda, S3), GitHub Act",
+   "created_at": "2026-10-14T21:53:28Z",
+   "parent_id": 49922569,
+   "story_id": 49922569
+  },
+  {
+   "objectID": "50095249",
+   "comment_text": "3Gimbals | <a href=\"https:&#x2F;&#x2F;www.linkedin.com&#x2F;jobs&#x2F;view&#x2F;4477632187\" rel=\"nofollow\">https:&#x2F;&#x2F;www.linkedin.com&#x2F;jobs&#x2F;view&#x2F;4477632187</a> (US&#x2F;Remote)<p>Hiring entry &#x2F; mid-level full stack swe&#x27;s with strong experience with Python, React&#x2F;TypeScript, CSS, REST APIs, SQL&#x2F;PostgreSQL, and experience with LLMs, RAG, prompt engineering, and AWS cloud.<p>We are a small team doing a cool mix of application dev on our webapp OMEN, etl stuff, and harness engineering. If interested apply!<p>Requirement: US Citizenship, Ability to obtain government clearance<p>Salary: $120k-$160k depending on experience",
+   "created_at": "2026-10-14T21:05:06Z",
+   "parent_id": 49922569,
+   "story_id": 49922569
+  },
+  {
+   "objectID": "50090302",
+   "comment_text": "GovStar | <a href=\"https:&#x2F;&#x2F;govstar.us\" rel=\"nofollow\">https:&#x2F;&#x2F;govstar.us</a> | Remote (U.S. Eastern&#x2F;Central Time) | Senior Full Stack Python Developer | U.S. Citizenship Required<p>GovStar is hiring a Senior Full Stack Python Developer to build secure, production-grade AI applications supporting U.S. national security initiatives.<p>This is a hands-on role for an experienced engineer who wants to stay close to the code, spending the majority of their time developing software.<p>We’re looking for strong experience with Python, React&#x2F;TypeScript, CSS, REST APIs, SQL&#x2F;PostgreSQL and NoSQL databases, plus experience with LLMs, RAG, prompt engineering, and cloud platforms such as Azure or AWS.<p>Relevant technologies: Python, React, TypeScript, Azure OpenAI, PostgreSQL, CosmosDB, Docker, Kubernetes, GitLab CI&#x2F;CD, LLMs, and RAG.<p>Requirements: U.S. citize",
+   "created_at": "2026-10-14T16:26:28Z",
+   "parent_id": 49922569,
+   "story_id": 49922569
+  },
+  {
+   "objectID": "50068986",
+   "comment_text": "Irash Tech | Business Development Manager (Freelance, Commission-only) | REMOTE (Worldwide) | Contract<p>Irash Tech is a small AI-focused development agency based in Hyderabad, India. We build web apps (Next.js, React, Node), mobile apps (React Native&#x2F;Expo) and AI automation (LLM integrations, RAG, document processing, n8n&#x2F;Python workflows) for startups and small businesses.<p>I&#x27;m the founder, an engineer with 7+ years in full-stack and AI, and I handle scoping and delivery. I&#x27;m looking for people anywhere in the world who can find and close clients in their own market.<p>- 15% of project value on every client you close, paid within 14 days of client payment\n- 12 months of commission on repeat work from clients you bring\n- Commission-only, no base salary. Non-exclusive, so it works alongside your other work\n- You own the client relationship and negotiation; final quot",
+   "created_at": "2026-10-13T09:31:19Z",
+   "parent_id": 49922569,
+   "story_id": 49922569
+  },
+  {
+   "objectID": "50062997",
+   "comment_text": "Indiana Microelectronics LLC | RF Engineer | West Lafayette, IN | ONSITE | Full-time | Relocation assistance available<p>Indiana Micro is a small electronics company working on tunable RF filters and radio-frequency front-end (RFFE) systems for interference mitigation.<p>We’re looking for an RF engineer to design, simulate, test, and optimize RF hardware, such as filters, amplifiers, and mixers through integrated front-end systems. You’ll work with systems engineers, firmware developers, and customers from early\narchitecture through production.<p>Looking for:<p>- US citizen<p>- 3+ years of hands-on RF engineering, hardware design, or wireless communications experience.<p>- Strong RF&#x2F;microwave fundamentals and experience with tools such as HFSS, Keysight ADS, Microwave Office, and Altium.<p>- Practical lab experience with network analyzers, spectrum analyzers, and related test equipm",
+   "created_at": "2026-10-12T20:59:57Z",
+   "parent_id": 49922569,
+   "story_id": 49922569
+  },
+  {
+   "objectID": "50031656",
+   "comment_text": "Interested in the new grad &#x2F; early career role. Built and run peatlearn.com end to end (FastAPI, React, Docker, CI&#x2F;CD). Python-first, ramping on Java&#x2F;Spring. github.com&#x2F;spacesheepinternet. What&#x27;s the best email to send a résumé to?",
+   "created_at": "2026-10-10T10:58:23Z",
+   "parent_id": 49982648,
+   "story_id": 49922569
+  },
+  {
+   "objectID": "50021883",
+   "comment_text": "I lead the A3 Lab at Aarhus University and are hiring a Three-year PhD in Physical AI; onsite in Aarhus, Denmark.<p>Topics: Vision–language–action models, world models, reliable adaptation and efficient AI, RL.\nBackground: Relevant master’s degree and strong Python&#x2F;PyTorch experience.\nDeadline: 1 November 2026.\nStart: January 2027 or later.\nContact: behzad@ece.au.dk.\nOfficial application link: <a href=\"https:&#x2F;&#x2F;phd.tech.au.dk&#x2F;for-applicants&#x2F;apply-here&#x2F;saeropslag&#x2F;phd-position-in-physical-ai-adaptive-foundation-models-for-robotics?utm_source=chatgpt.com\" rel=\"nofollow\">https:&#x2F;&#x2F;phd.tech.au.dk&#x2F;for-applicants&#x2F;apply-here&#x2F;saeropslag&#x2F;...</a>",
+   "created_at": "2026-10-09T15:25:40Z",
+   "parent_id": 49922569,
+   "story_id": 49922569
+  },
+  {
+   "objectID": "50020012",
+   "comment_text": "Propel Labs | Staff Full-Stack Engineer, Quality &amp; Delivery | Remote (North America hours) | Full-time | <a href=\"https:&#x2F;&#x2F;propellabs.ai\" rel=\"nofollow\">https:&#x2F;&#x2F;propellabs.ai</a><p>Hello HN, Lisa here from Propel! We&#x27;re a bunch of interdisciplinary builder-maker-designers leading a venture studio and building software for mining and deep-tech companies. Think IDEO for AI: a small senior team, direct CEO involvement, technical depth married with design craft. We are not a dev shop and not a consultancy, we&#x27;re not about scope or hours, we&#x27;re only about outcomes. We embed through the lifecycle of challenges and the same senior people stay on the problem.<p>AI agents have made engineering throughput cheap, so senior judgment is now the scarce asset: what to build, what to gate, what to trust to production. We&#x27;re looking for an experienced engineer t",
+   "created_at": "2026-10-09T13:12:43Z",
+   "parent_id": 49922569,
+   "story_id": 49922569
+  }
+ ]
+}

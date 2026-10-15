@@ -1,0 +1,450 @@
+{
+ "data": [
+  {
+   "id": "devops-ai-infrastructure-engineer-crost-ai-remote",
+   "type": "job",
+   "attributes": {
+    "title": "DevOps & AI Infrastructure Engineer",
+    "description_headline": "Qualifications and requirements",
+    "description": "<ul><li>Advanced English proficiency (CEFR C1 or higher), with the ability to discuss technical issues clearly on calls and write clear documentation and work updates.</li><li>Hands-on experience deploying and maintaining production applications.</li><li>Strong working knowledge of Linux, Docker, Git, and CI/CD.</li><li>Practical understanding of networking, DNS, SSL, reverse proxies, and application hosting.</li><li>Experience administering PostgreSQL, Redis, or comparable services.</li><li>Ability to write scripts and automate tasks using Bash, Python, JavaScript, or similar languages.</li><",
+    "projects": "<p>Crost AI builds and operates custom applications and ecommerce platforms for businesses. We’re a small team that uses AI extensively in software development.</p><p>We’re hiring a full-time engineer to help strengthen the infrastructure behind our client applications and our internal operations. This includes deployments, CI/CD, monitoring, databases, servers, and self-hosted tools.</p><p>We also want to establish consistent AI-assisted development workflows across projects, covering task execution, agent coordination, pull request review, testing, and feedback.</p><p>You’ll work directly wi",
+    "functions_headline": "Job functions",
+    "functions": "<ul><li>Deploy and maintain client applications across development, staging, and production environments.</li><li>Build and improve CI/CD pipelines, deployment automation, and rollback procedures.</li><li>Manage containers, databases, networking, DNS, SSL certificates, secrets, and access controls.</li><li>Set up monitoring, logging, alerts, backups, and tested recovery procedures.</li><li>Maintain internal Linux servers, development environments, and self-hosted services.</li><li>Help design and implement reusable AI-assisted development workflows for coding, testing, pull request review, and",
+    "benefits_headline": "Conditions",
+    "benefits": "<ul><li>Full-time, ongoing role.</li><li>Fully remote.</li><li>Work directly with the founder on priorities and implementation.</li><li>Opportunity to shape our infrastructure and AI development practices across multiple projects.</li></ul>",
+    "desirable_headline": "Desirable skills",
+    "desirable": "<ul><li>Experience with Northflank, Railway, Buildkite, GitHub Actions, or Infisical.</li><li>Experience coordinating AI agents or automating development and code review workflows.</li><li>Familiarity with MCP, APIs, webhooks, and integrations between development tools.</li><li>Experience managing physical servers, virtualization, and self-hosted infrastructure.</li><li>Familiarity with infrastructure as code and reusable environment configuration.</li><li>Working knowledge of Node.js and TypeScript applications.</li><li>Experience deploying and running AI/ML models on self-hosted GPUs, includ",
+    "remote": true,
+    "remote_modality": "fully_remote",
+    "remote_zone": null,
+    "countries": [
+     "Remote"
+    ],
+    "lang": "en",
+    "category_name": "SysAdmin / DevOps / QA",
+    "perks": [
+     "remote_full"
+    ],
+    "min_salary": 2000,
+    "max_salary": 2500,
+    "published_at": 1791558757,
+    "response_time_in_days": {
+     "min": null,
+     "max": null
+    },
+    "applications_count": 80,
+    "location_regions": {
+     "data": []
+    },
+    "location_tenants": {
+     "data": []
+    },
+    "location_cities": {
+     "data": []
+    },
+    "modality": {
+     "data": {
+      "id": 1,
+      "type": "modality"
+     }
+    },
+    "seniority": {
+     "data": {
+      "id": 4,
+      "type": "seniority"
+     }
+    },
+    "tags": {
+     "data": [
+      {
+       "id": 76,
+       "type": "tag"
+      },
+      {
+       "id": 141,
+       "type": "tag"
+      },
+      {
+       "id": 53,
+       "type": "tag"
+      },
+      {
+       "id": 422,
+       "type": "tag"
+      },
+      {
+       "id": 950,
+       "type": "tag"
+      },
+      {
+       "id": 51,
+       "type": "tag"
+      },
+      {
+       "id": 23,
+       "type": "tag"
+      },
+      {
+       "id": 906,
+       "type": "tag"
+      },
+      {
+       "id": 37119,
+       "type": "tag"
+      }
+     ]
+    },
+    "company": {
+     "data": {
+      "id": "crost-ai",
+      "type": "company",
+      "attributes": {
+       "name": "Crost AI"
+      }
+     }
+    }
+   },
+   "links": {
+    "public_url": "https://www.getonbrd.com/jobs/devops-ai-infrastructure-engineer-crost-ai-remote"
+   }
+  },
+  {
+   "id": "semi-senior-java-developer-etl-23people-remote-ebb4",
+   "type": "job",
+   "attributes": {
+    "title": "Semi Senior Java Developer / ETL",
+    "description_headline": "Skills Excluyentes",
+    "description": "<ul><li>Experiencia excluyente trabajando con Java.</li><li>Experiencia comprobable en procesos de Extracción, Transformación y Carga de datos (ETL).</li><li>Sólidos conocimientos como usuario de bases de datos, abarcando SQL, procedimientos almacenados y triggers.</li><li>Experiencia en procesos de manejo de datos, incluyendo tanto procesamiento en lotes como procesamientos distribuidos.</li><li>Inglés técnico/básico: Capacidad para leer documentación, entender requerimientos y redactar mensajes sencillos.</li></ul>",
+    "projects": "<div>Equifax es mucho más que una empresa de informes; es una compañía global líder en datos, analítica y tecnología con presencia en 24 países. En Chile, operan desde 1979 entregando soluciones críticas de ciberseguridad, identidad y riesgo a más de 14.000 empresas.</div><div>El Hub Tecnológico (SDC) Lo que hace única a esta oportunidad es que Chile alberga el Santiago Development Center (SDC). Este centro lidera la transformación digital de Equifax a nivel mundial, concentrando cerca del 60% de sus desarrollos tecnológicos globales.</div><div>Cultura y Visión Equifax promueve un entorno de c",
+    "functions_headline": "Funciones del cargo",
+    "functions": "<p><strong>El Semi Senior Developer se integrará al equipo para realizar la automatización, transformación y limpieza de datos provenientes de diversas fuentes, tales como Excel, XML y CSV. Su día a día incluirá la carga y revisión de estos archivos en la nube utilizando GCP. Además, trabajará activamente con pipelines de datos que alimentan entornos de Big Data a través de scripts.</strong></p>",
+    "benefits_headline": "Beneficios",
+    "benefits": "<ul><li><strong>Seguro complementario</strong>: Seguro de salud, vida y dental, para que estés protegido.</li><li><strong>Curso de inglés</strong>: En nuestro programa de formación en el idioma, ofrecemos dos modalidades para adaptarnos a tus necesidades y objetivos, con profesores nativos.</li><li><strong>Reembolso de certificaciones internacionales</strong>: Apoyamos el crecimiento profesional, por lo que te reembolsamos el costo de un examen de certificación internacional que quieras realizar.</li><li><strong>Bono de vacaciones</strong>: Recibe una compensación económica por cada semana de ",
+    "desirable_headline": "Skills Deseables",
+    "desirable": "<ul><li>Conocimientos en Python.</li><li>Diseño, creación y manejo de ETL On Prem (Pentaho, Control-M, Nifi) o Cloud (Airflow, Cloud Composer, Glue, Lambda).</li><li>Conocimientos en tecnologías como Spark y DataProc / DataFlow.</li><li>Conocimientos sobre ambientes de datos, calidad, modelado de procesos y flujos de datos.</li><li>Nociones básicas de estadísticas, machine learning y deep learning.<br></li></ul><h3><strong>¿Qué ofrecemos?</strong></h3><ul><li><strong>Rango salarial: $2.000.000 - $2.200.000 CLP.</strong></li><li><strong>Modalidad: Remoto.</strong></li><li><strong>Horario: Lunes",
+    "remote": true,
+    "remote_modality": "remote_local",
+    "remote_zone": null,
+    "countries": [
+     "Remote"
+    ],
+    "lang": "lang_not_specified",
+    "category_name": "Data Science / Analytics",
+    "perks": [
+     "wellness",
+     "accessible",
+     "flexible_hours",
+     "life_insurance",
+     "health_coverage",
+     "computer_repairs",
+     "dental_insurance",
+     "computer_provided",
+     "education_stipend",
+     "shopping_discounts",
+     "vacation_on_birthday"
+    ],
+    "min_salary": 2000,
+    "max_salary": 2200,
+    "published_at": 1792065925,
+    "response_time_in_days": {
+     "min": null,
+     "max": null
+    },
+    "applications_count": 134,
+    "location_regions": {
+     "data": []
+    },
+    "location_tenants": {
+     "data": [
+      {
+       "id": 1,
+       "type": "location_tenant"
+      }
+     ]
+    },
+    "location_cities": {
+     "data": []
+    },
+    "modality": {
+     "data": {
+      "id": 1,
+      "type": "modality"
+     }
+    },
+    "seniority": {
+     "data": {
+      "id": 3,
+      "type": "seniority"
+     }
+    },
+    "tags": {
+     "data": [
+      {
+       "id": 2,
+       "type": "tag"
+      },
+      {
+       "id": 175,
+       "type": "tag"
+      },
+      {
+       "id": 64,
+       "type": "tag"
+      },
+      {
+       "id": 3386,
+       "type": "tag"
+      },
+      {
+       "id": 37032,
+       "type": "tag"
+      },
+      {
+       "id": 36940,
+       "type": "tag"
+      },
+      {
+       "id": 355,
+       "type": "tag"
+      }
+     ]
+    },
+    "company": {
+     "data": {
+      "id": "23people-cl",
+      "type": "company",
+      "attributes": {
+       "name": "23people"
+      }
+     }
+    }
+   },
+   "links": {
+    "public_url": "https://www.getonbrd.com/jobs/semi-senior-java-developer-etl-23people-remote-ebb4"
+   }
+  },
+  {
+   "id": "full-stack-developer-react-ror-rankmi-ciudad-de-mexico-santiago-lima-58b2",
+   "type": "job",
+   "attributes": {
+    "title": "Full-Stack Developer React + RoR",
+    "description_headline": "Requerimientos del cargo",
+    "description": "<ul><li>Mínimo de <strong>3 años de experiencia en desarrollo de software (excluyente).</strong></li><li>Título universitario en Ciencias de la Computación, Ingeniería de Software o un campo relacionado, o experiencia equivalente (deseable)</li><li><strong>Excluyente experiencia con React y Ruby on Rails.</strong></li><li>Conocimiento de bases de datos relacionales y no relacionales.</li><li>Experiencia en trabajar con equipos de desarrollo y en proyectos de software.</li><li>Experiencia con herramientas y prácticas de desarrollo ágil (YouTrack, Git, Docker, CI/CD, etc.).</li></ul><div><strong",
+    "projects": "<div>Somos la plataforma que unifica en un solo lugar todos los procesos de Gestión de Personas —desde la Nómina, Talento, Beneficios hasta la Comunicación —. <strong>Todo rediseñado y potenciado con Inteligencia Artificial. </strong></div><div><br></div><div><strong>Misión del cargo</strong></div><ul><li>Contribuir al diseño, implementación y mantenimiento de aplicaciones de alta calidad en la empresa. Colaborar con otros desarrolladores y equipos para entregar soluciones eficientes y escalables. Adicionalmente, también actúa como un puente entre los desarrolladores junior y senior, apoyando ",
+    "functions_headline": "Funciones del cargo",
+    "functions": "<ul><li><strong>Entrega de Funcionalidades</strong>: Completar las tareas y funcionalidades asignadas dentro del plazo y con alta calidad. Asegurar que el código sea eficiente, mantenible y escalable.</li><li><strong>Calidad del Código</strong>: Mantener altos estándares de calidad en el código, siguiendo las mejores prácticas de desarrollo. Contribuir a la reducción de errores y problemas mediante revisiones de código y pruebas rigurosas.</li><li><strong>Mejoramiento Continuo: </strong>Demostrar una mejora continua en habilidades técnicas y conocimiento del producto. Participar en la implemen",
+    "benefits_headline": "Beneficios 🎁",
+    "benefits": "<div> Sabemos que el alto desempeño requiere de un gran balance. Por eso, diseñamos una propuesta de valor que cuida de ti y de los tuyos:</div><ul><li><strong>🤸 Work-Life Balance:</strong> Modelo de trabajo híbrido en Chile, Perú y México (otros paises 100% remoto), flexibilidad horaria (aquí confiamos en tu responsabilidad), días de vacaciones adicionales para desconectarte y día libre por mudanza.</li><li>💖 <strong>We Care</strong>: Medio día libre en tu cumpleaños, en el de tus hij@s o cónyuge. Postnatal adicional para papás. Bono por matrimonio/unión civil, nacimiento y programa de referi",
+    "desirable_headline": "Opcionales",
+    "desirable": "<ul><li>React Native, Python y Node.js, GraphQL</li></ul>",
+    "remote": false,
+    "remote_modality": "hybrid",
+    "remote_zone": null,
+    "countries": [
+     "Chile",
+     "Peru",
+     "Mexico"
+    ],
+    "lang": "es",
+    "category_name": "Programming",
+    "perks": [
+     "remote_partial",
+     "computer_provided",
+     "performance_bonus",
+     "informal_dresscode",
+     "vacation_over_legal"
+    ],
+    "min_salary": null,
+    "max_salary": null,
+    "published_at": 1791462085,
+    "response_time_in_days": {
+     "min": 1,
+     "max": 9
+    },
+    "applications_count": 195,
+    "location_regions": {
+     "data": []
+    },
+    "location_tenants": {
+     "data": []
+    },
+    "location_cities": {
+     "data": [
+      {
+       "id": 200,
+       "type": "location_city"
+      },
+      {
+       "id": 1,
+       "type": "location_city"
+      },
+      {
+       "id": 130,
+       "type": "location_city"
+      }
+     ]
+    },
+    "modality": {
+     "data": {
+      "id": 1,
+      "type": "modality"
+     }
+    },
+    "seniority": {
+     "data": {
+      "id": 3,
+      "type": "seniority"
+     }
+    },
+    "tags": {
+     "data": [
+      {
+       "id": 4,
+       "type": "tag"
+      },
+      {
+       "id": 53,
+       "type": "tag"
+      },
+      {
+       "id": 123,
+       "type": "tag"
+      },
+      {
+       "id": 141,
+       "type": "tag"
+      },
+      {
+       "id": 422,
+       "type": "tag"
+      },
+      {
+       "id": 37317,
+       "type": "tag"
+      }
+     ]
+    },
+    "company": {
+     "data": {
+      "id": "rankmi",
+      "type": "company",
+      "attributes": {
+       "name": "Rankmi"
+      }
+     }
+    }
+   },
+   "links": {
+    "public_url": "https://www.getonbrd.com/jobs/full-stack-developer-react-ror-rankmi-ciudad-de-mexico-santiago-lima-58b2"
+   }
+  },
+  {
+   "id": "data-scientist-nivel-ii-unholster-santiago",
+   "type": "job",
+   "attributes": {
+    "title": "Data Scientist Nivel II",
+    "description_headline": "¿Qué buscamos?",
+    "description": "<ul><li>Egresado/a o titulado/a de Ingeniería Matemática, Eléctrica, Informática u otras Ciencias Cuantitativas (no excluyente).</li><li>Vacante para nivel semi senior ( 2 a 3 años de experiencia)</li><li>Experiencia en modelos estadísticos y aprendizaje automático (machine learning). </li><li>Sólidos conocimientos en programación, especialmente en Python. </li><li>Habilidades analíticas, proactividad, autonomía y capacidad de organización. </li><li>Disponibilidad para trabajo presencial (con flexibilidad). </li><li>Excelente capacidad de comunicación (redacción y ortografía). </li><li>Experie",
+    "projects": "En Unholster desarrollamos software a medida, datos y analítica predictiva para clientes de diversos sectores. Como Data Scientist en Unholster, serás parte de un equipo multidisciplinario de profesionales en datos, ingeniería y consultoría, donde colaborarás directamente en proyectos con clientes nacionales e internacionales. Tu rol será resolver problemas complejos a través de modelos analíticos, programación y técnicas estadísticas, generando insights que se traducen en decisiones reales y valor tangible para las organizaciones con las que trabajamos. Creemos en el poder transformador de lo",
+    "functions_headline": "Funciones del cargo",
+    "functions": "<ul><li>Investigar, comprender y trabajar con modelos de datos estructurados y no estructurados. </li><li>Diseñar y desarrollar modelos analíticos y predictivos que generen valor en la toma de decisiones. </li><li>Presentar resultados de manera clara y comprensible, utilizando gráficos, mapas interactivos y timelines. </li><li>Participar en la definición del alcance de los proyectos (Scope of Work) y en el diseño de soluciones, en coordinación con equipos multidisciplinarios. </li><li>Trabajar en paralelo en múltiples proyectos de Data Science, asegurando alta calidad en entregables y cumplimi",
+    "benefits_headline": "Beneficios",
+    "benefits": "<ul><li>Vacaciones extendidas: Tenemos 25 días de vacaciones disponibles para ti. </li><li>Una oficina atómica: En el corazón de Ñuñoa, con amplios espacios de trabajo que cuentan un patio con piscina y terraza, juegos de mesa, estacionamientos para bicicleta, snacks. </li><li>Acceso a herramientas de IA : Claude, Cursor, OpenAI. </li><li>Celebra tu cumpleaños: ¡Te damos el día libre! </li><li>Ajuste IPC trimestral </li><li>Trabaja seguro: Seguro complementario de salud y dental, convenios de apoyo de salud mental. </li><li>Jornada de 40 hrs</li></ul>",
+    "desirable_headline": "Deseables",
+    "desirable": "<ul><li>Diplomado o Magíster en Data Science. </li><li>Nivel avanzado de inglés. </li><li>Experiencia en el desarrollo de flujos agénticos y sistemas basados en agentes de IA (por ejemplo, LangChain, LangSmith, Amazon Bedrock AgentCore, entre otros). </li><li>Experiencia en desarrollo, entrenamiento y/o fine-tuning de modelos de machine learning y deep learning, utilizando frameworks como PyTorch y Transformers.</li></ul>",
+    "remote": false,
+    "remote_modality": "no_remote",
+    "remote_zone": null,
+    "countries": [
+     "Chile"
+    ],
+    "lang": "lang_not_specified",
+    "category_name": "Data Science / Analytics",
+    "perks": [],
+    "min_salary": 2000,
+    "max_salary": 3000,
+    "published_at": 1792007846,
+    "response_time_in_days": {
+     "min": null,
+     "max": null
+    },
+    "applications_count": 8,
+    "location_regions": {
+     "data": []
+    },
+    "location_tenants": {
+     "data": []
+    },
+    "location_cities": {
+     "data": [
+      {
+       "id": 1,
+       "type": "location_city"
+      }
+     ]
+    },
+    "modality": {
+     "data": {
+      "id": 1,
+      "type": "modality"
+     }
+    },
+    "seniority": {
+     "data": {
+      "id": 3,
+      "type": "seniority"
+     }
+    },
+    "tags": {
+     "data": [
+      {
+       "id": 163,
+       "type": "tag"
+      },
+      {
+       "id": 37128,
+       "type": "tag"
+      },
+      {
+       "id": 18,
+       "type": "tag"
+      },
+      {
+       "id": 56,
+       "type": "tag"
+      },
+      {
+       "id": 361,
+       "type": "tag"
+      },
+      {
+       "id": 235,
+       "type": "tag"
+      },
+      {
+       "id": 4156,
+       "type": "tag"
+      }
+     ]
+    },
+    "company": {
+     "data": {
+      "id": "unholster",
+      "type": "company",
+      "attributes": {
+       "name": "Unholster"
+      }
+     }
+    }
+   },
+   "links": {
+    "public_url": "https://www.getonbrd.com/jobs/data-scientist-nivel-ii-unholster-santiago"
+   }
+  }
+ ],
+ "meta": {
+  "page": 1,
+  "per_page": 100,
+  "total_pages": 3
+ }
+}

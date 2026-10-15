@@ -1,0 +1,296 @@
+{
+ "comments": "fixture",
+ "totalCount": 5000,
+ "offset": 0,
+ "limit": 20,
+ "jobs": [
+  {
+   "title": "Senior React Full-stack Developer",
+   "excerpt": "Are you a talented Senior Developer looking for a remote job that lets you show your skills and get decent compensation?",
+   "companyName": "lemon.io",
+   "companySlug": "lemon-io",
+   "companyLogo": "https://cdn-images.himalayas.app/7q73pk07sy2xiwd47drvhwevk93r",
+   "employmentType": "Full Time",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Senior"
+   ],
+   "currency": "USD",
+   "locationRestrictions": [],
+   "timezoneRestrictions": [
+    -11,
+    -10,
+    -9.5,
+    -9,
+    -8,
+    -7,
+    -6,
+    -5,
+    -4,
+    -3.5,
+    -3,
+    -2,
+    -1,
+    0,
+    1,
+    2,
+    3,
+    3.5,
+    4,
+    4.5,
+    5,
+    5.5,
+    5.75,
+    6,
+    6.5,
+    7,
+    8,
+    8.75,
+    9,
+    9.5,
+    10,
+    10.5,
+    11,
+    12,
+    12.75,
+    13,
+    14
+   ],
+   "categories": [
+    "Full-Stack-Engineer",
+    "Senior-Full-Stack-Development",
+    "Senior-Fullstack-Developer",
+    "Senior-Full-Stack-Engineering",
+    "Senior-Fullstack-Web-Application-Developer",
+    "Senior-Full-Stack-Developer-(React-Node.Js)",
+    "Full-Stack-Web-Developer"
+   ],
+   "parentCategories": [
+    "Developer"
+   ],
+   "description": "<p>Are you a talented Senior Developer looking for a remote job that lets you show your skills and get decent compensation? Look no further than Lemon.io — the marketplace that connects you with hand-picked startups in the US and Europe.</p><p><strong>What we offer:</strong></p><ul class=\"list-disc list-outside leading-3 -mt-2\">\n<li class=\"leading-normal -mb-2\"><p>The rate depends on your seniority level, skills and experience. We've already paid out over $11M to our engineers.</p></li>\n<li class=\"leading-normal -mb-2\"><p>No more hunting for clients or negotiating rates — let us handle the bus",
+   "pubDate": 1790075996,
+   "expiryDate": 1792667993,
+   "applicationLink": "https://himalayas.app/companies/lemon-io/jobs/senior-full-stack-developer-4016266853",
+   "guid": "https://himalayas.app/companies/lemon-io/jobs/senior-full-stack-developer-4016266853"
+  },
+  {
+   "title": "Senior React Native Developer",
+   "excerpt": "Lemon. io helps companies in the US and Europe hire experienced engineers, from funded startups to teams like Klarna, Retool, and Pinterest.",
+   "companyName": "lemon.io",
+   "companySlug": "lemon-io",
+   "companyLogo": "https://cdn-images.himalayas.app/7q73pk07sy2xiwd47drvhwevk93r",
+   "employmentType": "Contractor",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Senior"
+   ],
+   "currency": "USD",
+   "locationRestrictions": [
+    "Mexico",
+    "Colombia"
+   ],
+   "timezoneRestrictions": [
+    -11,
+    -10,
+    -9.5,
+    -9,
+    -8,
+    -7,
+    -6,
+    -5,
+    -4,
+    -3.5,
+    -3,
+    -2,
+    -1,
+    0,
+    1,
+    2,
+    3,
+    3.5,
+    4,
+    4.5,
+    5,
+    5.5,
+    5.75,
+    6,
+    6.5,
+    7,
+    8,
+    8.75,
+    9,
+    9.5,
+    10,
+    10.5,
+    11,
+    12,
+    12.75,
+    13,
+    14
+   ],
+   "categories": [
+    "React-Native-Developer",
+    "Senior-React-Native-Mobile-Developer",
+    "Senior-React-Native-Engineer"
+   ],
+   "parentCategories": [
+    "Developer"
+   ],
+   "description": "<p>Lemon.io helps companies in the US and Europe hire experienced engineers, from funded startups to teams like Klarna, Retool, and Pinterest. We’ve been doing this since 2015, and more than 1,500 companies have hired engineers through us.</p><p>New roles for senior React Native engineers come in all the time, and several are open right now.</p><p><strong>Two ways to work with clients</strong></p><ul class=\"list-disc list-outside leading-3 -mt-2\">\n<li class=\"leading-normal -mb-2\"><p><strong>Contract:</strong> most roles are contract-based. You join the client’s team and work as part of it.</p>",
+   "pubDate": 1792087770,
+   "expiryDate": 1794679768,
+   "applicationLink": "https://himalayas.app/companies/lemon-io/jobs/senior-react-native-developer-5321943776",
+   "guid": "https://himalayas.app/companies/lemon-io/jobs/senior-react-native-developer-5321943776"
+  },
+  {
+   "title": "Python Tutorial Writer",
+   "excerpt": "Do you have a knack for writing and the time it takes to get your thoughts in front of thousands of Python developers?",
+   "companyName": "Real Python",
+   "companySlug": "real-python",
+   "companyLogo": "",
+   "employmentType": "Contractor",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Mid-level"
+   ],
+   "currency": null,
+   "locationRestrictions": [
+    "Canada",
+    "United Kingdom",
+    "United States"
+   ],
+   "timezoneRestrictions": [
+    -10,
+    -9,
+    -8,
+    -7,
+    -6,
+    -5,
+    -4,
+    -3.5,
+    0,
+    14
+   ],
+   "categories": [
+    "Technical-Writer",
+    "Content-Writing",
+    "Python",
+    "Education",
+    "Tutorial-Writing",
+    "Python-Instructor",
+    "Python-Teaching",
+    "User-Guide-Writer",
+    "Content-Creator"
+   ],
+   "parentCategories": [
+    "Content Creator"
+   ],
+   "description": "<p>Do you have a knack for writing and the time it takes to get your thoughts in front of thousands of Python developers? </p><p>The  tutorial team is known for making the highest-quality Python tutorials available online. Our mission is to “help Python developers around the world become more awesome.”</p><p>And with a reach of over 3 million visitors a month, it feels amazing how far we’ve come—but we think we can do even better!</p><p>To help us raise the quality level of our tutorials even further, and expand beyond the topics we’ve covered so far, we are looking for authors who:</p><ul>\n<l",
+   "pubDate": 1791898071,
+   "expiryDate": 1797082071,
+   "applicationLink": "https://himalayas.app/companies/real-python/jobs/python-tutorial-writer",
+   "guid": "https://himalayas.app/companies/real-python/jobs/python-tutorial-writer"
+  },
+  {
+   "title": "Python Video Course Instructor",
+   "excerpt": "Do you love learning new things and sharing your knowledge with thousands of Python developers?",
+   "companyName": "Real Python",
+   "companySlug": "real-python",
+   "companyLogo": "",
+   "employmentType": "Contractor",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Mid-level"
+   ],
+   "currency": null,
+   "locationRestrictions": [
+    "Canada",
+    "United Kingdom",
+    "United States"
+   ],
+   "timezoneRestrictions": [
+    -10,
+    -9,
+    -8,
+    -7,
+    -6,
+    -5,
+    -4,
+    -3.5,
+    0,
+    14
+   ],
+   "categories": [
+    "Education",
+    "Online-Instructions",
+    "Instructional-Design",
+    "Technical-Training",
+    "Video-Content-Creation",
+    "Python-Instructor",
+    "Python-Teaching",
+    "Online-Programming-Instructor",
+    "Online-Course-Instructor",
+    "Programming-Instructor",
+    "Python-Trainer",
+    "Online-Coding-Instructor"
+   ],
+   "parentCategories": [
+    "Education"
+   ],
+   "description": "<p>Do you love learning new things and sharing your knowledge with thousands of Python developers?</p><p>The  tutorial team is known for making the highest-quality Python tutorials available online. Our mission is to “help Python developers around the world become more awesome.”</p><p>And with a reach of over 3 million visitors a month, it feels amazing how far we’ve come—but we think we can do even better!</p><p>To help us raise the quality level of our tutorials even further, and expand beyond the topics we’ve covered so far, we are looking for video course instructors who:</p><ul>\n<li>Love ",
+   "pubDate": 1791898066,
+   "expiryDate": 1797082066,
+   "applicationLink": "https://himalayas.app/companies/real-python/jobs/python-video-course-instructor",
+   "guid": "https://himalayas.app/companies/real-python/jobs/python-video-course-instructor"
+  },
+  {
+   "title": "Senior Python Developer",
+   "excerpt": "Title: Senior Python Developer Remote WFH OpportunityCompany: ITHR 360 ConsultingLocation: RemoteSalary: Competitive, Indian Market Standard Availability: Immediate (Join within 15 Days) Contact: Are you an experienced Python developer looking for a remote opportunity?",
+   "companyName": "ITHR Technologies Consulting LLC",
+   "companySlug": "ithr-technologies-consulting-llc",
+   "companyLogo": "https://cdn-images.himalayas.app/rpwogy87t6v1u0yqk3k74du7yhgh",
+   "employmentType": "Full Time",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Senior"
+   ],
+   "currency": null,
+   "locationRestrictions": [
+    "India"
+   ],
+   "timezoneRestrictions": [
+    5.5
+   ],
+   "categories": [
+    "Python-Developer",
+    "Backend-Engineer",
+    "Software-Developer",
+    "Software-Engineer",
+    "Senior-Python-Engineer",
+    "Senior-Python-Software-Engineer",
+    "Senior-Python-Backend-Developer",
+    "Senior-Backend-Python-Developer",
+    "Senior-Python-Developer-(South-America)"
+   ],
+   "parentCategories": [
+    "Developer"
+   ],
+   "description": "<h3>Title: Senior Python Developer </h3><h3>Remote WFH Opportunity</h3><h3>Company: ITHR 360 Consulting</h3><h3>Location: Remote</h3><p>Salary: Competitive, Indian Market Standard</p><p>Availability: Immediate (Join within 15 Days)</p><h3>Contact: </h3><p>Are you an experienced Python developer looking for a remote opportunity? Join us at ITHR 360 Consulting, where you can leverage your expertise to work on exciting projects from the comfort of your own home.</p><h3>Responsibilities:</h3><ul>\n<li>Utilize Python 3.x to develop backend solutions, interacting with Upstream / Downstream services a",
+   "pubDate": 1791551630,
+   "expiryDate": 1796735629,
+   "applicationLink": "https://himalayas.app/companies/ithr-technologies-consulting-llc/jobs/senior-python-developer-9627617409",
+   "guid": "https://himalayas.app/companies/ithr-technologies-consulting-llc/jobs/senior-python-developer-9627617409"
+  }
+ ]
+}

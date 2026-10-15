@@ -1,0 +1,74 @@
+{
+ "apiVersion": "2.2.19",
+ "documentationUrl": "https://jobi.cy/apidocs",
+ "friendlyNotice": "Thanks for using Jobicy API! Please ensure Jobicy is clearly credited with a direct link to the source, and all application buttons redirect to the original job URL provided in this feed. That’s all! You might be building something amazing, we wish you the best of luck!",
+ "jobCount": 3,
+ "lastUpdate": "2026-10-15T13:33:51+00:00",
+ "nextCursor": "AgAAAABq0SP0AAAAAGrQzzIAAAAAAAJe9wLdYReLMIlnNcHnEovfWMhi-qEnddl3ku86rH8wP7EOa9gDpLpId_snrUa8n0o1jN0LzpAuZ3PJnkvO1yZKuZQ",
+ "hasMore": true,
+ "appliedFilters": {
+  "count": 3,
+  "tag": "python"
+ },
+ "jobs": [
+  {
+   "id": 155385,
+   "url": "https://jobicy.com/jobs/155385-ai-platform-engineer",
+   "jobSlug": "155385-ai-platform-engineer",
+   "jobTitle": "AI Platform Engineer",
+   "companyName": "Supabase",
+   "companyLogo": "https://jobicy.com/data/server-nyc0409/galaxy/mercury/2026/06/611d3bfa-221.png",
+   "jobIndustry": [
+    "Software Engineering"
+   ],
+   "jobType": [
+    "Full-Time"
+   ],
+   "jobGeo": "Anywhere",
+   "jobLevel": "Director",
+   "jobExcerpt": "About Supabase Supabase is the Postgres development platform, built by developers for developers. We provide a complete backend solution including Database, Auth, Storage, Edge Functions, Realtime, an",
+   "jobDescription": "<h3>About <a href=\"https://jobicy.com/company/supabase\" target=\"_blank\" rel=\"noopener\">Supabase</a></h3>\n<p>Supabase is the Postgres development platform, built by developers for developers. We provide a complete backend solution including Database, Auth, Storage, Edge Functions, Realtime, and Vector Search. All services are deeply integrated and designed for growth.</p>\n<h3>About the Role</h3>\n<p>We are hiring a <strong>AI Platform Engineer</strong> to build the execution layer for Supabase's internal AI systems.</p>\n<p>Supabase is building an AI-native internal operating system: a common way",
+   "pubDate": "2026-10-15T13:33:51+00:00"
+  },
+  {
+   "id": 155381,
+   "url": "https://jobicy.com/jobs/155381-senior-software-engineer-full-stack",
+   "jobSlug": "155381-senior-software-engineer-full-stack",
+   "jobTitle": "Senior Software Engineer - Full Stack",
+   "companyName": "Tripadvisor",
+   "companyLogo": "https://jobicy.com/data/server-nyc0409/galaxy/mercury/2021/01/WRILS-210129125206-036216.jpg",
+   "jobIndustry": [
+    "Software Engineering"
+   ],
+   "jobType": [
+    "Full-Time"
+   ],
+   "jobGeo": "Poland,  Portugal,  UK",
+   "jobLevel": "Senior",
+   "jobExcerpt": "Senior Software Engineer About Tripadvisor The Tripadvisor Group connects people to experiences worth sharing, and aims to be the world’s most trusted source for travel and experiences. We leverage ou",
+   "jobDescription": "<p><strong>Senior Software Engineer </strong></p>\n\n<p><strong>About <a href=\"https://jobicy.com/company/tripadvisor\" target=\"_blank\" rel=\"noopener\">Tripadvisor</a></strong></p>\n\n<p>The Tripadvisor Group connects people to experiences worth sharing, and aims to be the world’s most trusted source for travel and experiences. We leverage our brands, technology, and capabilities to connect our global audience with partners through rich content, travel guidance, and two-sided marketplaces for experiences, accommodations, restaurants, and other travel categories. The subsidiaries of Tripadvisor, Inc.",
+   "pubDate": "2026-10-15T13:03:47+00:00"
+  },
+  {
+   "id": 155383,
+   "url": "https://jobicy.com/jobs/155383-senior-software-engineer-full-stack-front-end-focused",
+   "jobSlug": "155383-senior-software-engineer-full-stack-front-end-focused",
+   "jobTitle": "Senior Software Engineer - Full Stack/Front-end focused",
+   "companyName": "Tripadvisor",
+   "companyLogo": "https://jobicy.com/data/server-nyc0409/galaxy/mercury/2021/01/WRILS-210129125206-036216.jpg",
+   "jobIndustry": [
+    "Software Engineering"
+   ],
+   "jobType": [
+    "Full-Time"
+   ],
+   "jobGeo": "Poland,  Portugal,  UK",
+   "jobLevel": "Senior",
+   "jobExcerpt": "Senior Software Engineer About Tripadvisor The Tripadvisor Group connects people to experiences worth sharing, and aims to be the world’s most trusted source for travel and experiences. We leverage ou",
+   "jobDescription": "<p><strong>Senior Software Engineer </strong></p>\n\n<p><strong>About <a href=\"https://jobicy.com/company/tripadvisor\" target=\"_blank\" rel=\"noopener\">Tripadvisor</a></strong></p>\n\n<p>The Tripadvisor Group connects people to experiences worth sharing, and aims to be the world’s most trusted source for travel and experiences. We leverage our brands, technology, and capabilities to connect our global audience with partners through rich content, travel guidance, and two-sided marketplaces for experiences, accommodations, restaurants, and other travel categories. The subsidiaries of Tripadvisor, Inc.",
+   "pubDate": "2026-10-15T13:03:46+00:00"
+  }
+ ],
+ "statusCode": 200,
+ "success": true
+}

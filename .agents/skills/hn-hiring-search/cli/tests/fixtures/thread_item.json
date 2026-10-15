@@ -1,0 +1,56 @@
+{
+ "id": 49922569,
+ "type": "story",
+ "title": "Ask HN: Who is hiring? (October 2026)",
+ "created_at": "2026-10-01T15:02:07.000Z",
+ "children": [
+  {
+   "id": 49922584,
+   "type": "comment",
+   "text": "PrairieLearn (Remote US) — Full-Stack Software Engineer — TypeScript &#x2F; Postgres &#x2F; React &#x2F; AI<p>PrairieLearn (<a href=\"https:&#x2F;&#x2F;www.prairielearn.com\" rel=\"nofollow\">https:&#x2F;&#x2F;www.prairielearn.com</a>) is an open-source assessment platform used by universities across the US (Berkeley, Princeton, Michigan, Illinois, and others). We power mastery-based learning and large-scale exams.<p>We’re a small, profitable, early-stage company (bootstrapped, no VC) that is growing quickly. Our users love us and we have very high retention and rapid spread through word of mouth. As an early-stage hire, you’ll work across the stack and enjoy meaningful ownership from day one.<p>Tech we use: Node.js &#x2F; TypeScript backend, Postgres, AWS, React. We’re also developing AI tooling, including LLM agents to help instructors create content, and vision-language models to help gra",
+   "created_at": "2026-10-01T15:02:37.000Z",
+   "parent_id": 49922569,
+   "story_id": 49922569
+  },
+  {
+   "id": 49922593,
+   "type": "comment",
+   "text": "Shepherd (Series B) | ONSITE | San Francisco, CA &amp; New York City, NY<p>At Shepherd, we&#x27;re pursuing the most ambitious technical vision in commercial insurance: fully autonomous underwriting. Shepherd is an AI-native commercial insurance platform transforming how high-hazard industries get covered.<p>The infrastructure behind the AI boom (data centers, semiconductor fabs, renewable energy assets) has to be built and insured, but traditional carriers weren&#x27;t built for this speed. We built Shepherd to solve that.<p>We announced our $42M Series B earlier this year! That brings our total funding to over $60M — led by Intact Private Capital, the investment arm of one of the largest insurers in the world. Intact is not only our lead investor but also a carrier partner, a testament to the confidence the incumbent industry has in what we&#x27;re building.<p>We’re looking for product",
+   "created_at": "2026-10-01T15:02:51.000Z",
+   "parent_id": 49922569,
+   "story_id": 49922569
+  },
+  {
+   "id": 49922609,
+   "type": "comment",
+   "text": "Sidekick Labs | Senior SWE, R&amp;D Engineer, Intelligence Engineer | REMOTE (US Timezones) | Full-time | $170k to $230k Base + Equity + Health<p>Sidekick builds AI security software for enterprises. Our sensors observe AI behavior and use in situ. From those observations, our reasoning pipeline produces an application inventory and a risk picture, allowing us to provide real-time intervention and coaching right when it matters.<p><i>Compensation:</i> base salary scaled to experience, meaningful early-stage equity, and 100% covered health insurance for you and your immediate family<p>We are a highly senior team. Most of us have been founders or on early founding teams, so we operate with high ownership. We expect you to have a real, current AI-assisted development practice. Our system spans several languages, and we expect you to use AI tools to quickly navigate unfamiliar parts of the c",
+   "created_at": "2026-10-01T15:03:36.000Z",
+   "parent_id": 49922569,
+   "story_id": 49922569
+  },
+  {
+   "id": 49922615,
+   "type": "comment",
+   "text": "Open Education Applications &#x2F; Neon | Senior&#x2F;Lead Platform &amp; DevOps Engineer, Senior Frontend Engineer, Senior Full-Stack Engineer | Utrecht, The Netherlands | HYBRID | DUTCH REQUIRED<p>Please note: working proficiency in Dutch is strictly required for these roles, and we kindly ask for no automated applications. The rest of this post will continue in Dutch.<p>Wij zijn een non-profit die zich inzet om lesmateriaal voor scholen beter, betaalbaarder en flexibeler te maken, in zowel digitale als gedrukte vorm.<p>Werktijden en kantoordagen zijn flexibel en worden in overleg bepaald op basis van de rol. Wij bieden een competitief salaris.<p>Technologiestack: Git monorepo, TypeScript, Yjs en React, een beetje Python, OpenTofu&#x2F;Terraform, Scaleway, managed PostgreSQL en managed Kubernetes.<p>Openstaande rollen:<p>- Senior&#x2F;Lead Platform &amp; DevOps Engineer<p>- Senior Back",
+   "created_at": "2026-10-01T15:04:09.000Z",
+   "parent_id": 49922569,
+   "story_id": 49922569
+  },
+  {
+   "id": 49922616,
+   "type": "comment",
+   "text": "PAGNOS | Cloud Engineer, AWS Serverless (TypeScript&#x2F;Node.js) | REMOTE (Germany) | Full-time | €75k–80k | business-fluent German required<p>We build serverless applications on AWS for clients and for our own SaaS products. On client projects, we work directly with their developers and help them understand and maintain what we build.<p>You’ll write backend code in TypeScript&#x2F;Node.js, build APIs with Lambda and API Gateway, model data in DynamoDB, and design event-driven workflows and integrations. Infrastructure lives in code using AWS CDK, with CI&#x2F;CD pipelines for builds and deployments. You’ll help decide how systems are designed and take testing, observability and security into account as you build. There’s some React&#x2F;Next.js work too.<p>We’re looking for practical experience building AWS serverless applications with TypeScript&#x2F;Node.js, including infrastructure ",
+   "created_at": "2026-10-01T15:04:11.000Z",
+   "parent_id": 49922569,
+   "story_id": 49922569
+  },
+  {
+   "id": 49922621,
+   "type": "comment",
+   "text": "Snout <a href=\"https:&#x2F;&#x2F;snout.com&#x2F;\" rel=\"nofollow\">https:&#x2F;&#x2F;snout.com&#x2F;</a> | Multiple Engineering + Product Roles | Remote US or Ontario, Canada | Full Time<p>Join us at Snout on our mission to ensure no one ever has to make a health decision for their pet based on the cash in their bank account. Snout plans pay for 100% of routine veterinary care, unlimited visits, and additional member benefits - think pet insurance, that you will actually use every year.<p>We&#x27;re growing the team and hiring across the board. Featured role this month:<p>Founding Data Engineer - be our first data hire: make sense of hundreds of millions of rows from vet practice-management systems and our own app, and turn our Postgres and dbt warehouse into a foundation the whole company trusts.<p>Our tech stack includes Node.js, React, PostgreSQL, AWS, Tailwind, and Python. We use both ",
+   "created_at": "2026-10-01T15:04:21.000Z",
+   "parent_id": 49922569,
+   "story_id": 49922569
+  }
+ ]
+}
