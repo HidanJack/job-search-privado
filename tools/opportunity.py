@@ -24,7 +24,8 @@ FORMULAS (all weights live in OPPORTUNITY_WEIGHTS / RISK_POINTS below)
                     spoken-English gap; more when C1/C2/fluent is asked
     gaps            years required above your 3.5, each non-language gap
                     from the fit analysis, "senior" in the title
-    friction        location FLAG/FAIL, timezone/hours mentions (US/EU)
+    friction        location FLAG/FAIL (US/EU hours do not add risk: the
+                    candidate works night shifts; CST is his own timezone)
     ghost job       very old, reposted, no salary and vague analysis
     salary          unknown salary, or pay at/below your current 21k, or
                     unpaid/commission-only wording
@@ -59,7 +60,6 @@ RISK_POINTS = {
     "senior_title": 6,
     "location_flag": 15,
     "location_fail": 40,
-    "timezone": 15,
     "age_stale": 10,             # > 14 days
     "age_ghost": 25,             # > 45 days
     "reposted": 15,
@@ -77,7 +77,6 @@ DEFAULT_SOURCE_QUALITY = 50
 ENGLISH_ADVANCED = re.compile(r"\b(c1|c2|fluent|fluido|nativo|native|advanced|avanzado)\b", re.I)
 ENGLISH_GAP = re.compile(r"ingl[eé]s hablado|spoken english|ingl[eé]s (fluido|conversacional)|english[^.]{0,40}(interview|conversation|calls?)", re.I)
 YEARS = re.compile(r"(\d{1,2})\s*\+?\s*(?:a[nñ]os|years|yrs)", re.I)
-TIMEZONE = re.compile(r"\b(est|pst|cst|cet|utc|gmt|huso|zona horaria|time ?zone|horario (europeo|de ee)|european hours|us hours|horario de (europa|estados unidos))\b", re.I)
 UNPAID = re.compile(r"\b(unpaid|no remunerad|sin sueldo|voluntari|solo comisi|commission[- ]only|a comisi)", re.I)
 ISO = re.compile(r"^\d{4}-\d{2}-\d{2}")
 
@@ -218,8 +217,6 @@ def risk_items(entry: dict, today: date, current: int) -> list[tuple[int, str]]:
         items.append((p["location_fail"], "ubicación incompatible"))
     elif verdict == "FLAG":
         items.append((p["location_flag"], "ubicación con condiciones"))
-    if TIMEZONE.search(blob):
-        items.append((p["timezone"], "horario de otra zona horaria"))
 
     age = _age(entry, today)
     if age is not None and age > 45:

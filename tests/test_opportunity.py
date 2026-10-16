@@ -86,8 +86,12 @@ class Risk(unittest.TestCase):
     def test_missing_skills_add_risk(self):
         self.assertGreater(calc(gaps=["No tienes GCP", "Sin BigQuery"])["risk"], calc()["risk"])
 
-    def test_timezone_friction(self):
-        self.assertGreater(calc(gaps=["Horario EST obligatorio"])["risk"], calc()["risk"])
+    def test_timezone_and_hours_add_no_risk(self):
+        base = calc()["risk"]
+        for g in ["Horario EST obligatorio", "Horario CST (hora de México)", "European hours", "US hours", "Zona horaria CET"]:
+            self.assertEqual(calc(fit_reasons=["a", g])["risk"], base, g)
+        self.assertNotIn("zona horaria", calc(fit_reasons=["a", "Horario EST"])["risk_driver"].lower())
+        self.assertNotIn("timezone", opp.RISK_POINTS)
 
     def test_ghost_signals(self):
         self.assertGreater(calc(posted_date="2026-08-01")["risk"], calc(posted_date="2026-10-01")["risk"])
@@ -119,7 +123,7 @@ class Final(unittest.TestCase):
         self.assertEqual(round(80 * (1 - opp.RISK_DISCOUNT)), 40)
 
     def test_riskier_ranks_below_equal_opportunity(self):
-        a = calc(gaps=["Horario EST"])
+        a = calc(posting_language="en")
         b = calc()
         self.assertGreater(b["final_priority"], a["final_priority"])
 
