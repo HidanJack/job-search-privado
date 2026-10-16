@@ -603,6 +603,294 @@ async function refreshTracking() {
   }
 }
 
+// ---------- market ----------
+const MK = {
+  data: null, tipIndex: new Map(), resizeTimer: 0,
+  ROW_H: 56, LANE_PAD: 26, DOT_R: 6, TOP: 46, AXIS_H: 30, PAD_X: 14,
+};
+const moneyFull = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
+const moneyShort = (n) => (n >= 1000 ? `$${+(n / 1000).toFixed(1)}k` : `$${n}`);
+const svgEl = (tag, attrs = {}, text) => {
+  const n = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
+  if (text !== undefined) n.textContent = text;
+  return n;
+};
+
+/** Log scale whose domain always contains every value that must be drawn. */
+function marketDomain(values) {
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  const floors = [5000, 8000, 10000];
+  const ceils = [30000, 50000, 100000, 150000, 200000, 300000, 500000, 1000000];
+  return [
+    [...floors].reverse().find((f) => f <= lo * 0.92) ?? 3000,
+    ceils.find((c) => c >= hi * 1.06) ?? 1000000,
+  ];
+}
+
+const LANES = [
+  { id: "local", label: "Tus vacantes no remotas", test: (j) => j.modality !== "remote" },
+  { id: "remote", label: "Tus vacantes remotas", test: (j) => j.modality === "remote" },
+];
+const langLabel = { en: "publicada en inglés", es: "publicada en español", mixed: "publicada en español e inglés" };
+
+function jobTip(j) {
+  const mod = j.modality === "remote" ? "Remoto" : MODALITY_LABEL[j.modality] || "Sin especificar";
+  return { title: `${j.company}`, lines: [j.title, `${moneyFull(j.salary)} MXN/mes`, `${mod}${j.language ? " · " + langLabel[j.language] : ""}`] };
+}
+function entryTip(e) {
+  const range = e.min !== null ? `${moneyFull(e.min)} a ${moneyFull(e.max)}` : null;
+  return {
+    title: `${e.role} · ${e.region}`,
+    lines: [
+      [range && `Rango: ${range}`, e.avg !== null && `Promedio: ${moneyFull(e.avg)}`].filter(Boolean).join(" · "),
+      `${e.source}, ${e.date}${e.evidence === "dubious" ? " · Fuente débil" : ""}`,
+      e.note,
+    ],
+  };
+}
+
+function renderMarketLegend(settings) {
+  const ul = $("#market-legend");
+  ul.replaceChildren();
+  const item = (svgChild, text) => {
+    const s = svgEl("svg", { width: 28, height: 16, viewBox: "0 0 28 16", "aria-hidden": "true" });
+    s.append(...svgChild);
+    ul.append(el("li", {}, s, el("span", { text })));
+  };
+  item([svgEl("rect", { x: 1, y: 3, width: 26, height: 10, rx: 3, class: "mk-band" })], "Rango típico");
+  item([svgEl("rect", { x: 1, y: 3, width: 26, height: 10, rx: 3, class: "mk-band" }), svgEl("rect", { x: 12, y: 0, width: 4, height: 16, rx: 1, class: "mk-avg" })], "Promedio");
+  item([svgEl("rect", { x: 1, y: 3, width: 26, height: 10, rx: 3, class: "mk-weak", fill: "url(#mk-hatch)" })], "Fuente débil");
+  item([svgEl("circle", { cx: 14, cy: 8, r: 6, class: "mk-dot mk-local" })], "Vacante local");
+  item([svgEl("path", { d: "M14 1.5 20.5 8 14 14.5 7.5 8Z", class: "mk-dot mk-remote" })], "Vacante remota");
+  item([svgEl("circle", { cx: 14, cy: 8, r: 5.5, class: "mk-dot mk-local hollow" })], "Hueco: en inglés");
+  if (settings.currentSalary > 0) item([svgEl("line", { x1: 2, x2: 26, y1: 8, y2: 8, class: "mk-line today" })], "Tú hoy");
+  if (settings.targetSalary > 0) item([svgEl("line", { x1: 2, x2: 26, y1: 8, y2: 8, class: "mk-line goal" })], "Tu objetivo");
+}
+
+function renderMarketChart(data) {
+  const host = $("#market-chart");
+  const tip = el("div", { class: "mk-tip", role: "tooltip", hidden: "" });
+  const entries = data.market.entries;
+  const s = data.settings;
+  const cur = s.currentSalary > 0 ? s.currentSalary : null;
+  const goal = s.targetSalary > 0 ? s.targetSalary : null;
+  MK.tipIndex = new Map();
+
+  const values = [
+    ...entries.flatMap((e) => [e.min, e.max, e.avg].filter((v) => v !== null)),
+    ...data.jobs.map((j) => j.salary), ...(cur ? [cur] : []), ...(goal ? [goal] : []),
+  ];
+  const [lo, hi] = marketDomain(values);
+  const W = Math.max(300, host.clientWidth || 640);
+  const L = MK.PAD_X, R = MK.PAD_X;
+  const x = (v) => L + ((Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo))) * (W - L - R);
+
+  // Lanes of jobs: simple beeswarm so equal salaries do not hide each other.
+  const lanes = LANES.map((lane) => {
+    const jobs = data.jobs.filter(lane.test);
+    const levels = [];
+    const placed = jobs.map((j) => {
+      const px = x(j.salary);
+      let lvl = levels.findIndex((last) => px - last >= MK.DOT_R * 2 + 3);
+      if (lvl === -1) lvl = levels.length;
+      levels[lvl] = px;
+      return { j, px, lvl };
+    });
+    return { lane, placed, levels: Math.max(1, levels.length) };
+  }).filter((l) => l.placed.length > 0);
+
+  let y = MK.TOP;
+  const laneLayout = lanes.map((l) => {
+    const top = y;
+    const h = MK.LANE_PAD + l.levels * (MK.DOT_R * 2 + 4) + 8;
+    y += h;
+    return { ...l, top, h };
+  });
+  const rowTop = (i) => y + i * MK.ROW_H;
+  const plotBottom = y + entries.length * MK.ROW_H;
+  const H = plotBottom + MK.AXIS_H;
+
+  const svg = svgEl("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-labelledby": "mk-title mk-desc" });
+  svg.append(svgEl("title", { id: "mk-title" }, "Sueldos de referencia, tus vacantes y tus líneas de sueldo"));
+  const bench = entries.find((e) => e.id === "python-mx");
+  const desc = [
+    bench ? `Referencia principal: Python en México, promedio ${moneyFull(bench.avg)} al mes, rango ${moneyFull(bench.min)} a ${moneyFull(bench.max)}.` : "",
+    `${data.jobs.length} vacantes calificadas con sueldo publicado, de ${moneyShort(Math.min(...data.jobs.map((j) => j.salary), Infinity) === Infinity ? 0 : Math.min(...data.jobs.map((j) => j.salary)))} a ${moneyShort(Math.max(0, ...data.jobs.map((j) => j.salary)))}.`,
+    cur ? `Tu sueldo actual: ${moneyFull(cur)}.` : "", goal ? `Tu objetivo: ${moneyFull(goal)}.` : "",
+    "Los mismos datos están en la tabla de abajo.",
+  ].filter(Boolean).join(" ");
+  svg.append(svgEl("desc", { id: "mk-desc" }, desc));
+
+  const defs = svgEl("defs");
+  const pat = svgEl("pattern", { id: "mk-hatch", width: 6, height: 6, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+  pat.append(svgEl("line", { x1: 0, y1: 0, x2: 0, y2: 6, class: "mk-hatch-line" }));
+  defs.append(pat);
+  svg.append(defs);
+
+  // Grid + axis (log ticks that fall inside the domain).
+  const ticks = [5000, 10000, 20000, 30000, 50000, 100000, 200000, 500000, 1000000].filter((t) => t >= lo && t <= hi);
+  const grid = svgEl("g", { "aria-hidden": "true" });
+  for (const t of ticks) {
+    grid.append(svgEl("line", { x1: x(t), x2: x(t), y1: MK.TOP - 8, y2: plotBottom, class: "mk-grid" }));
+    const label = svgEl("text", { x: x(t), y: plotBottom + 18, class: "mk-axis", "text-anchor": "middle" }, moneyShort(t));
+    grid.append(label);
+  }
+  svg.append(grid);
+
+  // Reference rows
+  entries.forEach((e, i) => {
+    const top = rowTop(i);
+    const weak = e.evidence === "dubious";
+    const g = svgEl("g", { class: `mk-row${weak ? " weak" : ""}`, tabindex: 0, role: "img", "data-tip": `e:${e.id}`,
+      "aria-label": `${e.role}, ${e.region}. ${entryTip(e).lines.join(". ")}` });
+    MK.tipIndex.set(`e:${e.id}`, entryTip(e));
+    g.append(svgEl("rect", { x: 0, y: top, width: W, height: MK.ROW_H - 2, class: "mk-hit" }));
+    g.append(svgEl("text", { x: L, y: top + 14, class: "mk-label" }, `${e.role} · ${e.region}`));
+    const by = top + 21;
+    if (e.min !== null) {
+      g.append(svgEl("rect", {
+        x: x(e.min), y: by, width: Math.max(2, x(e.max) - x(e.min)), height: 14, rx: 4,
+        class: weak ? "mk-weak" : "mk-band", fill: weak ? "url(#mk-hatch)" : null,
+      }));
+    }
+    if (e.avg !== null) {
+      g.append(svgEl("rect", { x: x(e.avg) - 4, y: by - 4, width: 8, height: 22, rx: 2, class: "mk-avg-ring" }));
+      g.append(svgEl("rect", { x: x(e.avg) - 2, y: by - 3, width: 4, height: 20, rx: 1, class: "mk-avg" }));
+    }
+    const parts = [
+      e.min !== null ? `${moneyShort(e.min)} a ${moneyShort(e.max)}` : null,
+      e.avg !== null ? `promedio ${moneyShort(e.avg)}${e.min === null ? " (sin rango)" : ""}` : null,
+      e.source,
+      weak ? "Fuente débil" : null,
+    ].filter(Boolean).join(" · ");
+    g.append(svgEl("text", { x: L, y: top + 49, class: `mk-sub${weak ? " weak" : ""}` }, parts));
+    svg.append(g);
+  });
+
+  // Personal lines
+  const lines = svgEl("g");
+  const drawLine = (v, cls, text, row) => {
+    const px = x(v);
+    lines.append(svgEl("line", { x1: px, x2: px, y1: MK.TOP - 10 + 0, y2: plotBottom, class: `mk-line ${cls}` }));
+    const right = px > W - 140;
+    lines.append(svgEl("text", { x: px + (right ? -6 : 6), y: 14 + row * 16, class: "mk-linelabel", "text-anchor": right ? "end" : "start" }, `${text} ${moneyShort(v)}`));
+  };
+  if (cur) drawLine(cur, "today", "Tú hoy", 0);
+  if (goal) drawLine(goal, "goal", "Tu objetivo", 1);
+  svg.append(lines);
+
+  // Job lanes
+  for (const l of laneLayout) {
+    const lg = svgEl("g");
+    lg.append(svgEl("text", { x: L, y: l.top + 14, class: "mk-label" }, `${l.lane.label} (${l.placed.length})`));
+    lg.append(svgEl("line", { x1: L, x2: W - R, y1: l.top + l.h - 2, y2: l.top + l.h - 2, class: "mk-lane-sep" }));
+    for (const p of l.placed) {
+      const cy = l.top + MK.LANE_PAD + MK.DOT_R + p.lvl * (MK.DOT_R * 2 + 4);
+      const remote = p.j.modality === "remote";
+      const hollow = p.j.language === "en";
+      const cls = `mk-dot ${remote ? "mk-remote" : "mk-local"}${hollow ? " hollow" : ""}`;
+      const id = `j:${p.j.key}`;
+      const tipData = jobTip(p.j);
+      MK.tipIndex.set(id, tipData);
+      const common = { class: cls, tabindex: 0, role: "img", "data-tip": id, "aria-label": `${tipData.title}. ${tipData.lines.join(". ")}` };
+      const r = MK.DOT_R;
+      lg.append(remote
+        ? svgEl("path", { ...common, d: `M${p.px} ${cy - r - 1.5}L${p.px + r + 1.5} ${cy}L${p.px} ${cy + r + 1.5}L${p.px - r - 1.5} ${cy}Z` })
+        : svgEl("circle", { ...common, cx: p.px, cy, r }));
+    }
+    svg.append(lg);
+  }
+
+  host.replaceChildren(svg, tip);
+  host.removeAttribute("aria-busy");
+
+  const show = (target) => {
+    const t = MK.tipIndex.get(target.getAttribute("data-tip"));
+    if (!t) return;
+    tip.replaceChildren(el("strong", { text: t.title }), ...t.lines.filter(Boolean).map((line) => el("span", { text: line })));
+    tip.hidden = false;
+    const hb = host.getBoundingClientRect();
+    const tb = target.getBoundingClientRect();
+    const width = tip.offsetWidth;
+    const left = Math.min(Math.max(8, tb.left - hb.left + tb.width / 2 - width / 2), hb.width - width - 8);
+    const above = tb.top - hb.top - tip.offsetHeight - 8;
+    tip.style.left = `${left}px`;
+    tip.style.top = `${above >= 0 ? above : tb.bottom - hb.top + 8}px`;
+  };
+  const hide = () => (tip.hidden = true);
+  for (const node of svg.querySelectorAll("[data-tip]")) {
+    node.addEventListener("pointerenter", () => show(node));
+    node.addEventListener("pointerleave", hide);
+    node.addEventListener("focus", () => show(node));
+    node.addEventListener("blur", hide);
+  }
+  svg.addEventListener("keydown", (ev) => ev.key === "Escape" && hide());
+}
+
+function renderMarketTables(data) {
+  const ref = $("#market-ref-table");
+  ref.replaceChildren(el("tr", {}, ...["Rol", "Zona", "Mínimo", "Promedio", "Máximo", "Fuente", "Fecha", "Evidencia"].map((t) => el("th", { text: t }))));
+  for (const e of data.market.entries) {
+    const money = (v) => (v === null ? "—" : moneyFull(v));
+    const src = e.url ? el("a", { href: e.url, target: "_blank", rel: "noopener noreferrer", text: e.source }) : e.source;
+    ref.append(el("tr", {},
+      el("td", { text: e.role }), el("td", { text: e.region }), el("td", { text: money(e.min) }), el("td", { text: money(e.avg) }),
+      el("td", { text: money(e.max) }), el("td", {}, src), el("td", { text: e.date }),
+      el("td", { text: e.evidence === "dubious" ? "Fuente débil" : "Verificada" })));
+  }
+  const jt = $("#market-jobs-table");
+  jt.replaceChildren(el("tr", {}, ...["Empresa", "Vacante", "Sueldo (MXN/mes)", "Modalidad", "Idioma"].map((t) => el("th", { text: t }))));
+  for (const j of data.jobs) {
+    jt.append(el("tr", {}, el("td", { text: j.company }), el("td", { text: j.title }), el("td", { text: moneyFull(j.salary) }),
+      el("td", { text: MODALITY_LABEL[j.modality] || "" }), el("td", { text: j.language ? { es: "Español", en: "Inglés", mixed: "Mixto" }[j.language] : "—" })));
+  }
+  if (!data.jobs.length) jt.append(el("tr", {}, el("td", { colspan: "5", class: "muted", text: "No hay vacantes calificadas con sueldo publicado." })));
+}
+
+function renderMarket(data) {
+  MK.data = data;
+  const form = $("#market-form");
+  for (const name of ["currentSalary", "targetSalary"]) {
+    if (document.activeElement !== form.elements[name]) form.elements[name].value = data.settings[name] ?? "";
+  }
+  $("#market-notice").hidden = data.settings.currentSalary > 0 && data.settings.targetSalary > 0;
+  renderMarketLegend(data.settings);
+  renderMarketChart(data);
+  const ul = $("#market-readings");
+  ul.replaceChildren(...data.readings.map((t) => el("li", { text: t })));
+  renderMarketTables(data);
+}
+
+async function refreshMarket() {
+  try {
+    renderMarket(await api("/api/market"));
+  } catch (err) {
+    $("#market-chart").textContent = `No se pudo cargar el mercado: ${err.message}`;
+  }
+}
+
+async function saveMarketSettings() {
+  const form = $("#market-form");
+  const read = (name) => {
+    const raw = form.elements[name].value.trim();
+    if (raw === "") return null;
+    return /^\d{1,7}$/.test(raw) ? Number(raw) : NaN;
+  };
+  const body = { currentSalary: read("currentSalary"), targetSalary: read("targetSalary") };
+  if ([body.currentSalary, body.targetSalary].some((v) => Number.isNaN(v) || (v !== null && v > 1000000))) {
+    toast("Escribe solo números enteros entre 0 y 1,000,000.");
+    return;
+  }
+  try {
+    await api("/api/settings", body);
+    await refreshMarket();
+  } catch {
+    toast("No se pudo guardar. Revisa los valores.");
+  }
+}
+
 // ---------- boot ----------
 async function boot() {
   for (const tab of document.querySelectorAll(".tab")) {
@@ -610,9 +898,19 @@ async function boot() {
       for (const t of document.querySelectorAll(".tab")) t.classList.toggle("active", t === tab);
       $("#tab-jobs").hidden = tab.dataset.tab !== "jobs";
       $("#tab-tracking").hidden = tab.dataset.tab !== "tracking";
+      $("#tab-market").hidden = tab.dataset.tab !== "market";
       if (tab.dataset.tab === "tracking") refreshTracking();
+      if (tab.dataset.tab === "market") refreshMarket();
     });
   }
+  $("#market-form").addEventListener("change", saveMarketSettings);
+  $("#market-form").addEventListener("submit", (ev) => ev.preventDefault());
+  window.addEventListener("resize", () => {
+    clearTimeout(MK.resizeTimer);
+    MK.resizeTimer = setTimeout(() => {
+      if (MK.data && !$("#tab-market").hidden) renderMarketChart(MK.data);
+    }, 120);
+  });
   $("#search-btn").addEventListener("click", startSearch);
   $("#rank-btn").addEventListener("click", startRank);
   $("#theme-btn").addEventListener("click", toggleTheme);

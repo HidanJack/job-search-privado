@@ -34,6 +34,9 @@
   --font: "Inter", "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-display: "Inter Display", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, monospace;
+  --mk-band: #8f8aab;
+  --mk-local: #2a78d6;
+  --mk-remote: #eb6834;
   color-scheme: light;
 }
 
@@ -63,6 +66,9 @@
     --shadow-sm: 0 1px 2px rgb(0 0 0 / .4);
     --shadow-md: 0 1px 2px rgb(0 0 0 / .35), 0 10px 28px -10px rgb(0 0 0 / .6);
     --shadow-lg: 0 28px 70px -14px rgb(0 0 0 / .75);
+    --mk-band: #6f6a92;
+    --mk-local: #3987e5;
+    --mk-remote: #d95926;
     color-scheme: dark;
   }
 }
@@ -92,6 +98,9 @@
   --shadow-md: 0 1px 2px rgb(0 0 0 / .35), 0 10px 28px -10px rgb(0 0 0 / .6);
   --shadow-lg: 0 28px 70px -14px rgb(0 0 0 / .75);
   color-scheme: dark;
+  --mk-band: #6f6a92;
+  --mk-local: #3987e5;
+  --mk-remote: #d95926;
 }
 
 /* The fit ring animates its fill, so the angle must be a typed property. */
@@ -618,4 +627,54 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
   button, .link, .toggle span { transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease; }
   button:active:not(:disabled), .link:active, .toggle:active span { transform: none; }
   .review, .toast { transition: opacity 160ms ease; transform: none; }
+}
+
+/* ---------- Mercado ---------- */
+.market-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem; margin-bottom: 1rem; }
+.market-form .small-note { margin: 0; flex-basis: 100%; }
+.market-panel { margin-top: 1rem; }
+.mk-legend { list-style: none; margin: 0 0 .75rem; padding: 0; display: flex; flex-wrap: wrap; gap: .4rem 1rem; font-size: .82rem; color: var(--muted); }
+.mk-legend li { display: inline-flex; align-items: center; gap: .35rem; }
+.mk-chart { position: relative; width: 100%; }
+.mk-chart svg { display: block; overflow: visible; font-family: var(--font); width: 100%; height: auto; }
+.mk-legend svg { width: 28px; height: 16px; }
+.mk-grid { stroke: var(--line); stroke-width: 1; }
+.mk-lane-sep { stroke: var(--line); stroke-width: 1; }
+.mk-axis { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.mk-label { fill: var(--ink); font-size: 12.5px; font-weight: 600; }
+.mk-sub { fill: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.mk-sub.weak { font-style: italic; }
+.mk-band { fill: var(--mk-band); }
+.mk-weak { fill: url(#mk-hatch); stroke: var(--mk-band); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.mk-hatch-line { stroke: var(--mk-band); stroke-width: 1.5; }
+.mk-avg { fill: var(--ink); }
+.mk-avg-ring { fill: var(--surface); }
+.mk-hit { fill: transparent; }
+.mk-row:hover .mk-hit, .mk-row:focus-visible .mk-hit { fill: var(--surface-2); opacity: .6; }
+.mk-row, .mk-dot { outline: none; }
+.mk-row:focus-visible .mk-hit { stroke: var(--brand); stroke-width: 2; }
+.mk-line { stroke: var(--brand); stroke-width: 2; }
+.mk-line.goal { stroke-dasharray: 6 4; }
+.mk-linelabel { fill: var(--ink); font-size: 12px; font-weight: 700; }
+.mk-dot { stroke: var(--surface); stroke-width: 2; cursor: pointer; }
+.mk-dot.mk-local { fill: var(--mk-local); }
+.mk-dot.mk-remote { fill: var(--mk-remote); }
+.mk-dot.hollow { fill: var(--surface); stroke-width: 2.5; }
+.mk-dot.hollow.mk-local { stroke: var(--mk-local); }
+.mk-dot.hollow.mk-remote { stroke: var(--mk-remote); }
+.mk-dot:focus-visible { stroke: var(--ink); stroke-width: 3; }
+.mk-tip {
+  position: absolute; z-index: 5; max-width: min(320px, 90%); pointer-events: none;
+  display: flex; flex-direction: column; gap: .15rem;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line);
+  border-radius: var(--r-sm); box-shadow: var(--shadow-md); padding: .55rem .7rem; font-size: .82rem;
+}
+.mk-tip[hidden] { display: none; }
+.mk-tip span { color: var(--muted); }
+.mk-readings { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .5rem; }
+.mk-table summary { cursor: pointer; font-weight: 600; }
+.mk-table .table-wrap { margin-top: .75rem; }
+@media (max-width: 480px) {
+  .market-form .field, .market-form .input-wrap { width: 100%; }
+  .market-form .input-wrap input { flex: 1; width: auto; }
 }

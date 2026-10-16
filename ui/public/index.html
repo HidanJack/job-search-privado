@@ -34,6 +34,7 @@
       <nav class="tabs" role="tablist" aria-label="Secciones">
         <button type="button" class="tab active" data-tab="jobs" role="tab">Vacantes</button>
         <button type="button" class="tab" data-tab="tracking" role="tab">Seguimiento</button>
+        <button type="button" class="tab" data-tab="market" role="tab">Mercado</button>
       </nav>
       <div class="top-actions">
         <button type="button" id="theme-btn" class="icon-btn" aria-label="Cambiar a modo oscuro" title="Cambiar tema">
@@ -142,6 +143,37 @@
         <div class="table-wrap"><table class="table" id="tracker-rows"></table></div>
       </div>
     </section>
+    <section id="tab-market" hidden>
+      <h2 class="page-title">Dónde estás frente al mercado</h2>
+      <form id="market-form" class="market-form" aria-label="Tu sueldo y tu objetivo" novalidate>
+        <label class="field">
+          <span class="field-label">Tu sueldo actual</span>
+          <span class="input-wrap"><span class="prefix">$</span><input type="number" name="currentSalary" min="0" max="1000000" step="1" inputmode="numeric" placeholder="Sin llenar"><span class="suffix">MXN/mes</span></span>
+        </label>
+        <label class="field">
+          <span class="field-label">Tu objetivo</span>
+          <span class="input-wrap"><span class="prefix">$</span><input type="number" name="targetSalary" min="0" max="1000000" step="1" inputmode="numeric" placeholder="Sin llenar"><span class="suffix">MXN/mes</span></span>
+        </label>
+        <p class="muted small-note">Se guardan solo en esta computadora (<code>ui/state/</code>), nunca en git.</p>
+      </form>
+      <p id="market-notice" class="banner" hidden>Llena tu sueldo actual y tu objetivo para ver tus líneas en el gráfico. Se guardan solo en esta computadora.</p>
+      <div class="panel market-panel">
+        <h3 id="market-title">Sueldos de referencia y tus vacantes</h3>
+        <ul id="market-legend" class="mk-legend" aria-label="Leyenda"></ul>
+        <div id="market-chart" class="mk-chart" aria-busy="true"></div>
+        <p class="muted small-note">Sueldos brutos en MXN por mes, escala logarítmica: cada marca vale aproximadamente el doble de la anterior, así los rangos bajos y los sueldos remotos altos caben en el mismo eje.</p>
+      </div>
+      <div class="panel market-panel">
+        <h3>Lectura rápida</h3>
+        <ul id="market-readings" class="mk-readings"></ul>
+      </div>
+      <details class="panel market-panel mk-table">
+        <summary>Ver los datos en tabla</summary>
+        <div class="table-wrap"><table class="table" id="market-ref-table"></table></div>
+        <div class="table-wrap"><table class="table" id="market-jobs-table"></table></div>
+      </details>
+    </section>
+
   </main>
 
   <dialog id="review" class="review" aria-labelledby="review-title">

@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { bunCommandRunner, getDailyStatus, setDaily, type CommandRunner } from "./lib/daily";
 import { filterJobs, loadJobs, parseFilters, skipJob } from "./lib/jobs";
+import { computeReadings, loadMarket, loadSettings, marketJobs, parseSettings, saveSettings } from "./lib/market";
 import { loadProfile } from "./lib/profile";
 import {
   APPLY_TOOLS, BASE_TOOLS, ResultStore, SEARCH_TOOLS, RunManager, buildApplyPrompt, bunSpawner, type Spawner,
@@ -59,6 +60,7 @@ export interface ServerOptions {
   spawner?: Spawner;
   claudeBin?: string;
   commandRunner?: CommandRunner;
+  marketPath?: string;
 }
 
 export function createHandler(opts: ServerOptions = {}) {
@@ -103,6 +105,19 @@ export function createHandler(opts: ServerOptions = {}) {
       }
       case "/api/tracker":
         return json(loadTracker(root));
+      case "/api/settings":
+        return json(loadSettings(root));
+      case "/api/market": {
+        let market;
+        try {
+          market = loadMarket(opts.marketPath);
+        } catch {
+          return json({ error: "market_data_invalid" }, 500);
+        }
+        const jobs = marketJobs(loadJobs(root, new Date()));
+        const settings = loadSettings(root);
+        return json({ market, jobs, settings, readings: computeReadings(market, jobs, settings) });
+      }
       case "/api/daily":
         return json(await getDailyStatus(root, commandRunner));
       case "/api/run":
@@ -166,6 +181,12 @@ export function createHandler(opts: ServerOptions = {}) {
         if (ok === null) return json({ error: "systemctl_unavailable" }, 503);
         if (!ok) return json({ error: "systemctl_failed" }, 500);
         return json(await getDailyStatus(root, commandRunner));
+      }
+      case "/api/settings": {
+        const settings = parseSettings(body);
+        if (!settings) return json({ error: "invalid_settings" }, 400);
+        saveSettings(root, settings);
+        return json(settings);
       }
       case "/api/jobs/skip": {
         if (typeof body.key !== "string" || body.key.length > 2048) return json({ error: "bad_request" }, 400);
