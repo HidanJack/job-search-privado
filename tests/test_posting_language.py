@@ -120,6 +120,19 @@ class Backfill(unittest.TestCase):
         self.assertEqual(summary["none"], ["n"])
         self.assertNotIn("posting_language", self.read()["n"])
 
+    def test_indeed_entries_are_skipped_without_fetching(self):
+        self.write({"i": ranked(portal="indeed", title="Desarrollador Python"), "b": ranked()})
+        calls = []
+
+        def fetch(entry):
+            calls.append(entry["portal"])
+            return {"description": EN}
+
+        summary = pl.backfill(self.state, fetch=fetch)
+        self.assertEqual(calls, ["himalayas-search"])
+        self.assertEqual(summary["none"], ["i"])
+        self.assertNotIn("posting_language", self.read()["i"])
+
     def test_dry_run_writes_nothing(self):
         self.write({"a": ranked()})
         raw = self.state.read_bytes()

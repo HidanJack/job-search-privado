@@ -46,7 +46,7 @@ STATE_NAME = "seen_jobs.json"
 FIELDS = ("title", "company", "url", "posted_date", "deadline", "fit", "status", "portal", "source")
 FITS = {"high", "medium", "low"}
 STATUSES = {"new", "skipped", "ranked", "expired"}
-SOURCES = {"cli", "websearch"}
+SOURCES = {"cli", "websearch", "mcp"}
 ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 MAX_URL = 2048
 

@@ -96,6 +96,29 @@ himalayas-search search -q "implementation specialist fintech" --latam --jobage 
 ```
 `linkedin-search` and `freehire-search`: reuse the Spanish titles above (e.g. "Desarrollador Frontend", "Analista de Datos", "Analista QA", "Consultor de implementación CFDI") with Mexico / Ciudad de México.
 
+## Indeed MX (MCP)
+
+Indeed Mexico cannot be scraped (its robots.txt blocks it), but the account has the
+official Indeed connector: `mcp__claude_ai_Indeed__search_jobs` (params `search`,
+`location`, `country_code`, optional `job_type`). Always use `country_code: "MX"`.
+Run each query twice: `location: "Ciudad de México"` and `location: "remote"`
+(Indeed answers remote with "Desde casa"). Queries are in Spanish because Indeed MX
+postings are mostly Spanish. `/job-scraper` Step 1d describes how to run and store them.
+
+| Role family | `search` values |
+|---|---|
+| Python backend | `desarrollador python`, `desarrollador backend python`, `programador python` |
+| Data engineer | `ingeniero de datos`, `data engineer python`, `ETL python` |
+| AI engineer | `ingeniero de inteligencia artificial`, `AI engineer python`, `desarrollador python IA` |
+| Web developer | `desarrollador web`, `desarrollador frontend react` |
+| Automation / RPA with Python | `automatización python`, `desarrollador RPA` |
+| Data analyst / BI | `analista de datos`, `analista BI sql` |
+| QA automation | `QA automation`, `analista QA automatización` |
+| Accounting-tax software (CFDI) | `implementación software contable`, `soporte CFDI facturación electrónica` |
+
+By default run the first three families; the neighbor families on "broad" or when
+the user names them.
+
 ## Search Sites
 
 Primary (Mexico; no CLI - WebSearch `site:` fallback only, never automated scraping):

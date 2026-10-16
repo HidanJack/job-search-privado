@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ageInDays, filterJobs, inferRoleFamily, loadJobs, normalizeJob, parseFilters, skipJob, MODALITIES } from "../lib/jobs";
 import { parseProfile } from "../lib/profile";
-import { APPLY_TOOLS, SEARCH_TOOLS, buildApplyPrompt, buildArgv, describeStreamLine, parseUiResult } from "../lib/runner";
+import { APPLY_TOOLS, BASE_TOOLS, INDEED_MCP_TOOLS, SEARCH_TOOLS, buildApplyPrompt, buildArgv, describeStreamLine, parseUiResult } from "../lib/runner";
 import { isAllowedHost, isAllowedOrigin, safeResolve, sanitizeFeedback, validateJobUrl } from "../lib/security";
 import { markApplied, parseCsv, readTracker, trackerStats } from "../lib/tracker";
 
@@ -133,6 +133,12 @@ describe("headless runner", () => {
     expect(argv.indexOf("--allowedTools")).toBe(argv.length - APPLY_TOOLS.length - 1);
     expect(APPLY_TOOLS.some((t) => t.startsWith("Bash(curl"))).toBe(false);
     expect(APPLY_TOOLS).not.toContain("Bash");
+  });
+
+  test("search, rank and apply runs may call the Indeed MCP tools", () => {
+    for (const tools of [SEARCH_TOOLS, BASE_TOOLS, APPLY_TOOLS]) {
+      for (const t of INDEED_MCP_TOOLS) expect(tools).toContain(t);
+    }
   });
 
   test("search run may store results only through scrape_state.py", () => {

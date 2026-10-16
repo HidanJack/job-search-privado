@@ -74,6 +74,19 @@ class ScrapeStateTest(unittest.TestCase):
         self.assertEqual(entry["portal"], "getonbrd-search")
         self.assertEqual(entry["source"], "cli")
 
+    def test_accepts_mcp_source_for_indeed(self):
+        code, out, _ = self.run_main([], json.dumps([posting(
+            portal="indeed", source="mcp", url="https://to.indeed.com/aap79d4y6wvj#JOBSEARCH_100096")]))
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out)["added"], 1)
+        entry = next(iter(self.stored().values()))
+        self.assertEqual((entry["portal"], entry["source"]), ("indeed", "mcp"))
+
+    def test_rejects_unknown_source(self):
+        code, _, err = self.run_main([], json.dumps([posting(source="scraper")]))
+        self.assertEqual(code, 1)
+        self.assertIn("source", err)
+
     def test_skips_url_already_stored_under_any_key(self):
         self.state.write_text(json.dumps({"seen": {"legacy_key_shape": {
             "title": "Other title", "company": "Other", "url": "https://example.com/jobs/1/",

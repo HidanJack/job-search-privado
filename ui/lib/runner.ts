@@ -9,7 +9,19 @@ import { join } from "node:path";
  * Deliberately absent: curl (posting text is untrusted and could steer an
  * outbound request) and any unrestricted Bash.
  */
-export const BASE_TOOLS = ["Read", "Glob", "Grep", "Write", "Edit", "WebFetch", "WebSearch", "Agent", "Skill"];
+/**
+ * Official Indeed connector (MCP). Indeed MX cannot be scraped (robots.txt), so
+ * /job-scraper searches it and /rank and /apply read postings through these two
+ * tools. Exact names: --allowedTools has no way to prompt for an MCP call.
+ */
+export const INDEED_MCP_TOOLS = [
+  "mcp__claude_ai_Indeed__search_jobs",
+  "mcp__claude_ai_Indeed__get_job_details",
+];
+export const BASE_TOOLS = [
+  "Read", "Glob", "Grep", "Write", "Edit", "WebFetch", "WebSearch", "Agent", "Skill",
+  ...INDEED_MCP_TOOLS,
+];
 /**
  * /job-scraper stores results only through tools/scrape_state.py (SKILL.md
  * Step 4). Listed here as well as in settings.json so the one write path the

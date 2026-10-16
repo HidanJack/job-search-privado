@@ -27,7 +27,9 @@ backfill fetches each posting with its portal CLI (`detail <url> --format
 json`), falls back to the title when no description is available, and writes
 ONLY `posting_language` plus what rank_state.enforce_english_rule derives from
 "en" (language_gate/language_note/gaps). A failed fetch leaves the entry
-untouched and is reported.
+untouched and is reported. Portal "indeed" cannot be fetched from Python (its
+detail is an MCP tool), so backfill leaves those entries alone and lists them under "none";
+/rank records their posting_language when it reads the detail.
 """
 import argparse
 import html
@@ -104,6 +106,9 @@ def detect_title(title: str) -> str | None:
 def fetch_detail(entry: dict, run=subprocess.run) -> dict:
     """Run the portal CLI's `detail` and return its parsed JSON. Raises on failure."""
     portal = entry.get("portal")
+    if portal == "indeed":
+        # Indeed is reachable only through an MCP tool, which Python cannot call.
+        raise RuntimeError("indeed postings need the MCP connector; skipped")
     target = entry.get("url") or entry.get("id")
     if not portal or not target:
         raise RuntimeError("entry has no portal/url")
@@ -142,6 +147,9 @@ def backfill(state: Path, dry_run: bool = False, fetch=fetch_detail) -> dict:
     summary = {"es": [], "en": [], "mixed": [], "none": [], "failed": []}
     for key, entry in seen.items():
         if entry.get("status") != "ranked" or entry.get("posting_language"):
+            continue
+        if entry.get("portal") == "indeed":
+            summary["none"].append(key)  # MCP-only portal: no fetch possible from Python
             continue
         try:
             language, source = language_for(entry, fetch)
