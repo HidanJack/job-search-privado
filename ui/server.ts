@@ -28,10 +28,13 @@ const STATIC: Record<string, string> = {
   "/app.js": "app.js",
   "/styles.css": "styles.css",
 };
+// Strict name pattern (no dots/slashes) doubles as the path-traversal guard.
+const FONT_FILE = /^\/fonts\/[a-z0-9-]+\.woff2$/;
 const MIME: Record<string, string> = {
   html: "text/html; charset=utf-8",
   js: "text/javascript; charset=utf-8",
   css: "text/css; charset=utf-8",
+  woff2: "font/woff2",
 };
 
 function json(data: unknown, status = 200): Response {
@@ -90,6 +93,14 @@ export function createHandler(opts: ServerOptions = {}) {
       const file = STATIC[url.pathname];
       return new Response(readFileSync(join(PUBLIC, file)), {
         headers: { ...SECURITY_HEADERS, "Content-Type": MIME[file.split(".").pop()!] },
+      });
+    }
+
+    if (FONT_FILE.test(url.pathname)) {
+      const fontPath = join(PUBLIC, url.pathname);
+      if (!existsSync(fontPath)) return json({ error: "not_found" }, 404);
+      return new Response(readFileSync(fontPath), {
+        headers: { ...SECURITY_HEADERS, "Content-Type": MIME.woff2, "Cache-Control": "public, max-age=86400" },
       });
     }
 

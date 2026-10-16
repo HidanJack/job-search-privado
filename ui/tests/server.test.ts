@@ -54,6 +54,25 @@ describe("server", () => {
     expect(data.ranked.length).toBe(4);
   });
 
+  test("serves bundled fonts with the font mime type", async () => {
+    const h = createHandler({ root: tempRoot(), spawner: fakeSpawner([], []) });
+    const r = await get(h, "/fonts/dm-sans-latin-400-normal.woff2");
+    expect(r.status).toBe(200);
+    expect(r.headers.get("content-type")).toBe("font/woff2");
+    expect(r.headers.get("cache-control")).toBe("public, max-age=86400");
+    expect((await r.arrayBuffer()).byteLength).toBeGreaterThan(0);
+    expect((await get(h, "/fonts/nope.woff2")).status).toBe(404);
+  });
+
+  test("font route rejects path traversal and non-woff2 files", async () => {
+    const h = createHandler({ root: tempRoot(), spawner: fakeSpawner([], []) });
+    for (const p of ["/fonts/..%2f..%2fserver.ts", "/fonts/../server.ts", "/fonts/OFL-DMSans.txt"]) {
+      const r = await get(h, p);
+      expect(r.status).not.toBe(200);
+      expect(await r.text()).not.toContain("createHandler");
+    }
+  });
+
   test("rejects foreign Host (DNS rebinding) and foreign Origin on actions", async () => {
     const h = createHandler({ root: tempRoot(), spawner: fakeSpawner([], []) });
     expect((await get(h, "/api/jobs", { Host: "evil.com" })).status).toBe(403);
