@@ -65,6 +65,18 @@
     </section>
 
     <section id="tab-jobs">
+      <section id="daily" class="daily" aria-labelledby="daily-title" hidden>
+        <div class="daily-text">
+          <h2 id="daily-title" class="daily-title">Búsqueda diaria automática</h2>
+          <p class="daily-help">Busca y califica sola todos los días a las 9:00. Si la laptop está apagada, corre al prenderla. Consume uso de tu plan de Claude.</p>
+          <p class="daily-meta"><span id="daily-next"></span><span id="daily-last"></span></p>
+        </div>
+        <button type="button" id="daily-switch" class="switch" role="switch" aria-checked="false" aria-labelledby="daily-title">
+          <span class="switch-thumb" aria-hidden="true"></span>
+        </button>
+      </section>
+      <p id="daily-unavailable" class="daily-unavailable" hidden>La búsqueda diaria automática no está disponible en este equipo (no se encontró systemd).</p>
+
       <form id="filters" class="filters" aria-label="Filtros">
         <div class="filter-group">
           <label class="field">

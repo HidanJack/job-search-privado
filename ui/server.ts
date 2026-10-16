@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { bunCommandRunner, getDailyStatus, setDaily, type CommandRunner } from "./lib/daily";
 import { filterJobs, loadJobs, parseFilters, skipJob } from "./lib/jobs";
 import { loadProfile } from "./lib/profile";
 import {
@@ -57,6 +58,7 @@ export interface ServerOptions {
   port?: number;
   spawner?: Spawner;
   claudeBin?: string;
+  commandRunner?: CommandRunner;
 }
 
 export function createHandler(opts: ServerOptions = {}) {
@@ -64,6 +66,7 @@ export function createHandler(opts: ServerOptions = {}) {
   const port = opts.port ?? 8787;
   const store = new ResultStore(root);
   const runs = new RunManager(root, opts.spawner ?? bunSpawner, opts.claudeBin ?? "claude", store);
+  const commandRunner = opts.commandRunner ?? bunCommandRunner;
 
   async function handle(req: Request): Promise<Response> {
     const url = new URL(req.url);
@@ -100,6 +103,8 @@ export function createHandler(opts: ServerOptions = {}) {
       }
       case "/api/tracker":
         return json(loadTracker(root));
+      case "/api/daily":
+        return json(await getDailyStatus(root, commandRunner));
       case "/api/run":
         return json({ run: runs.current && { ...runs.current, events: undefined } });
       case "/api/run/events":
@@ -153,6 +158,14 @@ export function createHandler(opts: ServerOptions = {}) {
           jobUrl,
         );
         return run ? json({ id: run.id }) : json({ error: "busy" }, 409);
+      }
+      case "/api/daily": {
+        // The boolean is the only user input; the systemctl argv is fixed.
+        if (typeof body.enabled !== "boolean") return json({ error: "bad_request" }, 400);
+        const ok = await setDaily(body.enabled, commandRunner);
+        if (ok === null) return json({ error: "systemctl_unavailable" }, 503);
+        if (!ok) return json({ error: "systemctl_failed" }, 500);
+        return json(await getDailyStatus(root, commandRunner));
       }
       case "/api/jobs/skip": {
         if (typeof body.key !== "string" || body.key.length > 2048) return json({ error: "bad_request" }, 400);

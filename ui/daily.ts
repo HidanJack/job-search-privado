@@ -10,7 +10,7 @@ const rankOnly = process.argv.includes("--rank-only");
 
 const stateDir = join(root, "ui", "state");
 mkdirSync(stateDir, { recursive: true });
-const logFile = join(stateDir, `daily-${new Date().toISOString().slice(0, 10)}.log`);
+const logFile = join(stateDir, `daily-${new Date().toLocaleDateString("sv-SE")}.log`);
 const log = (line: string) => appendFileSync(logFile, `${new Date().toISOString()} ${line}\n`);
 
 const steps = [

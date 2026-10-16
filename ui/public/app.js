@@ -128,6 +128,59 @@ async function api(path, body) {
   return data;
 }
 
+// ---------- daily automation ----------
+const whenFmt = new Intl.DateTimeFormat("es-MX", {
+  weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit",
+});
+const whenLabel = (iso) => whenFmt.format(new Date(iso)).replace(/\./g, "");
+
+function renderDaily(status) {
+  const panel = $("#daily");
+  if (!status.available) {
+    panel.hidden = true;
+    $("#daily-unavailable").hidden = false;
+    return;
+  }
+  panel.hidden = false;
+  $("#daily-unavailable").hidden = true;
+  const sw = $("#daily-switch");
+  sw.setAttribute("aria-checked", String(status.enabled));
+  $("#daily-next").textContent = status.enabled
+    ? status.nextRun ? `Próxima: ${whenLabel(status.nextRun)}` : "Próxima: por programar"
+    : "Apagada";
+  const last = $("#daily-last");
+  last.className = "";
+  last.textContent = "";
+  if (status.lastResult) {
+    const r = status.lastResult;
+    const when = status.lastRun ? ` (${whenLabel(status.lastRun)})` : "";
+    last.textContent = r.ok ? `Última corrida: bien${when}` : `Última corrida: falló en ${r.step}${when}`;
+    if (!r.ok) last.className = "bad";
+  }
+}
+
+async function refreshDaily() {
+  try {
+    renderDaily(await api("/api/daily"));
+  } catch {
+    $("#daily").hidden = true;
+  }
+}
+
+async function toggleDaily() {
+  const sw = $("#daily-switch");
+  const next = sw.getAttribute("aria-checked") !== "true";
+  sw.disabled = true;
+  try {
+    renderDaily(await api("/api/daily", { enabled: next }));
+    toast(next ? "Búsqueda diaria activada: corre a las 9:00" : "Búsqueda diaria apagada");
+  } catch {
+    toast("No se pudo cambiar la búsqueda diaria");
+  } finally {
+    sw.disabled = false;
+  }
+}
+
 // ---------- jobs ----------
 function ageLabel(days) {
   if (days === null || days === undefined) return "fecha no publicada";
@@ -558,6 +611,8 @@ async function boot() {
   $("#search-btn").addEventListener("click", startSearch);
   $("#rank-btn").addEventListener("click", startRank);
   $("#theme-btn").addEventListener("click", toggleTheme);
+  $("#daily-switch").addEventListener("click", toggleDaily);
+  refreshDaily();
   applyTheme(null);
   $("#run-close").addEventListener("click", () => ($("#run-panel").hidden = true));
   $("#review-close").addEventListener("click", () => $("#review").close());
