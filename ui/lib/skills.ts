@@ -10,7 +10,7 @@ export const GROUPS: Group[] = ["mx", "latam_local", "remote_intl"];
 export const MIN_SAMPLE = 8;
 export const NOISE_LOW = 8_000;
 export const NOISE_HIGH = 600_000;
-export const STALE_DAYS = 7;
+export const STALE_DAYS = 15;
 export const PAGE_SIZE = 100;
 export const PAUSE_MS = 700;
 
@@ -53,7 +53,7 @@ export const SKILLS: SkillDef[] = [
 /** "Tu combinación": Python AND at least one of these. */
 export const COMBO_PARTNERS = ["fintech", "cfdi", "contable", "ocr", "llm", "rag", "rust", "kubernetes"];
 export const COMBO_ID = "combo";
-export const COMBO_LABEL = "Tu combinación";
+export const COMBO_LABEL = "Python + otra de tus especialidades";
 
 const compiled = new Map<string, RegExp[][]>();
 function matchers(def: SkillDef): RegExp[][] {
@@ -465,44 +465,82 @@ export const WEAK_REFERENCE = {
   ] as ReferenceBand[],
 };
 
-const money = (n: number) => `$${Math.round(n).toLocaleString("en-US")}`;
-const GROUP_PHRASE: Record<Group, string> = { mx: "en México", latam_local: "en otros países de LatAm", remote_intl: "en remoto abierto a México" };
+const kilo = (n: number) => `$${Math.round(n / 1000)}k`;
 
-/** Up to three plain-Spanish takeaways; only statements backed by n >= MIN_SAMPLE. */
-export function buildSentences(agg: SkillAggregate): string[] {
-  const out: string[] = [];
-  const best = (g: Group) =>
-    agg.skills
-      .filter((s) => !s.groups[g].insufficient)
-      .sort((a, b) => (b.groups[g].median as number) - (a.groups[g].median as number))[0];
-  const mx = best("mx");
-  out.push(
-    mx
-      ? `En México, la habilidad tuya que más paga es ${mx.label}: mediana ${money(mx.groups.mx.median as number)} MXN/mes (n=${mx.groups.mx.n}).`
-      : "En México todavía no hay muestra suficiente (mínimo 8 vacantes con sueldo) para decir qué habilidad tuya paga más.",
-  );
-  const remote = best("remote_intl");
-  out.push(
-    remote
-      ? `En remoto abierto a México, lo más alto es ${remote.label}: mediana ${money(remote.groups.remote_intl.median as number)} MXN/mes (n=${remote.groups.remote_intl.n}).`
-      : "En remoto abierto a México todavía no hay muestra suficiente para comparar tus habilidades.",
-  );
-  const py = agg.skills.find((s) => s.id === "python")!;
-  const pick = (["remote_intl", "mx", "latam_local"] as Group[]).find(
-    (g) => !agg.combo.groups[g].insufficient && !py.groups[g].insufficient,
-  );
-  if (pick) {
-    const c = agg.combo.groups[pick].median as number;
-    const p = py.groups[pick].median as number;
-    const pct = Math.round(((c - p) / p) * 100);
-    const dir = pct >= 0 ? `${pct}% más` : `${Math.abs(pct)}% menos`;
-    out.push(
-      `Tu combinación (Python + fintech, OCR, LLM, Rust o Kubernetes) ${GROUP_PHRASE[pick]}: mediana ${money(c)} MXN/mes, ${dir} que Python solo (${money(p)}).`,
-    );
-  } else {
-    out.push("Todavía no hay muestra suficiente de tu combinación frente a Python solo; actualiza los datos más adelante.");
+/** Domains / industries, not job skills: never used for "best paid" claims. */
+export const DOMAIN_SKILL_IDS = ["fintech", "cfdi", "contable"];
+export const COMBO_DISPLAY_LABEL = COMBO_LABEL; // also applied to aggregates stored with the old label
+
+export interface ScopeStat {
+  group: Group;
+  n: number;
+  p25: number;
+  median: number;
+  p75: number;
+}
+export interface RankedRow {
+  id: string;
+  label: string;
+  /** Median of the best (highest-median) reliable scope. */
+  median: number;
+  scope: ScopeStat;
+  /** Every reliable scope, best first. */
+  scopes: ScopeStat[];
+}
+export interface FewDataRow {
+  id: string;
+  label: string;
+  /** Postings found for the skill, with or without pay. */
+  relevant: number;
+  /** Largest salary sample in any scope. */
+  n: number;
+  domain: boolean;
+}
+export interface Summary {
+  lead: string | null;
+  ranked: RankedRow[];
+  fewData: FewDataRow[];
+}
+
+function reliableScopes(row: SkillRow): ScopeStat[] {
+  return GROUPS.flatMap((g) => {
+    const s = row.groups[g];
+    return s.insufficient ? [] : [{ group: g, n: s.n, p25: s.p25 as number, median: s.median as number, p75: s.p75 as number }];
+  }).sort((a, b) => b.median - a.median);
+}
+
+/**
+ * What the page shows: a lead sentence plus a ranking, both from reliable
+ * samples (n >= MIN_SAMPLE) of core skills only. Domain areas (accounting,
+ * fintech, CFDI) never rank. Everything else goes to `fewData`.
+ */
+export function buildSummary(agg: SkillAggregate): Summary {
+  const ranked: RankedRow[] = [];
+  const fewData: FewDataRow[] = [];
+  const rows: SkillRow[] = [{ ...agg.combo, label: COMBO_DISPLAY_LABEL }, ...agg.skills];
+  for (const row of rows) {
+    const domain = DOMAIN_SKILL_IDS.includes(row.id);
+    const scopes = reliableScopes(row);
+    if (scopes.length && !domain) ranked.push({ id: row.id, label: row.label, median: scopes[0].median, scope: scopes[0], scopes });
+    else if (row.id !== COMBO_ID || row.relevant > 0) {
+      fewData.push({ id: row.id, label: row.label, relevant: row.relevant, n: Math.max(...GROUPS.map((g) => row.groups[g].n)), domain });
+    }
   }
-  return out;
+  ranked.sort((a, b) => b.median - a.median);
+
+  const core = ranked.filter((r) => r.id !== COMBO_ID);
+  const local = core.flatMap((r) => r.scopes.filter((s) => s.group !== "remote_intl").map((s) => s.median));
+  const remote = core
+    .flatMap((r) => r.scopes.filter((s) => s.group === "remote_intl").map((s) => ({ label: r.label, median: s.median })))
+    .sort((a, b) => b.median - a.median)[0];
+  const parts: string[] = [];
+  if (local.length) {
+    const where = core.some((r) => r.scopes.some((s) => s.group === "mx")) ? "en México y LatAm" : "en LatAm";
+    const lo = Math.min(...local), hi = Math.max(...local);
+    parts.push(`${where} pagan alrededor de ${kilo(lo)}${kilo(lo) === kilo(hi) ? "" : `–${kilo(hi)}`} al mes`);
+  }
+  if (remote) parts.push(`en remoto abierto a México, hasta ~${kilo(remote.median)} (${remote.label})`);
+  return { lead: parts.length ? `Con tus habilidades, ${parts.join("; ")}.` : null, ranked, fewData };
 }
 
 // ---------------------------------------------------------------------------

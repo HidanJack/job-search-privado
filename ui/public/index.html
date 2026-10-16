@@ -67,7 +67,10 @@
         <span id="run-status" class="pill"></span>
         <button type="button" id="run-close" class="ghost small" hidden>Cerrar</button>
       </div>
-      <ol id="run-log" class="run-log"></ol>
+      <details id="run-details" class="run-details">
+        <summary>Ver detalle</summary>
+        <ol id="run-log" class="run-log"></ol>
+      </details>
     </section>
 
     <section id="tab-jobs">
@@ -170,16 +173,14 @@
           <p class="muted">Pulsa «Actualizar datos de mercado»: consulta los portales (GetOnBoard, Jobicy y Himalayas), tarda unos minutos y no usa Claude.</p>
         </div>
         <div id="skills-body" hidden>
-          <div class="mk-layout">
-            <div class="mk-main">
-              <ul id="skills-legend" class="mk-legend" aria-label="Leyenda"></ul>
-              <div id="skills-chart" class="mk-chart" aria-busy="true"></div>
-              <p class="muted small-note">Sueldos brutos en MXN por mes, misma escala logarítmica de abajo. La barra va del percentil 25 al 75 y la marca negra es la mediana; <code>n</code> es el número de vacantes con sueldo publicado. Con menos de 8 vacantes no se calculan percentiles.</p>
-            </div>
-            <aside class="mk-aside" aria-label="Lo más importante">
-              <ul id="skills-sentences" class="mk-readings sk-sentences"></ul>
-            </aside>
-          </div>
+          <p id="skills-lead" class="sk-lead"></p>
+          <div id="skills-axis" class="sk-axis" aria-hidden="true"></div>
+          <ol id="skills-list" class="sk-list" aria-label="Habilidades ordenadas por sueldo"></ol>
+          <p class="muted small-note">Sueldo mensual bruto en MXN. El número grande es lo que paga la mitad de las vacantes con sueldo publicado en el lugar mejor pagado de cada habilidad; la barra marca el rango en el que cae la mayoría. Solo cuentan habilidades con al menos 8 vacantes con sueldo.</p>
+          <details id="skills-few" class="sk-few" hidden>
+            <summary id="skills-few-summary">Habilidades con pocos datos</summary>
+            <ul id="skills-few-list" class="plain-list"></ul>
+          </details>
           <details class="mk-table">
             <summary>Ver los datos en tabla</summary>
             <div class="table-wrap"><table class="table" id="skills-table"></table></div>

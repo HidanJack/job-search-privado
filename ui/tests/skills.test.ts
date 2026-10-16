@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { createHandler } from "../server";
 import type { Spawner } from "../lib/runner";
 import {
-  DEFAULT_FX, PORTALS, SKILLS, addJob, aggregate, aggregatePath, buildSentences, classifyGroup, groupStats, isRelevant, isStale,
+  DEFAULT_FX, PORTALS, SKILLS, addJob, aggregate, aggregatePath, buildSummary, classifyGroup, groupStats, isRelevant, isStale,
   loadAggregate, monthlyMxn, parseSalaryString, percentile, rawDir, readFx, sampleAll, toRawJob, type CliSpawner, type RawJob,
 } from "../lib/skills";
 
@@ -195,17 +195,39 @@ describe("aggregate", () => {
     expect(agg.skills.find((s) => s.id === "kubernetes")!.groups.remote_intl.n).toBe(9);
   });
 
-  test("sentences only claim what has a sufficient sample", () => {
-    const poor = aggregate([job()], DEFAULT_FX, meta);
-    expect(buildSentences(poor)).toHaveLength(3);
-    expect(buildSentences(poor)[0]).toContain("todavía no hay muestra suficiente");
+  test("summary: lead sentence and ranking come only from reliable core samples", () => {
+    const empty = buildSummary(aggregate([job()], DEFAULT_FX, meta));
+    expect(empty.lead).toBeNull();
+    expect(empty.ranked).toHaveLength(0);
+
     const jobs = [
-      ...many(8, { title: "Python Dev", location: "Remote (anywhere)" }),
-      ...many(8, { title: "Python OCR Dev", location: "Remote (anywhere)", salary_currency: "EUR" }),
+      ...many(8, { title: "Python Dev", location: "Chile" }),
+      ...many(8, { title: "Kubernetes Eng", location: "Chile", salary_currency: "EUR" }),
+      ...many(8, { title: "Data Engineer", location: "Remote (anywhere)", salary_currency: "GBP" }),
+      ...many(8, { title: "Accountant", location: "Remote (anywhere)", salary_currency: "CAD" }),
+      ...many(3, { title: "Rust dev", location: "Chile" }),
     ];
-    const rich = buildSentences(aggregate(jobs, DEFAULT_FX, meta));
-    expect(rich[1]).toContain("OCR");
-    expect(rich[2]).toMatch(/\d+% más que Python solo/);
+    const sum = buildSummary(aggregate(jobs, DEFAULT_FX, meta));
+    expect(sum.ranked.map((r) => r.id).sort()).toEqual(["data_engineer", "kubernetes", "python"]);
+    // descending by median, accounting (a domain area) never ranks nor leads
+    const meds = sum.ranked.map((r) => r.median);
+    expect([...meds].sort((a, b) => b - a)).toEqual(meds);
+    expect(sum.ranked.some((r) => r.id === "contable")).toBe(false);
+    expect(sum.lead).toMatch(/^Con tus habilidades, en LatAm pagan alrededor de \$\d+k–\$\d+k al mes; en remoto abierto a México, hasta ~\$\d+k \(Data Engineer\)\.$/);
+    expect(sum.lead).not.toMatch(/ccount|ontable/);
+    expect(sum.fewData.map((f) => f.id)).toContain("rust");
+    expect(sum.fewData.find((f) => f.id === "contable")?.domain).toBe(true);
+    expect(sum.fewData.find((f) => f.id === "cfdi")).toBeTruthy();
+  });
+
+  test("summary names the combination plainly and lead omits a scope without data", () => {
+    const jobs = [
+      ...many(8, { title: "Python OCR Dev", location: "Chile" }),
+    ];
+    const sum = buildSummary(aggregate(jobs, DEFAULT_FX, meta));
+    expect(sum.ranked.find((r) => r.id === "combo")?.label).toBe("Python + otra de tus especialidades");
+    expect(sum.lead).toMatch(/en LatAm pagan alrededor de/);
+    expect(sum.lead).not.toContain("remoto");
   });
 });
 
@@ -276,7 +298,7 @@ describe("sampler with injected spawner", () => {
 });
 
 describe("staleness", () => {
-  test("missing or older than 7 days is stale", () => {
+  test("missing or older than 15 days is stale", () => {
     const root = tempRoot();
     const now = new Date("2026-10-15T12:00:00Z");
     expect(isStale(root, now)).toBe(true);
@@ -285,9 +307,9 @@ describe("staleness", () => {
       mkdirSync(join(root, "ui", "state"), { recursive: true });
       writeFileSync(aggregatePath(root), JSON.stringify(agg));
     };
-    write("2026-10-10T12:00:00Z");
+    write("2026-10-02T12:00:00Z");
     expect(isStale(root, now)).toBe(false);
-    write("2026-10-07T11:00:00Z");
+    write("2026-09-30T11:00:00Z");
     expect(isStale(root, now)).toBe(true);
   });
 });
@@ -329,7 +351,7 @@ describe("POST /api/market/refresh", () => {
     expect(calls.length).toBeGreaterThan(50);
     const data = await (await h.handle(new Request(BASE + "/api/skills", { headers: { Host: "127.0.0.1:8787" } }))).json();
     expect(data.aggregate.version).toBe(1);
-    expect(data.sentences).toHaveLength(3);
+    expect(typeof data.summary.ranked.length).toBe("number");
     expect(data.reference.bands).toHaveLength(6);
   });
 
@@ -337,6 +359,6 @@ describe("POST /api/market/refresh", () => {
     const h = createHandler({ root: tempRoot(), spawner: noClaude });
     const data = await (await h.handle(new Request(BASE + "/api/skills", { headers: { Host: "127.0.0.1:8787" } }))).json();
     expect(data.aggregate).toBeNull();
-    expect(data.sentences).toEqual([]);
+    expect(data.summary).toBeNull();
   });
 });

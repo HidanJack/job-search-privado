@@ -34,7 +34,7 @@ for (const step of steps) {
   log(`END ${step.prompt} exit=${code}`);
   if (code !== 0) failed = true;
 }
-// Market salaries by skill: refresh only when the aggregate is missing or older than 7 days.
+// Market salaries by skill: refresh only when the aggregate is missing or older than 15 days.
 // A failure here never fails the daily run (it only costs a stale chart).
 if (isStale(root)) {
   log("START skill_sampler");

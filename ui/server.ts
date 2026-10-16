@@ -4,7 +4,7 @@ import { bunCommandRunner, getDailyStatus, setDaily, type CommandRunner } from "
 import { filterJobs, loadJobs, parseFilters, skipJob } from "./lib/jobs";
 import { computeReadings, loadMarket, loadSettings, marketJobs, parseSettings, saveSettings } from "./lib/market";
 import { loadProfile } from "./lib/profile";
-import { WEAK_REFERENCE, bunCliSpawner, buildSentences, loadAggregate, sampleAll, type CliSpawner } from "./lib/skills";
+import { WEAK_REFERENCE, bunCliSpawner, buildSummary, loadAggregate, sampleAll, type CliSpawner } from "./lib/skills";
 import {
   APPLY_TOOLS, BASE_TOOLS, ResultStore, SEARCH_TOOLS, RunManager, buildApplyPrompt, bunSpawner, type Spawner,
 } from "./lib/runner";
@@ -136,7 +136,7 @@ export function createHandler(opts: ServerOptions = {}) {
       }
       case "/api/skills": {
         const aggregate = loadAggregate(root);
-        return json({ aggregate, sentences: aggregate ? buildSentences(aggregate) : [], reference: WEAK_REFERENCE });
+        return json({ aggregate, summary: aggregate ? buildSummary(aggregate) : null, reference: WEAK_REFERENCE });
       }
       case "/api/daily":
         return json(await getDailyStatus(root, commandRunner));

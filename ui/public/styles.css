@@ -24,9 +24,6 @@
   --gap: #8a4b2a;
   --mk-band: #bdb8a8;
   --mk-hatch: #7a7565;
-  --sk-mx: #2c2b23;
-  --sk-latam: #aaa593;
-  --sk-remote: #3f8a72;
   --grain-opacity: .07;
   --backdrop: rgba(22, 21, 15, .5);
   color-scheme: light;
@@ -52,9 +49,6 @@
   --gap: #d49a72;
   --mk-band: rgba(216, 211, 195, .34);
   --mk-hatch: #9a9a8c;
-  --sk-mx: #e4dfcf;
-  --sk-latam: #7d7560;
-  --sk-remote: #6fb59d;
   --grain-opacity: .05;
   --backdrop: rgba(4, 7, 6, .74);
   color-scheme: dark;
@@ -75,9 +69,6 @@
   --gap: #d49a72;
   --mk-band: rgba(216, 211, 195, .34);
   --mk-hatch: #9a9a8c;
-  --sk-mx: #e4dfcf;
-  --sk-latam: #7d7560;
-  --sk-remote: #6fb59d;
   --grain-opacity: .05;
   --backdrop: rgba(4, 7, 6, .74);
   color-scheme: dark;
@@ -586,20 +577,20 @@ textarea:focus { outline: 0; border-color: var(--brass); }
 .mk-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
 .mk-legend svg { overflow: visible; }
 .mk-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 1 4; }
-.mk-lane-sep, .sk-sep { stroke: var(--line); stroke-width: 1; }
+.mk-lane-sep { stroke: var(--line); stroke-width: 1; }
 .mk-axis { fill: var(--faint); font: 400 11px var(--sans); font-variant-numeric: tabular-nums; }
 .mk-label { fill: var(--ink); font: 500 12.5px var(--sans); }
 .mk-sub { fill: var(--dim); font: 400 12px var(--sans); }
 .mk-sub.weak { fill: var(--faint); font-style: italic; }
 .mk-band { fill: var(--mk-band); rx: 1px; }
 .mk-weak { fill: url(#mk-hatch); stroke: var(--mk-hatch); stroke-width: 1; rx: 1px; }
-.mk-hatch-line, .sk-hatch-line { stroke: var(--mk-hatch); stroke-width: 1; }
+.mk-hatch-line { stroke: var(--mk-hatch); stroke-width: 1; }
 .mk-avg { fill: var(--ink); }
 .mk-avg-ring { fill: var(--bg); }
 .mk-hit { fill: transparent; }
-.mk-row, .sk-row, .mk-dot { outline: none; }
-@media (hover: hover) and (pointer: fine) { .mk-row:hover .mk-hit, .sk-row:hover .mk-hit { fill: var(--brass-wash); } }
-.mk-row:focus-visible .mk-hit, .sk-row:focus-visible .mk-hit { fill: var(--brass-wash); stroke: var(--brass); }
+.mk-row, .mk-dot { outline: none; }
+@media (hover: hover) and (pointer: fine) { .mk-row:hover .mk-hit { fill: var(--brass-wash); } }
+.mk-row:focus-visible .mk-hit { fill: var(--brass-wash); stroke: var(--brass); }
 .mk-line { stroke: var(--brass); stroke-width: 1.5; }
 .mk-line.goal { stroke-dasharray: 6 4; }
 .mk-linelabel { fill: var(--ink); font: 500 12px var(--sans); }
@@ -618,20 +609,9 @@ textarea:focus { outline: 0; border-color: var(--brass); }
 .mk-table .table-wrap { margin-bottom: 20px; }
 
 /* Skills chart */
-.sk-bar { rx: 1px; }
-.sk-bar.mx { fill: var(--sk-mx); }
-.sk-bar.latam_local { fill: var(--sk-latam); }
-.sk-bar.remote_intl { fill: var(--sk-remote); }
-.sk-bar.dim { opacity: .58; }
-.sk-weak { fill: url(#sk-hatch); stroke: var(--mk-hatch); stroke-width: 1; rx: 1px; }
-.sk-note { fill: var(--dim); font: 400 12px var(--sans); }
-.sk-note.dim { fill: var(--faint); }
-.sk-combo-bg { fill: var(--brass-wash); stroke: var(--line2); stroke-width: 1; rx: 0; }
-.sk-combo-label { fill: var(--ink); font: 500 13px var(--sans); }
 
 /* Charts draw themselves once, on the first visit to the tab. */
-.mk-chart svg.draw .mk-band, .mk-chart svg.draw .mk-weak, .mk-chart svg.draw .sk-bar, .mk-chart svg.draw .sk-weak {
-  transform-box: fill-box; transform-origin: left center;
+.mk-chart svg.draw .mk-band, .mk-chart svg.draw .mk-weak, .mk-chart svg.draw   transform-box: fill-box; transform-origin: left center;
   animation: bar-grow .8s var(--ease-out) both; animation-delay: .1s;
 }
 .mk-chart svg.draw .mk-avg, .mk-chart svg.draw .mk-avg-ring { animation: fade .5s ease .7s both; }
@@ -639,21 +619,6 @@ textarea:focus { outline: 0; border-color: var(--brass); }
 .mk-chart svg.draw .mk-line { animation: fade .6s ease .6s both; }
 @keyframes bar-grow { from { transform: scaleX(0); } to { transform: none; } }
 @keyframes dot-in { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: none; } }
-.mk-chart svg.draw g:nth-of-type(2) .mk-band, .mk-chart svg.draw g:nth-of-type(2) .mk-weak, .mk-chart svg.draw g:nth-of-type(2) .sk-bar, .mk-chart svg.draw g:nth-of-type(2) .sk-weak { animation-delay: 100ms; }
-.mk-chart svg.draw g:nth-of-type(3) .mk-band, .mk-chart svg.draw g:nth-of-type(3) .mk-weak, .mk-chart svg.draw g:nth-of-type(3) .sk-bar, .mk-chart svg.draw g:nth-of-type(3) .sk-weak { animation-delay: 155ms; }
-.mk-chart svg.draw g:nth-of-type(4) .mk-band, .mk-chart svg.draw g:nth-of-type(4) .mk-weak, .mk-chart svg.draw g:nth-of-type(4) .sk-bar, .mk-chart svg.draw g:nth-of-type(4) .sk-weak { animation-delay: 210ms; }
-.mk-chart svg.draw g:nth-of-type(5) .mk-band, .mk-chart svg.draw g:nth-of-type(5) .mk-weak, .mk-chart svg.draw g:nth-of-type(5) .sk-bar, .mk-chart svg.draw g:nth-of-type(5) .sk-weak { animation-delay: 265ms; }
-.mk-chart svg.draw g:nth-of-type(6) .mk-band, .mk-chart svg.draw g:nth-of-type(6) .mk-weak, .mk-chart svg.draw g:nth-of-type(6) .sk-bar, .mk-chart svg.draw g:nth-of-type(6) .sk-weak { animation-delay: 320ms; }
-.mk-chart svg.draw g:nth-of-type(7) .mk-band, .mk-chart svg.draw g:nth-of-type(7) .mk-weak, .mk-chart svg.draw g:nth-of-type(7) .sk-bar, .mk-chart svg.draw g:nth-of-type(7) .sk-weak { animation-delay: 375ms; }
-.mk-chart svg.draw g:nth-of-type(8) .mk-band, .mk-chart svg.draw g:nth-of-type(8) .mk-weak, .mk-chart svg.draw g:nth-of-type(8) .sk-bar, .mk-chart svg.draw g:nth-of-type(8) .sk-weak { animation-delay: 430ms; }
-.mk-chart svg.draw g:nth-of-type(9) .mk-band, .mk-chart svg.draw g:nth-of-type(9) .mk-weak, .mk-chart svg.draw g:nth-of-type(9) .sk-bar, .mk-chart svg.draw g:nth-of-type(9) .sk-weak { animation-delay: 485ms; }
-.mk-chart svg.draw g:nth-of-type(10) .mk-band, .mk-chart svg.draw g:nth-of-type(10) .mk-weak, .mk-chart svg.draw g:nth-of-type(10) .sk-bar, .mk-chart svg.draw g:nth-of-type(10) .sk-weak { animation-delay: 540ms; }
-.mk-chart svg.draw g:nth-of-type(11) .mk-band, .mk-chart svg.draw g:nth-of-type(11) .mk-weak, .mk-chart svg.draw g:nth-of-type(11) .sk-bar, .mk-chart svg.draw g:nth-of-type(11) .sk-weak { animation-delay: 595ms; }
-.mk-chart svg.draw g:nth-of-type(12) .mk-band, .mk-chart svg.draw g:nth-of-type(12) .mk-weak, .mk-chart svg.draw g:nth-of-type(12) .sk-bar, .mk-chart svg.draw g:nth-of-type(12) .sk-weak { animation-delay: 650ms; }
-.mk-chart svg.draw g:nth-of-type(13) .mk-band, .mk-chart svg.draw g:nth-of-type(13) .mk-weak, .mk-chart svg.draw g:nth-of-type(13) .sk-bar, .mk-chart svg.draw g:nth-of-type(13) .sk-weak { animation-delay: 705ms; }
-.mk-chart svg.draw g:nth-of-type(14) .mk-band, .mk-chart svg.draw g:nth-of-type(14) .mk-weak, .mk-chart svg.draw g:nth-of-type(14) .sk-bar, .mk-chart svg.draw g:nth-of-type(14) .sk-weak { animation-delay: 760ms; }
-.mk-chart svg.draw g:nth-of-type(15) .mk-band, .mk-chart svg.draw g:nth-of-type(15) .mk-weak, .mk-chart svg.draw g:nth-of-type(15) .sk-bar, .mk-chart svg.draw g:nth-of-type(15) .sk-weak { animation-delay: 815ms; }
-
 /* ---------- small screens ---------- */
 @media (max-width: 900px) {
   .mk-layout { grid-template-columns: 1fr; gap: 28px; }
@@ -704,4 +669,39 @@ textarea:focus { outline: 0; border-color: var(--brass); }
   .lead:not(.ready) .lead-line { opacity: 1; }
   .card:hover .card-main { transform: none; }
   .step-action:hover .arrow { transform: none !important; }
+}
+
+/* ---------- skills ranking ---------- */
+.sk-lead { font: italic 400 30px/1.25 var(--serif); color: var(--ink); max-width: 30ch; margin: 22px 0 30px; padding-top: 16px; border-top: 1px solid var(--brass); max-width: 44ch; }
+.sk-axis, .sk-item > summary { display: grid; grid-template-columns: minmax(150px, 230px) minmax(0, 1fr) 96px; gap: 24px; align-items: center; }
+.sk-axis { height: 22px; }
+.sk-axis-scale { position: relative; height: 100%; }
+.sk-tick { position: absolute; top: 0; transform: translateX(-50%); font: 400 11px var(--sans); color: var(--faint); font-variant-numeric: tabular-nums; }
+.sk-list { list-style: none; padding: 0; margin: 0 0 18px; border-top: 1px solid var(--line); }
+.sk-list > li { border-bottom: 1px solid var(--line); }
+.sk-item > summary { cursor: pointer; list-style: none; padding: 14px 0; outline: none; }
+.sk-item > summary::-webkit-details-marker { display: none; }
+.sk-item > summary:focus-visible { box-shadow: inset 2px 0 0 var(--brass); }
+@media (hover: hover) { .sk-item > summary:hover { background: var(--brass-wash); } }
+.sk-name { display: grid; gap: 2px; }
+.sk-name strong { font: 500 15px/1.25 var(--sans); }
+.sk-name small { font-size: 12px; color: var(--dim); }
+.sk-num { font: 400 26px/1 var(--serif); text-align: right; font-variant-numeric: tabular-nums; }
+.sk-track { position: relative; display: block; height: 22px; }
+.sk-track::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line2); }
+.sk-gridline { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dotted var(--line2); }
+.sk-range { position: absolute; top: 7px; height: 8px; background: var(--brass); opacity: .55; }
+.sk-median { position: absolute; top: 2px; width: 2px; height: 18px; margin-left: -1px; background: var(--ink); }
+.sk-more { padding: 0 0 16px; display: grid; gap: 6px; font-size: 13.5px; max-width: 70ch; }
+.sk-few { margin: 8px 0 0; border-bottom: 1px solid var(--line); }
+.sk-few summary { cursor: pointer; padding: 14px 0; font-size: 14px; color: var(--dim); }
+.sk-few ul { padding: 0 0 16px; display: grid; gap: 6px; font-size: 13.5px; color: var(--dim); list-style: none; }
+.run-details summary { cursor: pointer; margin-top: 12px; font-size: 13px; color: var(--dim); }
+@media (max-width: 820px) {
+  .sk-lead { font-size: 24px; }
+  .sk-axis { display: none; }
+  .sk-item > summary { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; }
+  .sk-item > summary .sk-track { grid-column: 1 / -1; grid-row: 2; }
+  .sk-num { grid-row: 1; grid-column: 2; }
+  .sk-num { font-size: 24px; }
 }

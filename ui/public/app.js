@@ -440,6 +440,7 @@ function showRunPanel(title) {
   setRunStatus("en curso", "running");
   $("#run-close").hidden = true;
   $("#run-log").replaceChildren();
+  $("#run-details").open = false;
   setRunButtons(true);
 }
 function setRunButtons(disabled) {
@@ -997,183 +998,77 @@ async function saveMarketSettings() {
 }
 
 // ---------- skills salaries ("Cuánto pagan tus habilidades") ----------
-const SK = { data: null, tipIndex: new Map(), ROW_PAD: 8, HEAD_H: 22, LINE_H: 32, BAR_H: 10, PAD_X: 14 };
-const SK_GROUPS = [
-  { id: "mx", label: "México" },
-  { id: "latam_local", label: "Otros países de LatAm" },
-  { id: "remote_intl", label: "Remoto abierto a México" },
-];
-const SK_LEVEL = { mid: "mid", sr: "sr" };
+const SK = { data: null };
+const SK_WHERE = { mx: "México", latam_local: "LatAm", remote_intl: "Remoto" };
+const SK_AXIS_TICKS = [10000, 20000, 30000, 50000, 100000, 200000, 300000, 500000];
+const vacantes = (n) => `${n} vacante${n === 1 ? "" : "s"} con sueldo`;
+const halfRange = (s) => `La mitad de las vacantes paga entre ${moneyFull(s.p25)} y ${moneyFull(s.p75)} al mes`;
 
-function skillTip(row, g, s) {
-  const lines = s.insufficient
-    ? [s.n ? `Muestra insuficiente: ${s.n} vacante${s.n === 1 ? "" : "s"} con sueldo (mínimo 8).` : "Sin vacantes con sueldo publicado.",
-       s.n ? `Rango observado: ${moneyFull(s.min)} a ${moneyFull(s.max)} MXN/mes` : ""]
-    : [`P25 ${moneyFull(s.p25)} · mediana ${moneyFull(s.median)} · P75 ${moneyFull(s.p75)} MXN/mes`, `n = ${s.n}${s.hourly ? ` (${s.hourly} convertidas desde sueldo por hora)` : ""}`];
-  return { title: `${row.label} · ${g.label}`, lines };
+// Shared log-scale axis for every row, so bars are comparable.
+function skillsScale(ranked) {
+  const vals = ranked.flatMap((r) => r.scopes.flatMap((s) => [s.p25, s.p75]));
+  const [lo, hi] = marketDomain(vals.length ? vals : [20000, 60000]);
+  const pos = (v) => ((Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo))) * 100;
+  return { lo, hi, pos, ticks: SK_AXIS_TICKS.filter((t) => t >= lo && t <= hi) };
 }
 
-function skillRows(agg) {
-  const rows = [agg.combo, ...agg.skills];
-  return rows.map((row) => ({
-    row,
-    groups: SK_GROUPS.map((g) => ({ g, s: row.groups[g.id] })).filter((x) => x.s.n > 0),
+// Positions are set through the CSSOM (inline style attributes are blocked by the CSP).
+const placed = (node, left, width) => {
+  node.style.left = `${left}%`;
+  if (width !== undefined) node.style.width = `${width}%`;
+  return node;
+};
+
+function skillBar(scale, s) {
+  const a = Math.max(0, scale.pos(s.p25));
+  const z = Math.min(100, scale.pos(s.p75));
+  return el("span", { class: "sk-track", "aria-hidden": "true" },
+    ...scale.ticks.map((t) => placed(el("i", { class: "sk-gridline" }), scale.pos(t))),
+    placed(el("span", { class: "sk-range", title: halfRange(s) }), a, Math.max(1, z - a)),
+    placed(el("span", { class: "sk-median" }), scale.pos(s.median)));
+}
+
+function renderSkillsRanked(summary) {
+  const scale = skillsScale(summary.ranked);
+  $("#skills-axis").replaceChildren(
+    el("span", { class: "sk-axis-gutter" }),
+    el("span", { class: "sk-axis-scale" }, ...scale.ticks.map((t) => placed(el("span", { class: "sk-tick", text: moneyShort(t) }), scale.pos(t)))),
+    el("span", { class: "sk-axis-gutter" }));
+  $("#skills-list").replaceChildren(...summary.ranked.map((r) => {
+    const best = r.scope;
+    const head = el("summary", { class: "sk-row-head" },
+      el("span", { class: "sk-name" }, el("strong", { text: r.label }), el("small", { text: `${SK_WHERE[best.group]} · ${vacantes(best.n)}` })),
+      skillBar(scale, best),
+      el("span", { class: "sk-num", text: moneyFull(best.median) }));
+    const more = el("div", { class: "sk-more" }, el("p", { text: halfRange(best) + "." }),
+      ...r.scopes.slice(1).map((s) => el("p", { class: "muted", text: `${SK_WHERE[s.group]}: mediana ${moneyFull(s.median)} · ${vacantes(s.n)}. ${halfRange(s)}.` })));
+    const ref = SK.data.reference.bands.filter((b) => b.skill === r.id);
+    if (ref.length) {
+      const usd = SK.data.aggregate.fx.USD || 18.5;
+      more.append(el("p", { class: "muted", text: `Referencia débil (Talently, fuentes internas, sin muestra): ${ref.map((b) => `${b.level === "sr" ? "senior" : "intermedio"} ${moneyFull(b.min_usd * usd)} a ${moneyFull(b.max_usd * usd)}`).join("; ")} al mes.` }));
+    }
+    return el("li", {}, el("details", { class: "sk-item" }, head, more));
   }));
-}
-
-function renderSkillsLegend() {
-  const ul = $("#skills-legend");
-  ul.replaceChildren();
-  const item = (children, text) => {
-    const s = svgEl("svg", { width: 28, height: 16, viewBox: "0 0 28 16", "aria-hidden": "true" });
-    s.append(...children);
-    ul.append(el("li", {}, s, el("span", { text })));
-  };
-  for (const g of SK_GROUPS) item([svgEl("rect", { x: 1, y: 3, width: 26, height: 10, rx: 3, class: `sk-bar ${g.id}` }), svgEl("rect", { x: 12, y: 0, width: 4, height: 16, rx: 1, class: "mk-avg" })], `${g.label} (P25–P75 y mediana)`);
-  item([svgEl("rect", { x: 1, y: 3, width: 26, height: 10, rx: 3, class: "sk-bar mx dim" })], "Muestra insuficiente (rango observado)");
-  item([svgEl("rect", { x: 1, y: 3, width: 26, height: 10, rx: 3, class: "sk-weak" })], "Fuente débil (Talently)");
-}
-
-function renderSkillsChart(data) {
-  const host = $("#skills-chart");
-  const agg = data.aggregate;
-  const tip = el("div", { class: "mk-tip", role: "tooltip", hidden: "" });
-  SK.tipIndex = new Map();
-  const usd = agg.fx.USD || 18.5;
-  const refBands = data.reference.bands.map((b) => ({ ...b, min: b.min_usd * usd, max: b.max_usd * usd }));
-  const blocks = skillRows(agg);
-
-  const values = [
-    ...blocks.flatMap((b) => b.groups.flatMap(({ s }) => [s.min, s.max, s.p25, s.p75].filter((v) => v !== null))),
-    ...refBands.flatMap((b) => [b.min, b.max]),
-  ];
-  if (!values.length) values.push(20000, 60000);
-  const [lo, hi] = marketDomain(values);
-  const W = Math.max(300, host.clientWidth || 640);
-  const L = SK.PAD_X, R = SK.PAD_X;
-  const x = (v) => L + ((Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo))) * (W - L - R);
-  const TOP = 8;
-
-  // Layout
-  let y = TOP;
-  const layout = blocks.map((b) => {
-    const refs = refBands.filter((r) => r.skill === b.row.id);
-    const lines = Math.max(1, b.groups.length) + (refs.length ? 1 : 0);
-    const h = SK.HEAD_H + lines * SK.LINE_H + SK.ROW_PAD;
-    const top = y;
-    y += h;
-    return { ...b, refs, top, h };
-  });
-  const plotBottom = y;
-  const H = plotBottom + 28;
-
-  const svg = svgEl("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-labelledby": "sk-title sk-desc" });
-  svg.append(svgEl("title", { id: "sk-title" }, "Sueldos por habilidad y por grupo"));
-  svg.append(svgEl("desc", { id: "sk-desc" }, `Para ${layout.length} habilidades, rango del percentil 25 al 75 y mediana de sueldo mensual en MXN en México, otros países de LatAm y remoto abierto a México. Los mismos datos están en la tabla de abajo.`));
-  const defs = svgEl("defs");
-  const pat = svgEl("pattern", { id: "sk-hatch", width: 6, height: 6, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
-  pat.append(svgEl("line", { x1: 0, y1: 0, x2: 0, y2: 6, class: "sk-hatch-line" }));
-  defs.append(pat);
-  svg.append(defs);
-
-  const ticks = [5000, 10000, 20000, 30000, 50000, 100000, 200000, 500000, 1000000].filter((t) => t >= lo && t <= hi);
-  const grid = svgEl("g", { "aria-hidden": "true" });
-  for (const t of ticks) {
-    grid.append(svgEl("line", { x1: x(t), x2: x(t), y1: TOP, y2: plotBottom, class: "mk-grid" }));
-    grid.append(svgEl("text", { x: x(t), y: plotBottom + 18, class: "mk-axis", "text-anchor": "middle" }, moneyShort(t)));
-  }
-  svg.append(grid);
-
-  const textW = (t) => t.length * 6.1;
-  // The note sits above its bar, clamped so it never leaves the plot.
-  const note = (g, text, x0, ly, dim) => {
-    const w = textW(text);
-    g.append(svgEl("text", { x: Math.max(L, Math.min(x0, W - R - w)), y: ly + 11, class: `sk-note${dim ? " dim" : ""}` }, text));
-  };
-
-  for (const b of layout) {
-    const isCombo = b.row.id === "combo";
-    const g = svgEl("g", { class: "sk-row", tabindex: 0, role: "img", "data-tip": `s:${b.row.id}`,
-      "aria-label": `${b.row.label}. ${b.groups.length ? b.groups.map(({ g: gg, s }) => skillTip(b.row, gg, s).lines.filter(Boolean).join(", ")).join(". ") : "Sin vacantes con sueldo publicado."}` });
-    SK.tipIndex.set(`s:${b.row.id}`, {
-      title: b.row.label,
-      lines: b.groups.length ? b.groups.map(({ g: gg, s }) => `${gg.label}: ${s.insufficient ? `muestra insuficiente (n=${s.n})` : `mediana ${moneyFull(s.median)} (n=${s.n})`}`) : ["Sin vacantes con sueldo publicado."],
-    });
-    g.append(svgEl("rect", { x: 0, y: b.top, width: W, height: b.h - 2, class: isCombo ? "sk-combo-bg" : "mk-hit", rx: isCombo ? 8 : 0 }));
-    g.append(svgEl("text", { x: L, y: b.top + 15, class: isCombo ? "sk-combo-label" : "mk-label" },
-      isCombo ? (W < 560 ? b.row.label : `${b.row.label}: Python + fintech, OCR, LLM, RAG, Rust o Kubernetes`) : b.row.label));
-    g.append(svgEl("text", { x: W - R, y: b.top + 15, class: "sk-note", "text-anchor": "end" }, `${b.row.relevant} vacante${b.row.relevant === 1 ? "" : "s"}`));
-    let ly = b.top + SK.HEAD_H;
-    if (!b.groups.length) {
-      g.append(svgEl("text", { x: L, y: ly + 12, class: "sk-note dim" }, "Sin vacantes con sueldo publicado"));
-      ly += SK.LINE_H;
-    }
-    for (const { g: gg, s } of b.groups) {
-      const cy = ly + 22;
-      const a = s.insufficient ? s.min : s.p25;
-      const z = s.insufficient ? s.max : s.p75;
-      const x0 = x(a), x1 = Math.max(x0 + 3, x(z));
-      g.append(svgEl("rect", { x: x0, y: cy - SK.BAR_H / 2, width: x1 - x0, height: SK.BAR_H, rx: 4, class: `sk-bar ${gg.id}${s.insufficient ? " dim" : ""}` }));
-      if (!s.insufficient) {
-        g.append(svgEl("rect", { x: x(s.median) - 4, y: cy - 10, width: 8, height: 20, rx: 2, class: "mk-avg-ring" }));
-        g.append(svgEl("rect", { x: x(s.median) - 2, y: cy - 9, width: 4, height: 18, rx: 1, class: "mk-avg" }));
-      }
-      note(g, s.insufficient ? `${gg.label} · n=${s.n} · muestra insuficiente` : `${gg.label} · n=${s.n} · mediana ${moneyShort(s.median)}`, x0, ly, s.insufficient);
-      ly += SK.LINE_H;
-    }
-    if (b.refs.length) {
-      const cy = ly + 22;
-      const texts = [];
-      for (const r of b.refs) {
-        const x0 = x(r.min), x1 = x(r.max);
-        g.append(svgEl("rect", { x: x0, y: cy - SK.BAR_H / 2, width: Math.max(2, x1 - x0), height: SK.BAR_H, rx: 4, class: "sk-weak" }));
-        texts.push({ t: `Talently ${SK_LEVEL[r.level]}`, x0, x1 });
-              }
-      const label = `Fuente débil · ${texts.map((t) => t.t).join(" / ")}`;
-      note(g, label, Math.min(...texts.map((t) => t.x0)), ly, true);
-      SK.tipIndex.get(`s:${b.row.id}`).lines.push(...b.refs.map((r) => `Fuente débil (Talently, ${r.level}): ${moneyFull(r.min)} a ${moneyFull(r.max)} MXN/mes (${r.min_usd.toLocaleString("en-US")}–${r.max_usd.toLocaleString("en-US")} USD)`));
-    }
-    svg.append(g);
-    svg.append(svgEl("line", { x1: L, x2: W - R, y1: b.top + b.h - 1, y2: b.top + b.h - 1, class: "sk-sep" }));
-  }
-
-  if (!SK.drawn) svg.classList.add("draw");
-  SK.drawn = true;
-  host.replaceChildren(svg, tip);
-  host.removeAttribute("aria-busy");
-  const show = (target) => {
-    const t = SK.tipIndex.get(target.getAttribute("data-tip"));
-    if (!t) return;
-    tip.replaceChildren(el("strong", { text: t.title }), ...t.lines.filter(Boolean).map((line) => el("span", { text: line })));
-    tip.hidden = false;
-    const hb = host.getBoundingClientRect();
-    const tb = target.getBoundingClientRect();
-    const width = tip.offsetWidth;
-    const left = Math.min(Math.max(8, hb.width / 2 - width / 2), hb.width - width - 8);
-    const below = tb.bottom - hb.top + 6;
-    tip.style.left = `${left}px`;
-    tip.style.top = `${Math.min(below, hb.height - tip.offsetHeight - 4)}px`;
-  };
-  const hide = () => (tip.hidden = true);
-  for (const node of svg.querySelectorAll("[data-tip]")) {
-    node.addEventListener("pointerenter", () => show(node));
-    node.addEventListener("pointerleave", hide);
-    node.addEventListener("focus", () => show(node));
-    node.addEventListener("blur", hide);
-  }
-  svg.addEventListener("keydown", (ev) => ev.key === "Escape" && hide());
+  const few = summary.fewData;
+  $("#skills-few").hidden = few.length === 0;
+  $("#skills-few-summary").textContent = `Habilidades con pocos datos (${few.length})`;
+  $("#skills-few-list").replaceChildren(...few.map((f) => el("li", {
+    text: f.domain
+      ? `${f.label}: es un área, no una habilidad técnica; no entra en tu ranking.`
+      : f.n ? `${f.label}: solo ${vacantes(f.n)} (hacen falta 8).` : `${f.label}: ${f.relevant ? `${f.relevant} vacantes encontradas, ninguna con sueldo publicado.` : "sin vacantes con sueldo publicado."}`,
+  })));
 }
 
 function renderSkillsTable(data) {
   const agg = data.aggregate;
   const t = $("#skills-table");
-  t.replaceChildren(el("tr", {}, ...["Habilidad", "Grupo", "n", "P25", "Mediana", "P75"].map((h) => el("th", { text: h }))));
+  t.replaceChildren(el("tr", {}, ...["Habilidad", "Dónde", "Vacantes con sueldo", "Paga la mitad inferior hasta", "Mediana", "Paga la mitad superior desde"].map((h) => el("th", { text: h }))));
   for (const row of [agg.combo, ...agg.skills]) {
-    for (const g of SK_GROUPS) {
-      const s = row.groups[g.id];
+    for (const g of Object.keys(SK_WHERE)) {
+      const s = row.groups[g];
       const m = (v) => (v === null ? "—" : moneyFull(v));
-      t.append(el("tr", {}, el("td", { text: row.label }), el("td", { text: g.label }), el("td", { text: String(s.n) }),
-        ...(s.insufficient ? [el("td", { colspan: "3", class: "muted", text: s.n ? "Muestra insuficiente" : "Sin datos" })] : [m(s.p25), m(s.median), m(s.p75)].map((v) => el("td", { text: v })))));
+      t.append(el("tr", {}, el("td", { text: row.id === "combo" ? "Python + otra de tus especialidades" : row.label }), el("td", { text: SK_WHERE[g] }), el("td", { text: String(s.n) }),
+        ...(s.insufficient ? [el("td", { colspan: "3", class: "muted", text: s.n ? "Muy pocas vacantes para dar un rango" : "Sin datos" })] : [m(s.p25), m(s.median), m(s.p75)].map((v) => el("td", { text: v })))));
     }
   }
   const d = agg.discards;
@@ -1196,9 +1091,10 @@ function renderSkills(data) {
   const days = Math.floor((Date.now() - when.getTime()) / 86400000);
   const ago = days <= 0 ? "hoy" : days === 1 ? "hace 1 día" : `hace ${days} días`;
   date.textContent = `Datos del ${when.toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })} (${ago}).`;
-  $("#skills-sentences").replaceChildren(...data.sentences.map((t) => el("li", { text: t })));
-  renderSkillsLegend();
-  renderSkillsChart(data);
+  const sum = data.summary;
+  $("#skills-lead").textContent = sum.lead || "Todavía no hay suficientes vacantes con sueldo publicado (mínimo 8 por habilidad) para estimar cuánto puedes ganar.";
+  $("#skills-axis").hidden = $("#skills-list").hidden = sum.ranked.length === 0;
+  renderSkillsRanked(sum);
   renderSkillsTable(data);
 }
 
@@ -1238,16 +1134,21 @@ async function boot() {
       }
     });
   }
+  const openFromHash = () => {
+    const t = { "#mercado": "market", "#seguimiento": "tracking" }[location.hash];
+    if (t) document.querySelector(`.tab[data-tab="${t}"]`)?.click();
+  };
+  window.addEventListener("hashchange", openFromHash);
   $("#market-form").addEventListener("change", saveMarketSettings);
   $("#market-form").addEventListener("submit", (ev) => ev.preventDefault());
   window.addEventListener("resize", () => {
     clearTimeout(MK.resizeTimer);
     MK.resizeTimer = setTimeout(() => {
       if (MK.data && !$("#tab-market").hidden) renderMarketChart(MK.data);
-      if (SK.data && SK.data.aggregate && !$("#tab-market").hidden) renderSkillsChart(SK.data);
     }, 120);
   });
   $("#skills-refresh").addEventListener("click", startMarketRefresh);
+  openFromHash();
   $("#search-btn").addEventListener("click", startSearch);
   $("#rank-btn").addEventListener("click", startRank);
   $("#theme-btn").addEventListener("click", toggleTheme);
