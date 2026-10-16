@@ -447,6 +447,11 @@ em.lead-line { font-style: italic; color: var(--brass); margin-top: .06em; }
 .plain-list a { color: var(--ink); text-decoration: none; background-image: linear-gradient(currentColor, currentColor); background-size: 0 1px; background-position: 0 100%; background-repeat: no-repeat; transition: background-size .22s var(--ease-out); }
 @media (hover: hover) and (pointer: fine) { .plain-list a:hover { background-size: 100% 1px; } }
 
+.coverage { margin-top: 18px; font-size: 13px; color: var(--faint); max-width: none; }
+.coverage::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 10px; background: var(--brass); vertical-align: middle; }
+.coverage[hidden] { display: none; }
+.filters-note { margin: 10px 0 0; font-size: 12px; color: var(--faint); max-width: none; }
+
 /* ---------- run panel ---------- */
 .run-panel { margin-top: 28px; padding: 18px 0; border-top: 1px solid var(--brass); border-bottom: 1px solid var(--line); }
 .run-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }

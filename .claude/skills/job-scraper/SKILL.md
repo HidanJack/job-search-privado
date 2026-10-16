@@ -30,6 +30,7 @@ The user triggers this skill by saying things like:
 Optional arguments:
 - A focus area, e.g. "/scrape data science" or "/scrape geophysics"
 - "broad" to run all search categories, e.g. "/scrape broad"
+- "indeed-only days=N" to run only Step 1d (Indeed MX via MCP) with a window of N days, then Steps 2-4 for those results; skip Steps 1a-1c and 4.75 because the dashboard sweep (`ui/lib/sweep.ts`) already searched the portal CLIs. Print a one-line summary instead of the full Step 5 report.
 - "health" to run the portal health check only (Step 4.75), without searching, deduplicating, or presenting jobs - e.g. "/scrape health", or "/scrape health jobnet" to probe one portal even if disabled
 
 ---
@@ -98,7 +99,7 @@ query, call `search_jobs` with `country_code: "MX"` and `location: "Ciudad de MÃ
 then again with `location: "remote"`. Results are Markdown blocks with Job Title, Job Id
 (`JOBSEARCH_<n>`), Company, Location, Posted on, Job Type, Compensation and a
 short-link URL. There is no recency filter: drop results whose `Posted on` is older
-than 14 days. Search results carry no description; call `get_job_details` only for
+than the window (`days=N` when given, otherwise 14 days). Search results carry no description; call `get_job_details` only for
 promising titles (Rule 5) - it adds the salary, modality and requirements text.
 
 Store each posting with `portal: "indeed"` and `source: "mcp"`. `get_job_details` needs

@@ -10,7 +10,7 @@ whole run's results were lost. This is the one sanctioned way to store results.
   add   merge a JSON list of postings into seen_jobs.json
 
 Input is a JSON array of objects with `title, company, url, posted_date,
-deadline, fit, status, portal, source`, read from `--file` (which must live
+deadline, fit, status, portal, source` (plus optional `location`), read from `--file` (which must live
 inside job_scraper/ and is removed after a successful merge) or from stdin.
 
 Dedup follows Step 4 exactly: a posting is skipped when its URL matches any
@@ -43,7 +43,12 @@ ROOT = Path(__file__).resolve().parent.parent
 BASE = ROOT / "job_scraper"
 STATE_NAME = "seen_jobs.json"
 
-FIELDS = ("title", "company", "url", "posted_date", "deadline", "fit", "status", "portal", "source")
+FIELDS = (
+    "title", "company", "url", "posted_date", "deadline", "fit", "status", "portal", "source",
+    "location",
+)
+OPTIONAL_FIELDS = ("location",)
+MAX_LOCATION = 200
 FITS = {"high", "medium", "low"}
 STATUSES = {"new", "skipped", "ranked", "expired"}
 SOURCES = {"cli", "websearch", "mcp"}
@@ -100,7 +105,11 @@ def validate(raw) -> list[dict]:
             raise InputError(f"{where}: 'status' must be one of {sorted(STATUSES)}")
         if item.get("source") not in SOURCES:
             raise InputError(f"{where}: 'source' must be one of {sorted(SOURCES)}")
+        location = item.get("location")
+        if location is not None and (not isinstance(location, str) or len(location) > MAX_LOCATION):
+            raise InputError(f"{where}: 'location' must be a short string or null")
         clean.append({
+            "location": location.strip() if location and location.strip() else None,
             "title": item["title"].strip(),
             "company": item["company"].strip(),
             "url": url,
@@ -167,6 +176,11 @@ def add(state: Path, postings: list[dict], today: str) -> dict:
             "portal": post["portal"],
             "source": post["source"],
         }
+        # Optional place fields are written only when present, so entries from
+        # callers that never send them keep their historical shape.
+        for field in OPTIONAL_FIELDS:
+            if post.get(field):
+                seen[key][field] = post[field]
         urls.add(url)
         pairs.add(pair)
         added += 1

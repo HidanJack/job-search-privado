@@ -84,7 +84,6 @@ function toast(text) {
   }, 2600);
 }
 
-const FILTER_KEY = "job-ui-filters-v1";
 const MODALITY_LABEL = { remote: "Remoto", hybrid: "Híbrido", onsite: "Presencial", unknown: "Sin especificar" };
 const VERDICT_LABEL = {
   "Strong Fit": "Encaje fuerte", "Good Fit": "Buen encaje", "Moderate Fit": "Encaje moderado", "Weak Fit": "Encaje débil", "Poor Fit": "Encaje bajo",
@@ -107,19 +106,50 @@ const mxn = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN",
 
 let state = { profile: null, results: {}, jobs: [] };
 
-// ---------- filters (persisted per browser; storage may be unavailable) ----------
+// ---------- filters (persisted on the server in ui/state/settings.json; the sweep uses the same window) ----------
+let savedFilters = null;
+let saveTimer = null;
 function loadSavedFilters() {
-  try {
-    return JSON.parse(localStorage.getItem(FILTER_KEY) || "null");
-  } catch {
-    return null;
-  }
+  return savedFilters;
+}
+// Form shape <-> stored search settings.
+function filtersFromSettings(s) {
+  return {
+    maxDays: s.maxDays, minSalary: s.minSalaryMxn, includeNoSalary: s.includeUnpublishedSalary,
+    includeUndated: s.includeUndated, hideEnglish: s.hideEnglish, modality: s.modalities,
+  };
+}
+function settingsPatch(f) {
+  const patch = { includeUnpublishedSalary: f.includeNoSalary, includeUndated: f.includeUndated, hideEnglish: f.hideEnglish, modalities: f.modality };
+  const days = Number(f.maxDays);
+  if (f.maxDays !== "" && Number.isInteger(days) && days >= 1 && days <= 90) patch.maxDays = days;
+  const pay = Number(f.minSalary);
+  if (f.minSalary !== "" && Number.isInteger(pay) && pay >= 0 && pay <= 1000000) patch.minSalaryMxn = pay;
+  return patch;
 }
 function saveFilters(f) {
+  savedFilters = f;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    api("/api/search-settings", settingsPatch(f)).catch(() => toast("No se pudieron guardar tus filtros"));
+  }, 400);
+}
+function renderCoverage(last) {
+  const p = $("#coverage");
+  if (!last || !last.coverage) {
+    p.hidden = true;
+    return;
+  }
+  const when = new Date(last.finishedAt).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" });
+  const failed = last.failures ? ` (${last.failures} consultas fallaron y se omitieron)` : "";
+  p.textContent = `Cobertura · ${last.coverage}${failed} Ventana: ${last.maxDays} días · ${when}`;
+  p.hidden = false;
+}
+async function refreshCoverage() {
   try {
-    localStorage.setItem(FILTER_KEY, JSON.stringify(f));
+    renderCoverage((await api("/api/search-settings")).lastSweep);
   } catch {
-    /* private mode: filters just won't persist */
+    /* the line is a nicety */
   }
 }
 function readFilterForm() {
@@ -487,6 +517,7 @@ function alertInline(text) {
 // Reload the list after a search/rank run and say how many postings got a score.
 async function reportRanked(before) {
   await refreshJobs();
+  await refreshCoverage();
   const after = state.counts || before;
   const ranked = Math.max(0, after.rankedTotal - before.rankedTotal);
   const found = Math.max(0, (after.rankedTotal + after.pending) - (before.rankedTotal + before.pending));
@@ -499,7 +530,7 @@ async function startSearch() {
   const before = { ...(state.counts || { pending: 0, rankedTotal: 0 }) };
   try {
     const { id } = await api("/api/run/search", {});
-    showRunPanel("Buscando y calificando vacantes — puede tardar varios minutos");
+    showRunPanel("Barriendo los portales, buscando en Indeed y calificando — puede tardar varios minutos");
     followRun(id, () => reportRanked(before));
   } catch (err) {
     runError(err);
@@ -1158,13 +1189,11 @@ async function boot() {
   $("#run-close").addEventListener("click", () => ($("#run-panel").hidden = true));
   $("#review-close").addEventListener("click", () => $("#review").close());
 
-  const first = await api(`/api/jobs?${filterQuery(loadSavedFilters())}`);
-  const f = first.filters;
-  fillFilterForm(loadSavedFilters() || {
-    maxDays: f.maxDays, minSalary: f.minSalaryMxn, includeNoSalary: f.includeNoSalary,
-    includeUndated: f.includeUndated, hideEnglish: f.hideEnglish, modality: f.modalities,
-  });
-  renderJobs(first);
+  const stored = await api("/api/search-settings");
+  savedFilters = filtersFromSettings(stored.search);
+  fillFilterForm(savedFilters);
+  renderCoverage(stored.lastSweep);
+  renderJobs(await api(`/api/jobs?${filterQuery(savedFilters)}`));
   $("#filters").addEventListener("input", () => {
     saveFilters(readFilterForm());
     refreshJobs();

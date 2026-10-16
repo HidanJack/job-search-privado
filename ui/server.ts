@@ -2,11 +2,15 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { bunCommandRunner, getDailyStatus, setDaily, type CommandRunner } from "./lib/daily";
 import { filterJobs, loadJobs, parseFilters, skipJob } from "./lib/jobs";
+import { loadSearchSettings, parseSearchPatch, saveSearchSettings } from "./lib/search_settings";
+import {
+  coverageLine, countIndeed, finalizeCoverage, readLastSweep, runConfiguredSweep, type SweepSaver, type SweepSpawn,
+} from "./lib/sweep";
 import { computeReadings, loadMarket, loadSettings, marketJobs, parseSettings, saveSettings } from "./lib/market";
 import { loadProfile } from "./lib/profile";
 import { WEAK_REFERENCE, bunCliSpawner, buildSummary, loadAggregate, sampleAll, type CliSpawner } from "./lib/skills";
 import {
-  APPLY_TOOLS, BASE_TOOLS, ResultStore, SEARCH_TOOLS, RunManager, buildApplyPrompt, bunSpawner, type Spawner,
+  APPLY_TOOLS, BASE_TOOLS, ResultStore, SEARCH_TOOLS, RunManager, buildApplyPrompt, bunSpawner, indeedPrompt, type Spawner,
 } from "./lib/runner";
 import { isAllowedHost, isAllowedOrigin, safeResolve, sanitizeFeedback, validateJobUrl } from "./lib/security";
 import { loadTracker, updateTrackerFile } from "./lib/tracker";
@@ -67,6 +71,9 @@ export interface ServerOptions {
   marketPath?: string;
   /** Spawner for the portal CLIs used by the market refresh (no Claude). */
   cliSpawner?: CliSpawner;
+  /** Test hooks for the portal sweep (no real CLIs / no real scrape_state). */
+  sweepSpawn?: SweepSpawn;
+  sweepSave?: SweepSaver;
   /** Test hook: skip the pause between portal calls. */
   samplerPauseMs?: number;
 }
@@ -107,9 +114,14 @@ export function createHandler(opts: ServerOptions = {}) {
     switch (url.pathname) {
       case "/api/jobs": {
         const profile = loadProfile(root);
+        const saved = loadSearchSettings(root);
         const filters = parseFilters(url.searchParams, {
-          maxDays: profile.freshnessDays,
-          minSalaryMxn: profile.salaryFloorMxn,
+          maxDays: saved.maxDays,
+          minSalaryMxn: saved.minSalaryMxn,
+          includeNoSalary: saved.includeUnpublishedSalary,
+          includeUndated: saved.includeUndated,
+          hideEnglish: saved.hideEnglish,
+          modalities: saved.modalities,
         });
         const all = loadJobs(root, new Date());
         const { ranked, unranked } = filterJobs(all, filters);
@@ -123,6 +135,10 @@ export function createHandler(opts: ServerOptions = {}) {
         return json(loadTracker(root));
       case "/api/settings":
         return json(loadSettings(root));
+      case "/api/search-settings": {
+        const lastSweep = readLastSweep(root);
+        return json({ search: loadSearchSettings(root), lastSweep: lastSweep && { ...lastSweep, coverage: coverageLine(lastSweep) } });
+      }
       case "/api/market": {
         let market;
         try {
@@ -171,8 +187,27 @@ export function createHandler(opts: ServerOptions = {}) {
 
     switch (pathname) {
       case "/api/run/search": {
-        const run = runs.start("search", "Buscar y calificar vacantes", [
-          { prompt: "/job-scraper", tools: SEARCH_TOOLS, title: "Buscando vacantes en los portales (/job-scraper)" },
+        let indeedBefore = 0;
+        const run = runs.startPipeline("search", "Buscar y calificar vacantes", [
+          {
+            title: "Barrido de los 5 portales (sin IA)", optional: true,
+            task: async (log) => {
+              indeedBefore = countIndeed(root);
+              const stats = await runConfiguredSweep(root, log, { spawn: opts.sweepSpawn, save: opts.sweepSave });
+              return stats.calls === 0 || stats.failures < stats.calls;
+            },
+          },
+          {
+            title: "Buscando en Indeed México", optional: true,
+            prompt: indeedPrompt(loadSearchSettings(root).maxDays), tools: SEARCH_TOOLS,
+          },
+          {
+            title: "Resumen de cobertura",
+            task: async (log) => {
+              finalizeCoverage(root, indeedBefore, log);
+              return true;
+            },
+          },
           { prompt: "/rank", tools: BASE_TOOLS, title: "Calificando las vacantes nuevas (/rank)" },
         ]);
         return run ? json({ id: run.id }) : json({ error: "busy" }, 409);
@@ -218,6 +253,13 @@ export function createHandler(opts: ServerOptions = {}) {
         if (!settings) return json({ error: "invalid_settings" }, 400);
         saveSettings(root, settings);
         return json(settings);
+      }
+      case "/api/search-settings": {
+        const patch = parseSearchPatch(body);
+        if (!patch) return json({ error: "invalid_settings" }, 400);
+        const merged = { ...loadSearchSettings(root), ...patch };
+        saveSearchSettings(root, merged);
+        return json(merged);
       }
       case "/api/jobs/skip": {
         if (typeof body.key !== "string" || body.key.length > 2048) return json({ error: "bad_request" }, 400);

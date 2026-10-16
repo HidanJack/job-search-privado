@@ -73,6 +73,8 @@
       </details>
     </section>
 
+    <p id="coverage" class="coverage" hidden></p>
+
     <section id="tab-jobs">
       <section id="lead" class="lead" aria-live="polite">
         <h1 class="lead-title"><span id="lead-a" class="lead-line"></span><em id="lead-b" class="lead-line"></em></h1>
@@ -97,7 +99,7 @@
         <div class="filter-group">
           <label class="field">
             <span class="field-label">Publicada hace máximo</span>
-            <span class="input-wrap"><input type="number" name="maxDays" min="0" max="365" inputmode="numeric"><span class="suffix">días</span></span>
+            <span class="input-wrap"><input type="number" name="maxDays" min="1" max="90" inputmode="numeric"><span class="suffix">días</span></span>
           </label>
           <label class="field">
             <span class="field-label">Sueldo mínimo</span>
@@ -122,6 +124,7 @@
         </fieldset>
       </form>
 
+      <p class="filters-note">Estos filtros se guardan solos y la búsqueda diaria usa la misma ventana de días.</p>
       <p id="jobs-summary" class="summary"></p>
       <div id="jobs" class="cards" aria-busy="true">
         <div class="card skeleton" aria-hidden="true"><div class="sk sk-ring"></div><div class="sk-lines"><div class="sk sk-title"></div><div class="sk sk-line"></div><div class="sk sk-line short"></div></div></div>

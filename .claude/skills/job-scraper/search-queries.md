@@ -11,7 +11,10 @@ The `site:` query templates in this file are the **WebSearch fallback** — for 
 ## LatAm / remote portal CLI queries
 
 Five public-API portals for a Mexico-based Python / backend / data engineer. `--latam`
-drops postings restricted to other countries; `--jobage 4` keeps the newest. Run
+drops postings restricted to other countries. The recency window is not fixed here: it comes from
+the dashboard settings (`ui/state/settings.json`, `search.maxDays`, default 7) - append
+`--jobage <maxDays>` to every line below. The dashboard's "Buscar ahora" and the daily timer run these
+CLI queries themselves (`ui/lib/sweep.ts`, English and Spanish, paginated); the LLM only does Indeed. Run
 each query in English and, where the portal carries Spanish-language postings
 (GetOnBoard, Himalayas), in Spanish too: Himalayas matches the query against the
 title, so "python backend" misses a title like "Desarrollador Python Senior". Credit Remote OK and Jobicy and keep their original posting URLs
@@ -19,49 +22,49 @@ title, so "python backend" misses a title like "Desarrollador Python Senior". Cr
 
 **Python backend**
 ```
-getonbrd-search  search -q python --latam --jobage 4
-getonbrd-search  search -q "desarrollador backend" --country MX --jobage 4
-himalayas-search search -q "python backend" --country Mexico --jobage 4
-himalayas-search search -q "desarrollador python" --country Mexico --jobage 4
-himalayas-search search -q python --country Mexico --jobage 4
-himalayas-search search -q "desarrollador python" --latam --jobage 4
-remoteok-search  search --tags python,backend --latam --jobage 4
-jobicy-search    search -q python --geo latam --jobage 4
+getonbrd-search  search -q python --latam
+getonbrd-search  search -q "desarrollador backend" --country MX
+himalayas-search search -q "python backend" --country Mexico
+himalayas-search search -q "desarrollador python" --country Mexico
+himalayas-search search -q python --country Mexico
+himalayas-search search -q "desarrollador python" --latam
+remoteok-search  search --tags python,backend --latam
+jobicy-search    search -q python --geo latam
 hn-hiring-search search -q "python backend" --latam
 ```
 
 **Data engineering**
 ```
-getonbrd-search  search -q "data engineer" --latam --jobage 4
-getonbrd-search  search --category data-science-analytics --country MX --jobage 4
-himalayas-search search -q "data engineer" --latam --jobage 4
-jobicy-search    search -q "data engineer" --geo latam --jobage 4
+getonbrd-search  search -q "data engineer" --latam
+getonbrd-search  search --category data-science-analytics --country MX
+himalayas-search search -q "data engineer" --latam
+jobicy-search    search -q "data engineer" --geo latam
 hn-hiring-search search -q "data engineer" --latam
 ```
 
 **Rust / high-performance Python**
 ```
-himalayas-search search -q rust --latam --jobage 7
-remoteok-search  search -q rust --latam --jobage 7
+himalayas-search search -q rust --latam
+remoteok-search  search -q rust --latam
 hn-hiring-search search -q rust --latam
 getonbrd-search  search -q rust --latam
 ```
 
 **AI engineering / LLM (Python)**
 ```
-getonbrd-search  search -q "ia" --latam --jobage 4
-getonbrd-search  search -q "llm" --latam --jobage 4
-himalayas-search search -q "ai engineer python" --latam --jobage 4
-remoteok-search  search --tags ai,python --latam --jobage 4
+getonbrd-search  search -q "ia" --latam
+getonbrd-search  search -q "llm" --latam
+himalayas-search search -q "ai engineer python" --latam
+remoteok-search  search --tags ai,python --latam
 hn-hiring-search search -q "llm python" --latam
 ```
 
 **Remote LatAm / Mexico sweep (any backend role)**
 ```
-getonbrd-search  search --category programming --country MX --jobage 4
-himalayas-search search -q backend --country Mexico --jobage 4
-jobicy-search    search --geo mexico --industry dev --jobage 4
-jobicy-search    search --geo latam --industry dev --jobage 4
+getonbrd-search  search --category programming --country MX
+himalayas-search search -q backend --country Mexico
+jobicy-search    search --geo mexico --industry dev
+jobicy-search    search --geo latam --industry dev
 ```
 
 Each line is `bun run .agents/skills/<portal>/cli/src/cli.ts <args>`.
@@ -73,30 +76,30 @@ Each line is `bun run .agents/skills/<portal>/cli/src/cli.ts <args>`.
 Same flags as above. Spanish is the primary language here because these roles are mostly hired locally; the strict posting-language rule means English-only postings come back flagged.
 ```
 # Web / landing pages / frontend
-getonbrd-search  search -q "desarrollador frontend" --country MX --jobage 4
-getonbrd-search  search -q "desarrollador web" --latam --jobage 4
-getonbrd-search  search -q react --latam --jobage 4
-himalayas-search search -q "frontend developer" --latam --jobage 4
-remoteok-search  search --tags react,frontend --latam --jobage 4
-jobicy-search    search -q "web developer" --geo latam --jobage 4
+getonbrd-search  search -q "desarrollador frontend" --country MX
+getonbrd-search  search -q "desarrollador web" --latam
+getonbrd-search  search -q react --latam
+himalayas-search search -q "frontend developer" --latam
+remoteok-search  search --tags react,frontend --latam
+jobicy-search    search -q "web developer" --geo latam
 # Automation / RPA with Python
-getonbrd-search  search -q "automatización python" --latam --jobage 4
-getonbrd-search  search -q rpa --country MX --jobage 4
-himalayas-search search -q "automation engineer python" --latam --jobage 4
+getonbrd-search  search -q "automatización python" --latam
+getonbrd-search  search -q rpa --country MX
+himalayas-search search -q "automation engineer python" --latam
 # Data analyst / BI
-getonbrd-search  search -q "analista de datos" --country MX --jobage 4
-getonbrd-search  search --category data-science-analytics --latam --jobage 4
-himalayas-search search -q "data analyst" --latam --jobage 4
-jobicy-search    search -q "data analyst" --geo latam --jobage 4
+getonbrd-search  search -q "analista de datos" --country MX
+getonbrd-search  search --category data-science-analytics --latam
+himalayas-search search -q "data analyst" --latam
+jobicy-search    search -q "data analyst" --geo latam
 # QA automation
-getonbrd-search  search -q "QA automation" --latam --jobage 4
-getonbrd-search  search -q "analista QA" --country MX --jobage 4
-himalayas-search search -q "qa automation" --latam --jobage 4
-remoteok-search  search --tags qa,testing --latam --jobage 4
+getonbrd-search  search -q "QA automation" --latam
+getonbrd-search  search -q "analista QA" --country MX
+himalayas-search search -q "qa automation" --latam
+remoteok-search  search --tags qa,testing --latam
 # Accounting-tax software / fintech implementation and support
-getonbrd-search  search -q "soporte técnico software" --country MX --jobage 4
-getonbrd-search  search -q "implementación software" --country MX --jobage 4
-himalayas-search search -q "implementation specialist fintech" --latam --jobage 4
+getonbrd-search  search -q "soporte técnico software" --country MX
+getonbrd-search  search -q "implementación software" --country MX
+himalayas-search search -q "implementation specialist fintech" --latam
 ```
 `linkedin-search` and `freehire-search`: reuse the Spanish titles above (e.g. "Desarrollador Frontend", "Analista de Datos", "Analista QA", "Consultor de implementación CFDI") with Mexico / Ciudad de México.
 

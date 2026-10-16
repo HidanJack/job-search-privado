@@ -109,7 +109,10 @@ export function loadSettings(root: string): Settings {
   const path = settingsPath(root);
   if (!existsSync(path)) return { ...EMPTY_SETTINGS };
   try {
-    return parseSettings(JSON.parse(readFileSync(path, "utf8"))) ?? { ...EMPTY_SETTINGS };
+    // The file also holds the "search" block (search_settings.ts); only the salary keys are read here.
+    const doc = JSON.parse(readFileSync(path, "utf8"));
+    const { currentSalary, targetSalary } = doc && typeof doc === "object" ? doc : ({} as Record<string, unknown>);
+    return parseSettings({ currentSalary, targetSalary }) ?? { ...EMPTY_SETTINGS };
   } catch {
     return { ...EMPTY_SETTINGS };
   }
@@ -119,7 +122,14 @@ export function saveSettings(root: string, settings: Settings): void {
   const path = settingsPath(root);
   mkdirSync(dirname(path), { recursive: true });
   const tmp = `${path}.${process.pid}.tmp`;
-  writeFileSync(tmp, JSON.stringify(settings, null, 2) + "\n", { encoding: "utf8", mode: 0o600 });
+  let search: unknown;
+  try {
+    search = JSON.parse(readFileSync(path, "utf8"))?.search;
+  } catch {
+    /* missing or corrupt file: nothing to preserve */
+  }
+  const doc = search === undefined ? settings : { ...settings, search };
+  writeFileSync(tmp, JSON.stringify(doc, null, 2) + "\n", { encoding: "utf8", mode: 0o600 });
   renameSync(tmp, path);
 }
 

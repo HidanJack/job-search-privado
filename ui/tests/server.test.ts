@@ -39,6 +39,9 @@ const get = (h: ReturnType<typeof createHandler>, path: string, headers: Record<
 const post = (h: ReturnType<typeof createHandler>, path: string, body: unknown, headers: Record<string, string> = ORIGIN) =>
   h.handle(new Request(BASE + path, { method: "POST", headers, body: JSON.stringify(body) }));
 
+const emptySweep = async () => ({ code: 0, stdout: JSON.stringify({ meta: { count: 0, page: 1 }, results: [] }) });
+const noSave = async () => ({ added: 0, skipped: 0 });
+
 async function waitFor(cond: () => boolean) {
   for (let i = 0; i < 100 && !cond(); i++) await Bun.sleep(5);
 }
@@ -115,7 +118,7 @@ describe("server", () => {
       calls.push(argv);
       return { stdout: new Response("").body!, exited: new Promise((r) => (release = r)), kill() {} };
     };
-    const h = createHandler({ root: tempRoot(), spawner: slow });
+    const h = createHandler({ root: tempRoot(), spawner: slow, sweepSpawn: emptySweep, sweepSave: noSave });
     expect((await post(h, "/api/run/search", {})).status).toBe(200);
     expect((await post(h, "/api/run/apply", { url: "https://a.com/j" })).status).toBe(409);
     await waitFor(() => calls.length === 1);
@@ -123,7 +126,42 @@ describe("server", () => {
     await waitFor(() => calls.length === 2);
     release(0);
     await waitFor(() => h.runs.current?.status !== "running");
-    expect(calls.map((c) => c[2])).toEqual(["/job-scraper", "/rank"]);
+    expect(calls.map((c) => c[2])).toEqual(["/job-scraper indeed-only days=7", "/rank"]);
+  });
+
+  test("search pipeline: sweep first (window from settings), Indeed-only prompt, then rank; stores the coverage summary", async () => {
+    const calls: string[][] = [];
+    const sweepCalls: string[][] = [];
+    const root = tempRoot();
+    const h = createHandler({
+      root, spawner: fakeSpawner([], calls),
+      sweepSpawn: async (argv) => { sweepCalls.push(argv); return { code: 0, stdout: JSON.stringify({ meta: { count: 0, page: 1 }, results: [] }) }; },
+      sweepSave: noSave,
+    });
+    await post(h, "/api/search-settings", { maxDays: 12 });
+    expect((await post(h, "/api/run/search", {})).status).toBe(200);
+    await waitFor(() => h.runs.current?.status !== "running");
+    expect(h.runs.current?.status).toBe("done");
+    expect(sweepCalls.length).toBeGreaterThan(50);
+    expect(sweepCalls.every((a) => a[a.indexOf("--jobage") + 1] === "12")).toBe(true);
+    expect(calls.map((c) => c[2])).toEqual(["/job-scraper indeed-only days=12", "/rank"]);
+    const texts = h.runs.current!.events.map((e) => e.text);
+    expect(texts.some((t) => /^Revisamos \d+ búsquedas en 5 portales \+ Indeed: 0 vacantes nuevas\.$/.test(t))).toBe(true);
+    const settings = await (await get(h, "/api/search-settings")).json();
+    expect(settings.lastSweep.calls).toBe(sweepCalls.length);
+    expect(settings.lastSweep.coverage).toContain("5 portales + Indeed");
+  });
+
+  test("search pipeline keeps going when every portal call fails, and ends as failed", async () => {
+    const calls: string[][] = [];
+    const h = createHandler({
+      root: tempRoot(), spawner: fakeSpawner([], calls),
+      sweepSpawn: async () => ({ code: 1, stdout: "" }), sweepSave: noSave,
+    });
+    await post(h, "/api/run/search", {});
+    await waitFor(() => h.runs.current?.status !== "running");
+    expect(calls.map((c) => c[2])).toEqual(["/job-scraper indeed-only days=7", "/rank"]);
+    expect(h.runs.current?.status).toBe("failed");
   });
 
   test("rank run: Origin enforced, runs only /rank with the rank tools, respects the lock", async () => {

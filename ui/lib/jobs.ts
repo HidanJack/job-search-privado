@@ -184,7 +184,16 @@ export function filterJobs(jobs: Job[], f: Filters): { ranked: Job[]; unranked: 
   return { ranked, unranked };
 }
 
-export function parseFilters(params: URLSearchParams, defaults: { maxDays: number; minSalaryMxn: number }): Filters {
+export interface FilterDefaults {
+  maxDays: number;
+  minSalaryMxn: number;
+  includeNoSalary?: boolean;
+  includeUndated?: boolean;
+  hideEnglish?: boolean;
+  modalities?: Modality[];
+}
+
+export function parseFilters(params: URLSearchParams, defaults: FilterDefaults): Filters {
   const int = (name: string, fallback: number, max: number) => {
     const v = Number(params.get(name));
     return params.has(name) && Number.isFinite(v) && v >= 0 ? Math.min(Math.floor(v), max) : fallback;
@@ -194,10 +203,10 @@ export function parseFilters(params: URLSearchParams, defaults: { maxDays: numbe
   return {
     maxDays: int("maxDays", defaults.maxDays, 365),
     minSalaryMxn: int("minSalary", defaults.minSalaryMxn, 10_000_000),
-    includeNoSalary: flag("includeNoSalary", true),
-    includeUndated: flag("includeUndated", true),
-    hideEnglish: flag("hideEnglish", true),
-    modalities: params.has("modality") ? requested : [...MODALITIES],
+    includeNoSalary: flag("includeNoSalary", defaults.includeNoSalary ?? true),
+    includeUndated: flag("includeUndated", defaults.includeUndated ?? true),
+    hideEnglish: flag("hideEnglish", defaults.hideEnglish ?? true),
+    modalities: params.has("modality") ? requested : [...(defaults.modalities ?? MODALITIES)],
   };
 }
 

@@ -80,6 +80,11 @@ export function buildArgv(
   ];
 }
 
+/** Slim /job-scraper run limited to the Indeed MCP connector; the portal CLIs are swept by ui/lib/sweep.ts. */
+export function indeedPrompt(days: number): string {
+  return `/job-scraper indeed-only days=${Math.min(90, Math.max(1, Math.floor(days)))}`;
+}
+
 export function buildApplyPrompt(url: string, acknowledgeKnockouts: boolean, feedback: string): string {
   let prompt = "/apply [ui-mode]";
   if (acknowledgeKnockouts) prompt += " [knockouts-acknowledged]";
@@ -172,6 +177,10 @@ export interface Run {
   result: UiResult | null;
 }
 
+export type PipelineStep =
+  | { title: string; optional?: boolean; task: (log: (text: string) => void) => Promise<boolean> }
+  | { title: string; optional?: boolean; prompt: string; tools: string[] };
+
 type Listener = (e: ProgressEvent) => void;
 
 /** One headless run at a time; events are buffered so a late SSE client can replay them. */
@@ -233,6 +242,51 @@ export class RunManager {
         const ok = await task((text) => this.emit(run, "text", text));
         run.status = ok ? "done" : "failed";
         if (!ok) this.emit(run, "error", "La tarea terminó con errores.");
+      } catch (err) {
+        run.status = "failed";
+        this.emit(run, "error", `La tarea falló: ${(err as Error).message}`);
+      }
+      this.emit(run, "done", run.status === "done" ? "Listo." : "Terminó con errores.");
+    })();
+    return run;
+  }
+
+  /**
+   * Mixed pipeline: in-process tasks and headless Claude steps under one run.
+   * A failed step stops the run unless it is `optional`, in which case the error
+   * is logged, the next step still runs and the run ends as failed.
+   */
+  startPipeline(kind: RunKind, label: string, steps: PipelineStep[]): Run | null {
+    if (this.busy()) return null;
+    const run: Run = {
+      id: crypto.randomUUID(), kind, label, url: null, status: "running",
+      startedAt: new Date().toISOString(), events: [], result: null,
+    };
+    this.current = run;
+    void (async () => {
+      try {
+        for (const step of steps) {
+          this.emit(run, "step", step.title);
+          let ok: boolean;
+          try {
+            if ("task" in step) {
+              ok = await step.task((text) => this.emit(run, "text", text));
+            } else {
+              const proc = this.spawner(buildArgv(this.claudeBin, step.prompt, step.tools), this.root);
+              const pumped = await this.pump(run, proc);
+              ok = pumped.ok && (await proc.exited) === 0;
+            }
+          } catch (err) {
+            ok = false;
+            this.emit(run, "error", `${(err as Error).message}`);
+          }
+          if (!ok) {
+            run.status = "failed";
+            this.emit(run, "error", `El paso "${step.title}" terminó con error.`);
+            if (!step.optional) break;
+          }
+        }
+        if (run.status === "running") run.status = "done";
       } catch (err) {
         run.status = "failed";
         this.emit(run, "error", `La tarea falló: ${(err as Error).message}`);

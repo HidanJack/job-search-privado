@@ -82,6 +82,18 @@ class ScrapeStateTest(unittest.TestCase):
         entry = next(iter(self.stored().values()))
         self.assertEqual((entry["portal"], entry["source"]), ("indeed", "mcp"))
 
+    def test_stores_optional_location(self):
+        code, _, _ = self.run_main([], json.dumps([posting(location="Remote (Mexico)")]))
+        self.assertEqual(code, 0)
+        self.assertEqual(next(iter(self.stored().values()))["location"], "Remote (Mexico)")
+
+    def test_omits_empty_location(self):
+        self.run_main([], json.dumps([posting(location=None)]))
+        self.assertNotIn("location", next(iter(self.stored().values())))
+        code, _, err = self.run_main([], json.dumps([posting(url="https://example.com/2", location=5)]))
+        self.assertEqual(code, 1)
+        self.assertIn("location", err)
+
     def test_rejects_unknown_source(self):
         code, _, err = self.run_main([], json.dumps([posting(source="scraper")]))
         self.assertEqual(code, 1)
