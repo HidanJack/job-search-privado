@@ -48,3 +48,10 @@ cd ui && bun install && bun test && bun run typecheck
 ```
 
 Tests use fixtures and an injected fake spawner: no network, no real `claude`.
+
+## Arranque con un clic
+
+- `./iniciar.sh` (raíz del repo): levanta el panel en segundo plano (log en `ui/state/server.log`, PID en `ui/state/server.pid`) y abre el navegador. Si ya está corriendo, solo abre el navegador.
+- `./detener.sh`: detiene el panel, solo si el PID guardado es `bun` ejecutando `ui/server.ts`.
+- Menú de aplicaciones: "Mi búsqueda de empleo" (`~/.local/share/applications/mi-busqueda.desktop`).
+- Variables: `NO_BROWSER=1` no abre el navegador; `JOB_UI_PORT` cambia el puerto (por defecto 8787).
