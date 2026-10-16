@@ -116,13 +116,15 @@ function loadSavedFilters() {
 function filtersFromSettings(s) {
   return {
     maxDays: s.maxDays, minSalary: s.minSalaryMxn, includeNoSalary: s.includeUnpublishedSalary,
-    includeUndated: s.includeUndated, hideEnglish: s.hideEnglish, modality: s.modalities,
+    includeUndated: s.includeUndated, hideEnglish: s.hideEnglish, modality: s.modalities, rankBatch: s.rankBatch,
   };
 }
 function settingsPatch(f) {
   const patch = { includeUnpublishedSalary: f.includeNoSalary, includeUndated: f.includeUndated, hideEnglish: f.hideEnglish, modalities: f.modality };
   const days = Number(f.maxDays);
   if (f.maxDays !== "" && Number.isInteger(days) && days >= 1 && days <= 90) patch.maxDays = days;
+  const batch = Number(f.rankBatch);
+  if (f.rankBatch !== "" && f.rankBatch !== undefined && Number.isInteger(batch) && batch >= 1 && batch <= 200) patch.rankBatch = batch;
   const pay = Number(f.minSalary);
   if (f.minSalary !== "" && Number.isInteger(pay) && pay >= 0 && pay <= 1000000) patch.minSalaryMxn = pay;
   return patch;
@@ -157,6 +159,7 @@ function readFilterForm() {
   return {
     maxDays: form.maxDays.value,
     minSalary: form.minSalary.value,
+    rankBatch: form.rankBatch.value,
     includeNoSalary: form.includeNoSalary.checked,
     includeUndated: form.includeUndated.checked,
     hideEnglish: form.hideEnglish.checked,
@@ -167,6 +170,7 @@ function fillFilterForm(f) {
   const form = $("#filters");
   form.maxDays.value = f.maxDays;
   form.minSalary.value = f.minSalary;
+  form.rankBatch.value = f.rankBatch ?? 25;
   form.includeNoSalary.checked = f.includeNoSalary;
   form.includeUndated.checked = f.includeUndated;
   form.hideEnglish.checked = f.hideEnglish !== false; // filters saved before this option existed: on
@@ -324,9 +328,9 @@ function renderLead(data) {
     a.textContent = `${NUMBER_WORDS[n] || n} ${n === 1 ? "vacante vale" : "vacantes valen"} tu tiempo.`;
     b.textContent = n === data.ranked.length ? "Y ninguna más cumple tus filtros." : "El resto puede esperar.";
   }
-  const fresh = data.ranked.filter((j) => j.age_days !== null && j.age_days <= data.profile.freshnessDays).length;
+  const fresh = data.ranked.filter((j) => j.age_days !== null && j.age_days <= data.filters.maxDays).length;
   $("#lead-note").textContent = data.ranked.length
-    ? `${fresh ? `${fresh} ${fresh === 1 ? "vacante nueva" : "vacantes nuevas"} en los últimos ${data.profile.freshnessDays} días. ` : ""}Van ordenadas por qué tan bien encajan con tu experiencia, no por quién pagó más por aparecer primero.`
+    ? `${fresh ? `${fresh} ${fresh === 1 ? "vacante nueva" : "vacantes nuevas"} en los últimos ${data.filters.maxDays} días. ` : ""}Van ordenadas por qué tan bien encajan con tu experiencia, no por quién pagó más por aparecer primero.`
     : "Cada vacante se califica contra tu perfil: encaje, sueldo y lo que te falta.";
   const pool = (n ? worth : scored).map((j) => j.salary_mxn_month).filter((v) => typeof v === "number");
   const fig = $("#lead-fig");
@@ -383,7 +387,7 @@ function renderJobs(data) {
     }
     index += 1;
     const meta = $(".meta", card);
-    if (j.age_days !== null && j.age_days <= data.profile.freshnessDays) meta.append(el("span", { class: "chip new", text: "Nueva" }));
+    if (j.age_days !== null && j.age_days <= data.filters.maxDays) meta.append(el("span", { class: "chip new", text: "Nueva" }));
     meta.append(
       el("span", { class: "chip", text: MODALITY_LABEL[j.modality] }),
       el("span", { class: "chip", text: ageLabel(j.age_days) }),
@@ -391,6 +395,7 @@ function renderJobs(data) {
     );
     if (j.role_family) meta.append(el("span", { class: "chip family", text: j.role_family }));
     if (j.spoken_english) meta.append(el("span", { class: "chip warn", text: "Inglés hablado", title: j.language_note || "" }));
+    fillIndicators($(".indicators", card), j);
     const salary = $(".salary", card);
     const pay = salaryParts(j);
     $(".pay-sub", salary).textContent = pay.sub;
@@ -423,7 +428,7 @@ function renderJobs(data) {
   if (!data.ranked.length) box.append(emptyState(pending));
   const rankBtn = $("#rank-btn");
   rankBtn.hidden = pending === 0;
-  $("span", rankBtn).textContent = `Calificar pendientes (${pending})`;
+  $("span", rankBtn).textContent = `Calificar las mejores ${Math.min(data.rankBatch || 25, pending)}`;
   // Draw the graduated rulers after paint so they sweep in from zero (first load only).
   requestAnimationFrame(() => requestAnimationFrame(() => {
     for (const [ruler, value] of rulers) ruler.style.setProperty("--s", `${value}%`);
@@ -435,6 +440,7 @@ function renderJobs(data) {
     ? `${data.ranked.length} ${data.ranked.length === 1 ? "vacante cumple" : "vacantes cumplen"} tus filtros (máx. ${f.maxDays} días, desde ${mxn.format(f.minSalaryMxn)} al mes), ordenadas por prioridad.`
     : "";
 
+  renderPrefiltered(data);
   const ul = $("#unranked");
   ul.replaceChildren(...data.unranked.map((j) => {
     const li = el("li");
@@ -443,9 +449,54 @@ function renderJobs(data) {
     li.append(a, document.createTextNode(` (${ageLabel(j.age_days)})`));
     return li;
   }));
-  $("#unranked-summary").textContent = pending > data.unranked.length
-    ? `Vacantes sin calificar (${pending}; ${data.unranked.length} dentro de tus filtros)`
-    : `Vacantes sin calificar (${pending})`;
+  $("#unranked-summary").textContent = queueSummary(pending, data.rankBatch, data.counts && data.counts.prefilteredOut);
+}
+
+// "N vacantes por calificar (las mejores X primero) · Y descartadas automáticamente"
+function queueSummary(pending, batch, discarded) {
+  const first = Math.min(batch || 25, pending);
+  const parts = [`${pending} ${pending === 1 ? "vacante por calificar" : "vacantes por calificar"}${pending > first ? ` (las mejores ${first} primero)` : ""}`];
+  if (discarded) parts.push(`${discarded} ${discarded === 1 ? "descartada" : "descartadas"} automáticamente`);
+  return parts.join(" · ");
+}
+
+// Oportunidad / Riesgo: two compact labeled indicators plus the biggest driver of each.
+function fillIndicators(box, j) {
+  if (typeof j.opportunity !== "number" || typeof j.risk !== "number") return;
+  box.hidden = false;
+  $(".ind-opp-num", box).textContent = String(j.opportunity);
+  $(".ind-risk-num", box).textContent = String(j.risk);
+  $(".ind-opp-why", box).textContent = j.opportunity_driver ? `Oportunidad: ${j.opportunity_driver}` : "";
+  $(".ind-risk-why", box).textContent = j.risk_driver ? `Riesgo: ${j.risk_driver}` : "";
+  box.title = typeof j.final_priority === "number" ? `Prioridad final: ${j.final_priority} (oportunidad ajustada por riesgo)` : "";
+}
+
+function renderPrefiltered(data) {
+  const list = data.prefiltered || [];
+  const box = $("#prefiltered-box");
+  box.hidden = list.length === 0;
+  $("#prefiltered-summary").textContent = `Descartadas automáticamente (${list.length})`;
+  $("#prefiltered").replaceChildren(...list.map((j) => {
+    const li = el("li", { class: "has-action" });
+    const text = el("span");
+    const a = el("a", { text: `${j.title} — ${j.company}`, target: "_blank", rel: "noopener noreferrer" });
+    if (j.url) a.href = j.url;
+    text.append(a, el("span", { class: "prefilter-reason", text: ` · ${j.prefilter_reason || "Fuera de perfil"}` }));
+    const btn = el("button", { type: "button", class: "ghost small recover-btn", text: "Recuperar" });
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try {
+        await api("/api/jobs/recover", { key: j.key });
+        toast("Vacante recuperada: volvió a la fila para calificar");
+        refreshJobs();
+      } catch {
+        btn.disabled = false;
+        toast("No se pudo recuperar la vacante");
+      }
+    });
+    li.append(text, btn);
+    return li;
+  }));
 }
 
 async function refreshJobs() {

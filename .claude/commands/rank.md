@@ -12,10 +12,10 @@ Follow these steps **in order**.
 
 `$ARGUMENTS` may contain:
 
-- Nothing → rank up to 10 jobs with status `new` in `job_scraper/seen_jobs.json`
+- Nothing → rank the top `rankBatch` jobs (UI search setting, default **25**) with status `new` in `job_scraper/seen_jobs.json`, best deterministic prefilter score first
 - A focus area (e.g. `/rank data science`) → rank only jobs whose title or stored fit-notes match the focus
 - `--all` → re-rank every job that has not been applied to, including previously ranked ones (useful after the profile changes)
-- `--limit <N>` → maximum number of jobs to score this run (default 10)
+- `--limit <N>` → maximum number of jobs to score this run (default: the `rankBatch` setting, 25; `0` = no cap)
 - `--top <N>` → shortlist size (default 5)
 
 `--limit` bounds the expensive fetch-and-score work; `--top` only bounds how many scored jobs appear in the shortlist. They are independent: jobs beyond `--limit` are deferred, not silently discarded.
@@ -26,11 +26,19 @@ Follow these steps **in order**.
 
 Never read `job_scraper/seen_jobs.json` into the conversation. It holds every job the workspace has ever seen - most of it `skipped` - while a run only ever touches the handful of entries being scored, so a manual read costs the whole backlog on every run and grows for the life of the workspace. Selecting candidates is a query, so run the query:
 
+First run the LLM-free prefilter. It marks clearly off-target postings (SAP, Murex, Java-only, sales, HR, Staff/Principal/Director/Head...) `prefiltered_out` with a Spanish reason so they never reach scoring (they stay in the file and the dashboard offers "Recuperar"), and stores a `prefilter_score` on the rest:
+
 ```bash
-python3 tools/rank_state.py candidates --limit 10          # add --all / --focus "<text>" per Step 0
+python3 tools/prefilter.py run --write
 ```
 
-It applies the status filter (`new`, or any status with `--all`), the tracker exclusion (any company+role already in `job_search_tracker.csv` is out of scope regardless of flags - it has been applied to or consciously tracked), the focus filter, and `--limit`, then prints one compact object per candidate (`key`, `title`, `company`, `url`, `portal`, `deadline`, `posted_date`) plus the counts: `eligible`, `deferred` (eligible beyond the limit, kept at their current status so a later run continues the backlog), `excluded_by_tracker`.
+Then select the candidates:
+
+```bash
+python3 tools/rank_state.py candidates                     # top rankBatch by prefilter score; add --all / --focus "<text>" / --limit N per Step 0
+```
+
+It applies the status filter (`new`, or any status except `skipped` and `prefiltered_out` with `--all`), the tracker exclusion (any company+role already in `job_search_tracker.csv` is out of scope regardless of flags - it has been applied to or consciously tracked), the focus filter, and `--limit`, orders the eligible entries by `prefilter_score` (descending) and then prints one compact object per candidate (`key`, `title`, `company`, `url`, `portal`, `deadline`, `posted_date`) plus the counts: `eligible`, `deferred` (eligible beyond the limit, kept at their current status so a later run continues the backlog, best-scored first), `excluded_by_tracker`.
 
 If it exits with "not found", tell the user to run `/scrape` first and stop.
 
@@ -141,6 +149,7 @@ Pass `--fresh-days` when CLAUDE.md sets a `Freshness window:` and `--fx` when it
 What it writes per entry - all additive to the scraper's schema:
 
 - Ranked jobs: `"status": "ranked"` plus `"rank_score": <overall>`, `"rank_verdict": "<band>"`, `"rank_date": "YYYY-MM-DD"`, `"location_verdict": "PASS"/"FAIL"/"FLAG"` (never the bare `location` key - that is the scraper's place field, e.g. "Aarhus, Denmark", and overwriting it with a verdict destroys the commute-filter data; an entry ranked before this rename may carry a legacy PASS/FAIL/FLAG string in `location`, which the tool reads as the verdict when `location_verdict` is absent and moves to `location_verdict` as it rewrites the entry), `"language_gate": "PASS"/"FAIL"/"FLAG"`, `"language_note"` (dropped when `language_gate` is `PASS`), `"posting_language"` (`es`/`en`/`mixed`, replaced when the agent returned a valid value, left alone otherwise; `en` forces `language_gate` to at least `FLAG`), `"deadline": "YYYY-MM-DD" | null` from the same Step 2 JSON (replacing the stored value when the agent returned a different one - a fresh fetch is the freshest source; left alone when the agent returned `null`, because absence is not a correction - a fetch that degraded to a listing page returns no deadline, and taking that as "the posting dropped its deadline" would erase a real date and, because rule 6 leaves an entry with no stored `deadline` alone, quietly make that job immortal to the sweep), plus `"strengths": [...]` and `"gaps": [...]` copied from the scoring agent's Step 2 JSON for that job. These veto fields are as important to persist as the score itself - without them, nothing later (a re-read of `seen_jobs.json`, a debugging session, the user asking "why was this excluded") can recover why a job did or didn't make the shortlist.
+- Opportunity / risk fields, computed deterministically by the same call (formulas in `tools/opportunity.py`; no LLM): `"opportunity"` (0-100), `"risk"` (0-100), `"final_priority"` (opportunity adjusted by risk; the dashboard sorts by it) and a one-line Spanish `"opportunity_driver"` / `"risk_driver"`. Freshness decays daily, so `python3 tools/opportunity.py recompute --write` refreshes them for every ranked entry (the daily run does this after `/rank`).
 - Dashboard fields on ranked jobs, written by the same call: `"fit_reasons": [...]` (verbatim, at most 4, replaced on re-score like `strengths`/`gaps`), `"modality"` (one of `remote`/`hybrid`/`onsite`/`unknown`; anything else is stored as `unknown`), the agent's `"salary"` object (`"min"`, `"max"`, `"currency"`, `"period"`) normalised into `"salary_min"`, `"salary_max"`, `"salary_currency"`, `"salary_period"` and `"salary_mxn_month"` (the range midpoint, or the single stated bound, converted to MXN per month with the `--fx` rate; `null` when the posting states no figure or the currency has no configured rate - never guessed), and `"priority_score"` (`rank_score` plus rule 8's freshness adjustment). The schema of every field the local dashboard reads is documented in section 7 of `.claude/skills/job-application-assistant/10-ats-and-screening.md`.
 - Dead or past-deadline jobs: `"status": "expired"`.
 - Entries retired by Step 3's rule 6 sweep: `"status": "expired"` for those too, written by `sweep --write`, with every other field on them untouched. The sweep reasons over entries this run never scored, so without its own write its conclusion would live only in the report and the same expiry would be re-derived from the same stored date on every future run.

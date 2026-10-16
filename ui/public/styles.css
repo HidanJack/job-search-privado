@@ -447,6 +447,18 @@ em.lead-line { font-style: italic; color: var(--brass); margin-top: .06em; }
 .plain-list a { color: var(--ink); text-decoration: none; background-image: linear-gradient(currentColor, currentColor); background-size: 0 1px; background-position: 0 100%; background-repeat: no-repeat; transition: background-size .22s var(--ease-out); }
 @media (hover: hover) and (pointer: fine) { .plain-list a:hover { background-size: 100% 1px; } }
 
+.indicators { margin-top: 10px; font-size: 13px; }
+.indicators[hidden] { display: none; }
+.ind-line { margin: 0; display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--dim); max-width: none; }
+.ind b { font-weight: 600; font-variant-numeric: tabular-nums; margin-left: 4px; }
+.ind-opp b { color: var(--ok); }
+.ind-risk b { color: var(--gap); }
+.ind-sep { color: var(--faint); }
+.ind-why { margin: 2px 0 0; color: var(--faint); max-width: none; }
+.ind-why span:empty { display: none; }
+.prefilter-reason { color: var(--faint); }
+.plain-list li.has-action { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.plain-list .recover-btn { font-size: 13px; }
 .coverage { margin-top: 18px; font-size: 13px; color: var(--faint); max-width: none; }
 .coverage::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 10px; background: var(--brass); vertical-align: middle; }
 .coverage[hidden] { display: none; }

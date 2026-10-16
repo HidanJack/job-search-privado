@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { BASE_TOOLS, SEARCH_TOOLS, buildArgv, indeedPrompt } from "./lib/runner";
 import { loadSearchSettings } from "./lib/search_settings";
 import { isStale, sampleAll } from "./lib/skills";
+import { runTool } from "./lib/prefilter";
 import { countIndeed, finalizeCoverage, runConfiguredSweep } from "./lib/sweep";
 
 const root = resolve(import.meta.dir, "..");
@@ -37,8 +38,14 @@ if (!rankOnly) {
     failed = true;
   }
 }
-// 2) Indeed (MCP, LLM) and 3) /rank.
+// 2) Indeed (MCP, LLM) and 3) /rank, with the deterministic prefilter in front
+// of /rank (it only scores the top rankBatch) and opportunity/risk after it.
 for (const step of steps) {
+  if (step.prompt === "/rank") {
+    log("RUN prefilter");
+    const ok = await runTool(root, "prefilter", log);
+    log(`DONE prefilter ok=${ok}`); // not "END": the dashboard reads the last END line as the run result
+  }
   log(`START ${step.prompt}`);
   const proc = Bun.spawn(buildArgv(claudeBin, step.prompt, step.tools), {
     cwd: root,
@@ -52,6 +59,11 @@ for (const step of steps) {
   log(`END ${step.prompt.split(" ")[0]} exit=${code}`);
   if (code !== 0) failed = true;
   if (!rankOnly && step.prompt.startsWith("/job-scraper")) finalizeCoverage(root, indeedBefore, log);
+  if (step.prompt === "/rank") {
+    log("RUN opportunity");
+    const ok = await runTool(root, "opportunity", log);
+    log(`DONE opportunity ok=${ok}`);
+  }
 }
 // Market salaries by skill: refresh only when the aggregate is missing or older than 15 days.
 // A failure here never fails the daily run (it only costs a stale chart).

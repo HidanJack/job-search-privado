@@ -510,7 +510,8 @@ class RankBatchLimitSpec(unittest.TestCase):
     def test_step0_documents_default_limit_distinct_from_top(self):
         step0 = self.sections.get("Step 0: Parse Input", "")
         self.assertIn("`--limit <N>`", step0)
-        self.assertIn("default 10", step0)
+        self.assertIn("rankBatch", step0)
+        self.assertIn("25", step0)
         self.assertIn("`--top <N>`", step0)
         self.assertIn(
             "They are independent",
@@ -521,10 +522,11 @@ class RankBatchLimitSpec(unittest.TestCase):
     def test_step1_applies_limit_via_the_state_tool(self):
         step1 = self.sections.get("Step 1: Load State", "")
         self.assertIn(
-            "tools/rank_state.py candidates --limit 10",
+            "tools/rank_state.py candidates",
             step1,
-            "Step 1 must select candidates with the CLI, passing --limit through to it",
+            "Step 1 must select candidates with the CLI (--limit defaults to the rankBatch setting)",
         )
+        self.assertIn("tools/prefilter.py run --write", step1, "Step 1 runs the deterministic prefilter first")
         self.assertIn(
             "deferred",
             step1,

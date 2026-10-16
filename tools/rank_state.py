@@ -52,6 +52,10 @@ import unicodedata
 from datetime import date, timedelta
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import opportunity  # noqa: E402  (Oportunidad/Riesgo, computed when scores are written)
+import prefilter  # noqa: E402  (deterministic ordering and rankBatch setting)
+
 ROOT = Path(__file__).resolve().parent.parent
 STATE = ROOT / "job_scraper" / "seen_jobs.json"
 TRACKER = ROOT / "job_search_tracker.csv"
@@ -251,10 +255,13 @@ def entry_location_verdict(entry: dict) -> str | None:
 def cmd_candidates(args) -> int:
     _, seen = load_state(args.state)
     excluded = tracker_pairs(args.tracker)
+    settings = prefilter.load_search_settings(args.settings)
 
-    selected, skipped_tracker = [], 0
+    selected, skipped_tracker, auto_discarded = [], 0, 0
     for key, entry in seen.items():
         status = entry.get("status")
+        if status == prefilter.OUT_STATUS:
+            continue  # retrievable in the UI via "Recuperar", never ranked
         if args.all:
             if status == "skipped":
                 continue
@@ -271,8 +278,22 @@ def cmd_candidates(args) -> int:
             ).lower()
             if args.focus.lower() not in haystack:
                 continue
+        pre = entry.get("prefilter_score")
+        if status == "new" and not entry.get("prefilter_recovered"):
+            # Jobs the prefilter has not seen yet (e.g. added after its last
+            # run) are judged here too, so nothing off-target reaches the LLM.
+            verdict = prefilter.evaluate(entry, args.today, settings["minSalaryMxn"], settings["currentSalary"])
+            if verdict["out"]:
+                auto_discarded += 1
+                continue
+            pre = verdict["score"]
+        if not isinstance(pre, (int, float)):
+            pre = prefilter.score(entry, args.today, settings["minSalaryMxn"], settings["currentSalary"])
+        posted = parse_posted(entry.get("posted_date"))
         selected.append(
             {
+                "_age": (args.today - posted).days if posted else 9999,
+                "_prefilter": pre,
                 "key": key,
                 "title": entry.get("title"),
                 "company": entry.get("company"),
@@ -284,14 +305,22 @@ def cmd_candidates(args) -> int:
         )
 
     eligible = len(selected)
-    if args.limit > 0:
-        selected = selected[: args.limit]
+    # Best prefilter score first, so the cap below hands /rank the likeliest
+    # matches instead of whatever the scrapers appended first.
+    selected.sort(key=lambda r: (-r["_prefilter"], r["_age"]))
+    for row in selected:
+        del row["_age"], row["_prefilter"]
+    limit = args.limit if args.limit is not None else prefilter.load_search_settings(args.settings)["rankBatch"]
+    if limit > 0:
+        selected = selected[:limit]
     print(
         json.dumps(
             {
                 "eligible": eligible,
                 "selected": selected,
                 "deferred": max(0, eligible - len(selected)),
+                "rank_batch": limit,
+                "auto_discarded_unsaved": auto_discarded,
                 "excluded_by_tracker": skipped_tracker,
                 "total_entries": len(seen),
             },
@@ -400,6 +429,7 @@ def cmd_apply(args) -> int:
     if not isinstance(results, list):
         sys.exit("results file must be a JSON array of scoring objects")
 
+    floor, current_pay = opportunity.settings_args(args.settings)
     rows, expired, errors = [], [], []
     for result in results:
         key = result.get("key")
@@ -474,6 +504,7 @@ def cmd_apply(args) -> int:
             entry.update(normalize_salary(result.get("salary"), args.fx))
         age, adjustment = freshness(entry.get("posted_date"), today, args.fresh_days)
         entry["priority_score"] = score + adjustment
+        opportunity.apply_scores(entry, today, floor, current_pay)
 
         rows.append(
             {
@@ -499,6 +530,9 @@ def cmd_apply(args) -> int:
                 "age_days": age,
                 "fresh": age is not None and age <= args.fresh_days,
                 "priority_score": entry["priority_score"],
+                "opportunity": entry["opportunity"],
+                "risk": entry["risk"],
+                "final_priority": entry["final_priority"],
             }
         )
 
@@ -543,6 +577,7 @@ def main() -> int:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--state", type=Path, default=STATE)
     common.add_argument("--today", type=date.fromisoformat, default=date.today())
+    common.add_argument("--settings", type=Path, default=prefilter.SETTINGS, help="UI settings (rankBatch, salary floor)")
 
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="command", required=True)
@@ -551,7 +586,7 @@ def main() -> int:
     cand.add_argument("--tracker", type=Path, default=TRACKER)
     cand.add_argument("--all", action="store_true", help="include every non-skipped status")
     cand.add_argument("--focus", help="substring filter over title, company and stored fit notes")
-    cand.add_argument("--limit", type=int, default=DEFAULT_LIMIT, help="0 for no cap")
+    cand.add_argument("--limit", type=int, default=None, help="0 for no cap; default: rankBatch setting (25)")
     cand.set_defaults(func=cmd_candidates)
 
     sweep = sub.add_parser("sweep", parents=[common], help="rule 6's expiry pass, no fetch")

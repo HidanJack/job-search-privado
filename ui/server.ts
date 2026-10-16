@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { bunCommandRunner, getDailyStatus, setDaily, type CommandRunner } from "./lib/daily";
-import { filterJobs, loadJobs, parseFilters, skipJob } from "./lib/jobs";
+import { filterJobs, loadJobs, parseFilters, prefilteredJobs, recoverJob, skipJob } from "./lib/jobs";
+import { runTool } from "./lib/prefilter";
 import { loadSearchSettings, parseSearchPatch, saveSearchSettings } from "./lib/search_settings";
 import {
   coverageLine, countIndeed, finalizeCoverage, readLastSweep, runConfiguredSweep, type SweepSaver, type SweepSpawn,
@@ -125,11 +126,18 @@ export function createHandler(opts: ServerOptions = {}) {
         });
         const all = loadJobs(root, new Date());
         const { ranked, unranked } = filterJobs(all, filters);
+        const prefiltered = prefilteredJobs(all);
         const counts = {
           pending: all.filter((j) => j.status === "new").length,
           rankedTotal: all.filter((j) => j.status === "ranked").length,
+          prefilteredOut: prefiltered.length,
         };
-        return json({ profile, filters, ranked, unranked, counts, results: store.all() });
+        // The search settings are the one source of truth for the window and the
+        // salary floor; CLAUDE.md's values are only the first-run defaults.
+        return json({
+          profile: { ...profile, freshnessDays: saved.maxDays, salaryFloorMxn: saved.minSalaryMxn },
+          filters, ranked, unranked, prefiltered, rankBatch: saved.rankBatch, counts, results: store.all(),
+        });
       }
       case "/api/tracker":
         return json(loadTracker(root));
@@ -208,13 +216,17 @@ export function createHandler(opts: ServerOptions = {}) {
               return true;
             },
           },
-          { prompt: "/rank", tools: BASE_TOOLS, title: "Calificando las vacantes nuevas (/rank)" },
+          { title: "Descartando lo que no va contigo (sin IA)", optional: true, task: (log) => runTool(root, "prefilter", log, opts.sweepSpawn) },
+          { prompt: "/rank", tools: BASE_TOOLS, title: "Calificando las mejores vacantes nuevas (/rank)" },
+          { title: "Calculando oportunidad y riesgo (sin IA)", optional: true, task: (log) => runTool(root, "opportunity", log, opts.sweepSpawn) },
         ]);
         return run ? json({ id: run.id }) : json({ error: "busy" }, 409);
       }
       case "/api/run/rank": {
-        const run = runs.start("rank", "Calificar vacantes pendientes", [
-          { prompt: "/rank", tools: BASE_TOOLS, title: "Calificando las vacantes pendientes (/rank)" },
+        const run = runs.startPipeline("rank", "Calificar vacantes pendientes", [
+          { title: "Descartando lo que no va contigo (sin IA)", optional: true, task: (log) => runTool(root, "prefilter", log, opts.sweepSpawn) },
+          { prompt: "/rank", tools: BASE_TOOLS, title: "Calificando las mejores vacantes pendientes (/rank)" },
+          { title: "Calculando oportunidad y riesgo (sin IA)", optional: true, task: (log) => runTool(root, "opportunity", log, opts.sweepSpawn) },
         ]);
         return run ? json({ id: run.id }) : json({ error: "busy" }, 409);
       }
@@ -264,6 +276,10 @@ export function createHandler(opts: ServerOptions = {}) {
       case "/api/jobs/skip": {
         if (typeof body.key !== "string" || body.key.length > 2048) return json({ error: "bad_request" }, 400);
         return skipJob(root, body.key) ? json({ ok: true }) : json({ error: "not_found" }, 404);
+      }
+      case "/api/jobs/recover": {
+        if (typeof body.key !== "string" || body.key.length > 2048) return json({ error: "bad_request" }, 400);
+        return recoverJob(root, body.key) ? json({ ok: true }) : json({ error: "not_found" }, 404);
       }
       case "/api/applications/approve": {
         const jobUrl = validateJobUrl(body.url);

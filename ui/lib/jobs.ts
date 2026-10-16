@@ -45,6 +45,16 @@ export interface Job {
   fit_reasons: string[];
   strengths: string[];
   gaps: string[];
+  /** Deterministic pre-ranking relevance (tools/prefilter.py). */
+  prefilter_score: number | null;
+  /** Spanish reason when status is "prefiltered_out". */
+  prefilter_reason: string | null;
+  /** Opportunity / risk (tools/opportunity.py), computed after /rank. */
+  opportunity: number | null;
+  risk: number | null;
+  final_priority: number | null;
+  opportunity_driver: string | null;
+  risk_driver: string | null;
 }
 
 export interface Filters {
@@ -136,6 +146,13 @@ export function normalizeJob(key: string, raw: Record<string, unknown>, today: D
     fit_reasons: strList(raw.fit_reasons, 4),
     strengths: strList(raw.strengths, 3),
     gaps: strList(raw.gaps, 3),
+    prefilter_score: num(raw.prefilter_score),
+    prefilter_reason: str(raw.prefilter_reason),
+    opportunity: num(raw.opportunity),
+    risk: num(raw.risk),
+    final_priority: num(raw.final_priority),
+    opportunity_driver: str(raw.opportunity_driver),
+    risk_driver: str(raw.risk_driver),
   };
 }
 
@@ -174,13 +191,14 @@ export function filterJobs(jobs: Job[], f: Filters): { ranked: Job[]; unranked: 
     .filter((j) => f.modalities.includes(j.modality))
     .sort(
       (a, b) =>
-        (b.priority_score ?? -1) - (a.priority_score ?? -1) ||
+        (b.final_priority ?? b.priority_score ?? -1) - (a.final_priority ?? a.priority_score ?? -1) ||
         (a.age_days ?? 9999) - (b.age_days ?? 9999),
     );
   const unranked = jobs
     .filter((j) => j.status === "new")
     .filter((j) => passesAge(j, f))
-    .sort((a, b) => (a.age_days ?? 9999) - (b.age_days ?? 9999));
+    // Same order /rank will use: best prefilter score first.
+    .sort((a, b) => (b.prefilter_score ?? -1) - (a.prefilter_score ?? -1) || (a.age_days ?? 9999) - (b.age_days ?? 9999));
   return { ranked, unranked };
 }
 
@@ -210,14 +228,41 @@ export function parseFilters(params: URLSearchParams, defaults: FilterDefaults):
   };
 }
 
+export const PREFILTERED_OUT = "prefiltered_out";
+
+/** Jobs the deterministic prefilter discarded (kept on disk, best score first). */
+export function prefilteredJobs(jobs: Job[]): Job[] {
+  return jobs
+    .filter((j) => j.status === PREFILTERED_OUT)
+    .sort((a, b) => (b.prefilter_score ?? -1) - (a.prefilter_score ?? -1));
+}
+
 /** Marks one posting as dismissed in whichever state file holds it. */
 export function skipJob(root: string, key: string): boolean {
+  return updateJob(root, key, (e) => {
+    e.status = "skipped";
+    return true;
+  });
+}
+
+/** Moves an auto-discarded posting back to the pending pool; the prefilter never discards it again. */
+export function recoverJob(root: string, key: string): boolean {
+  return updateJob(root, key, (e) => {
+    if (e.status !== PREFILTERED_OUT) return false;
+    e.status = "new";
+    e.prefilter_recovered = true;
+    delete e.prefilter_reason;
+    return true;
+  });
+}
+
+function updateJob(root: string, key: string, change: (entry: Record<string, unknown>) => boolean): boolean {
   for (const rel of [...STATE_PATHS].reverse()) {
     const path = join(root, rel);
     if (!existsSync(path)) continue;
     const doc = JSON.parse(readFileSync(path, "utf8"));
     if (!doc?.seen?.[key]) continue;
-    doc.seen[key].status = "skipped";
+    if (!change(doc.seen[key])) return false;
     const tmp = join(dirname(path), `.seen_jobs.${process.pid}.tmp`);
     writeFileSync(tmp, JSON.stringify(doc, null, 2) + "\n", "utf8");
     renameSync(tmp, path);

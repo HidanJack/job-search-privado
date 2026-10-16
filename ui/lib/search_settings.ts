@@ -11,9 +11,12 @@ export interface SearchSettings {
   hideEnglish: boolean;
   includeUnpublishedSalary: boolean;
   includeUndated: boolean;
+  /** How many pending jobs /rank scores per run (best prefilter score first). */
+  rankBatch: number;
 }
 
 export const MAX_SEARCH_DAYS = 90;
+export const MAX_RANK_BATCH = 200;
 
 export const DEFAULT_SEARCH: SearchSettings = {
   maxDays: 7,
@@ -22,6 +25,7 @@ export const DEFAULT_SEARCH: SearchSettings = {
   hideEnglish: true,
   includeUnpublishedSalary: true,
   includeUndated: true,
+  rankBatch: 25,
 };
 
 const isInt = (v: unknown, min: number, max: number): v is number =>
@@ -37,6 +41,7 @@ const VALIDATORS: { [K in keyof SearchSettings]: (v: unknown) => boolean } = {
   hideEnglish: isBool,
   includeUnpublishedSalary: isBool,
   includeUndated: isBool,
+  rankBatch: (v) => isInt(v, 1, MAX_RANK_BATCH),
 };
 
 /** Strict: a non-empty object of known keys whose values are all in range. */

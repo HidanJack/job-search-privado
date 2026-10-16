@@ -105,6 +105,10 @@
             <span class="field-label">Sueldo mínimo</span>
             <span class="input-wrap"><span class="prefix">$</span><input type="number" name="minSalary" min="0" step="1000" inputmode="numeric"><span class="suffix">MXN/mes</span></span>
           </label>
+          <label class="field">
+            <span class="field-label">Calificar por tanda</span>
+            <span class="input-wrap"><input type="number" name="rankBatch" min="1" max="200" inputmode="numeric"><span class="suffix">vacantes</span></span>
+          </label>
         </div>
         <fieldset class="toggle-group">
           <legend class="field-label">Modalidad</legend>
@@ -139,6 +143,14 @@
           <button type="button" id="rank-btn" class="primary small" hidden><span>Calificar pendientes</span></button>
         </div>
         <ul id="unranked" class="plain-list"></ul>
+      </details>
+
+      <details id="prefiltered-box" class="unranked" hidden>
+        <summary id="prefiltered-summary">Descartadas automáticamente</summary>
+        <div class="unranked-head">
+          <p class="muted">Se descartaron sin usar IA porque el título no va con tu perfil (otro stack, ventas, nivel muy alto…). No se borran: si alguna sí te interesa, recupérala y volverá a la fila para calificar.</p>
+        </div>
+        <ul id="prefiltered" class="plain-list"></ul>
       </details>
     </section>
 
@@ -247,6 +259,11 @@
         <h3 class="title"></h3>
         <p class="company-line"><span class="company"></span><span class="location"><svg aria-hidden="true"><use href="#i-pin"/></svg><span class="location-text"></span></span></p>
         <p class="meta"></p>
+        <div class="indicators" hidden>
+          <p class="ind-line"><span class="ind ind-opp">Oportunidad <b class="ind-opp-num"></b></span><span class="ind-sep" aria-hidden="true">·</span><span class="ind ind-risk">Riesgo <b class="ind-risk-num"></b></span></p>
+          <p class="ind-why"><span class="ind-opp-why"></span></p>
+          <p class="ind-why"><span class="ind-risk-why"></span></p>
+        </div>
         <div class="insights">
           <div class="why">
             <h4>Por qué encajas</h4>
