@@ -57,7 +57,9 @@ ALLOWED_PERMISSIONS = {
     "Bash(python salary_lookup.py:*)",
     "Bash(python3 salary_lookup.py:*)",
     "Bash(python tools/rank_state.py:*)",
+    "Bash(python tools/posting_language.py:*)",
     "Bash(python3 tools/rank_state.py:*)",
+    "Bash(python3 tools/posting_language.py:*)",
     "Bash(python tools/job_key.py:*)",
     "Bash(python3 tools/job_key.py:*)",
     # /scrape Step 4's only sanctioned write path; confined to job_scraper/.

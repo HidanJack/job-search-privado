@@ -371,6 +371,23 @@ def band(score: int) -> str:
     return "Poor Fit"
 
 
+def enforce_english_rule(entry: dict, gate: bool = True, gaps: bool = True) -> None:
+    """Strict rule: a posting written entirely in English implies spoken English.
+
+    A missed flag is raised (a FAIL is never softened) and the spoken-English
+    gap is added once. Shared with tools/posting_language.py's backfill.
+    """
+    if entry.get("posting_language") != "en":
+        return
+    if gate and entry.get("language_gate") == "PASS":
+        entry["language_gate"] = "FLAG"
+        entry["language_note"] = ENGLISH_POSTING_NOTE
+    if gaps and not any(
+        marker in str(g).lower() for g in entry.get("gaps", []) for marker in SPOKEN_ENGLISH_GAP_MARKERS
+    ):
+        entry["gaps"] = ([SPOKEN_ENGLISH_GAP] + list(entry.get("gaps", [])))[:3]
+
+
 def cmd_apply(args) -> int:
     doc, seen = load_state(args.state)
     today = args.today
@@ -433,11 +450,10 @@ def cmd_apply(args) -> int:
         posting_language = str(result.get("posting_language") or "").lower()
         if posting_language in POSTING_LANGUAGES:
             entry["posting_language"] = posting_language
-        # Strict rule: a posting written entirely in English implies spoken
-        # English. A missed flag is raised here; a FAIL is never softened.
-        if entry.get("posting_language") == "en" and entry["language_gate"] == "PASS":
-            entry["language_gate"] = "FLAG"
-            entry["language_note"] = ENGLISH_POSTING_NOTE
+        # The agent never guesses a language from text it did not send; entries
+        # scored without `posting_language` are filled by tools/posting_language.py
+        # (`backfill`), which reuses enforce_english_rule below.
+        enforce_english_rule(entry, gaps=False)
         # Absence is not a correction: a fetch that degraded to a listing page
         # returns no deadline, and blanking a stored one would erase a real
         # date and make the entry immortal to rule 6's sweep.
@@ -447,10 +463,7 @@ def cmd_apply(args) -> int:
             value = result.get(field)
             if isinstance(value, list):
                 entry[field] = [str(b) for b in value][:3]
-        if entry.get("posting_language") == "en" and not any(
-            marker in str(g).lower() for g in entry.get("gaps", []) for marker in SPOKEN_ENGLISH_GAP_MARKERS
-        ):
-            entry["gaps"] = ([SPOKEN_ENGLISH_GAP] + list(entry.get("gaps", [])))[:3]
+        enforce_english_rule(entry, gate=False)
         # Same verbatim, replace-never-accumulate rule as strengths/gaps.
         reasons = result.get("fit_reasons")
         if isinstance(reasons, list):
