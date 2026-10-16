@@ -17,7 +17,7 @@ function tempRoot(): string {
   cpSync(join(FIXTURES, "seen_jobs.json"), join(root, "job_scraper", "seen_jobs.json"));
   return root;
 }
-const defaults = { maxDays: 4, minSalaryMxn: 30000 };
+const defaults = { maxDays: 4, minSalaryMxn: 40000 };
 
 describe("age and salary filters", () => {
   test("ageInDays handles dates, ISO timestamps and garbage", () => {
@@ -27,7 +27,7 @@ describe("age and salary filters", () => {
     expect(ageInDays(null, TODAY)).toBeNull();
   });
 
-  test("defaults: fresh, >=30k or unpublished salary, all modalities, vetoes and stale removed", () => {
+  test("defaults: fresh, >=40k or unpublished salary, all modalities, vetoes and stale removed", () => {
     const jobs = loadJobs(tempRoot(), TODAY);
     const { ranked, unranked } = filterJobs(jobs, parseFilters(new URLSearchParams(), defaults));
     expect(ranked.map((j) => j.company)).toEqual(["Acme LatAm", "Hybrid Inc"]);
@@ -51,7 +51,7 @@ describe("age and salary filters", () => {
   test("bad numbers fall back to defaults", () => {
     const f = parseFilters(new URLSearchParams("maxDays=-3&minSalary=abc"), defaults);
     expect(f.maxDays).toBe(4);
-    expect(f.minSalaryMxn).toBe(30000);
+    expect(f.minSalaryMxn).toBe(40000);
   });
 
   test("skipJob marks the entry skipped and keeps the rest", () => {
@@ -67,7 +67,7 @@ describe("age and salary filters", () => {
 describe("profile", () => {
   test("placeholders mean not ready and fall back to defaults", () => {
     const p = parseProfile("# for [YOUR_NAME]\n- **Freshness window:** 4 days\n- **Salary floor:** [YOUR_SALARY_FLOOR]");
-    expect(p).toEqual({ ready: false, freshnessDays: 4, salaryFloorMxn: 30000 });
+    expect(p).toEqual({ ready: false, freshnessDays: 4, salaryFloorMxn: 40000 });
   });
   test("reads freshness and floor", () => {
     const p = parseProfile("# Luis\n- **Freshness window:** 7 days\n- **Salary floor:** 45,000 MXN/month");

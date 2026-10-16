@@ -31,7 +31,7 @@ This repo is a job application workspace. Claude acts as a career advisor and ap
 - **CV language:** match posting <!-- `match posting` = each CV in the posting's language when it is declared above (Spanish posting -> Spanish CV, international remote -> English); or one fixed language for every CV. /setup asks -->
 - **Freshness window:** 4 days <!-- /rank gives postings at most this old a priority bonus (10-ats-and-screening.md, "Apply early") -->
 - **FX to MXN:** USD=18.5 <!-- rates /rank uses for salary_mxn_month; add more as CODE=rate, comma-separated -->
-- **Salary floor:** 30000 MXN/month <!-- e.g. 30000 MXN/month; used for the application-form salary field, never printed in a CV or letter -->
+- **Salary floor:** 40000 MXN/month <!-- e.g. 40000 MXN/month; used for the application-form salary field, never printed in a CV or letter -->
 - **Work authorization:** Mexican citizen based in CDMX; no US work authorization assumed - international roles via remote contractor/EOR. UNCONFIRMED - ask Luis before answering a visa/authorization knockout.
 - **Never in documents:** photo, age, marital status, CURP, expected salary. Cédula Profesional No. 11454578 only when asked.
 
@@ -101,7 +101,7 @@ This repo is a job application workspace. Claude acts as a career advisor and ap
 
 ### Deal-breakers
 - Relocation out of CDMX
-- Salary below 30,000 MXN/month
+- Salary below 40,000 MXN/month
 - PENDING - ask Luis for others
 
 ## Repo Structure

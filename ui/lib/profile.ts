@@ -8,7 +8,7 @@ export interface Profile {
 }
 
 export const DEFAULT_FRESHNESS_DAYS = 4;
-export const DEFAULT_SALARY_FLOOR_MXN = 30000;
+export const DEFAULT_SALARY_FLOOR_MXN = 40000;
 
 /** Reads the dashboard defaults from CLAUDE.md's Identity block. */
 export function parseProfile(text: string): Profile {

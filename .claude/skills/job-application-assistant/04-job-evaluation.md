@@ -1,5 +1,5 @@
 ---
-framework_version: 1.3.0
+framework_version: 1.3.1
 ---
 
 # Job Evaluation Framework
@@ -58,7 +58,7 @@ Judge the level comparison the same way you judge everything else in this framew
 Besides the primary families (Python backend, data engineer, AI engineer), these are valid targets because they pay at or above the salary floor with simpler work: (a) web developer / landing pages / frontend (Astro, React, Tailwind, WordPress if applicable), (b) automation / RPA with Python, (c) data analyst / BI (Python, SQL, Excel/Power BI), (d) QA automation (pytest, Selenium), (e) implementation / technical support of accounting-tax software or fintech (CFDI).
 
 Evaluation rules for these families:
-- **No "overqualified" penalty.** Do not lower Experience, Career Alignment or the verdict because the role is more junior or simpler than Luis's current work, provided the stated salary is at or above the floor (30,000 MXN/month). Below the floor, or salary unstated and clearly junior-priced, say so in `gaps`.
+- **No "overqualified" penalty.** Do not lower Experience, Career Alignment or the verdict because the role is more junior or simpler than Luis's current work, provided the stated salary is at or above the floor (40,000 MXN/month). Below the floor, or salary unstated and clearly junior-priced, say so in `gaps`.
 - **Score against real evidence only**: Technical Skills Match uses what `01-candidate-profile.md` proves (Astro portfolio, React/React Native, pytest, Selenium, Python/Excel analysis with MOS certifications, CFDI/reconciliation domain). A required tool the profile does not show (Power BI, WordPress, Cypress, a specific ERP) is a gap, not a match.
 - **Flag engagement type.** If the posting is freelance, per-project, honorarios or short-term contract rather than a salaried position, state it in `gaps` ("freelance / per project: no stable salary") and in `fit_reasons` context. It is a flag for Luis to judge, not a veto.
 - Name the family in the report (e.g. "family: QA automation") so the dashboard and the CV profile paragraph (`05-cv-templates.md`) can follow it.
@@ -134,7 +134,7 @@ Does this role advance career goals and contain tasks that energize?
 - Non-task factors: leadership style, department culture, company values, degree of autonomy
 
 **Life situation alignment:** Consider personal constraints:
-- **Security**: has been searching ~2 months (since ~Aug 2026) with no interviews; currently employed. Salary floor 30,000 MXN/month.
+- **Security**: has been searching ~2 months (since ~Aug 2026) with no interviews; currently employed. Salary floor 40,000 MXN/month.
 - **Flexibility**: prefers remote or hybrid; on-site in CDMX acceptable
 - **Professional development**: architecture, Rust/high-performance, AI engineering, spoken English (B1, speaking ~A2)
 

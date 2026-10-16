@@ -164,7 +164,7 @@ site:occ.com.mx "consultor" python datos
 
 ### Priority 5: Neighbor role families (web, automation, data analyst, QA, accounting-tax software)
 
-Simpler roles that still pay at or above 30,000 MXN/month. Flag freelance / per-project postings in the results.
+Simpler roles that still pay at or above 40,000 MXN/month. Flag freelance / per-project postings in the results.
 
 ```
 # (a) Web developer / landing pages / frontend
