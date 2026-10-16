@@ -62,7 +62,20 @@ function toast(text) {
 }
 
 const FILTER_KEY = "job-ui-filters-v1";
-const MODALITY_LABEL = { remote: "Remoto", hybrid: "Híbrido", onsite: "Presencial", unknown: "Modalidad sin especificar" };
+const MODALITY_LABEL = { remote: "Remoto", hybrid: "Híbrido", onsite: "Presencial", unknown: "Sin especificar" };
+const VERDICT_LABEL = {
+  "Strong Fit": "Encaje fuerte", "Good Fit": "Buen encaje", "Moderate Fit": "Encaje moderado", "Weak Fit": "Encaje débil", "Poor Fit": "Encaje bajo",
+};
+const PORTAL_LABEL = {
+  getonbrd: "GetOnBoard", himalayas: "Himalayas", remoteok: "Remote OK", jobicy: "Jobicy", "hn-hiring": "Hacker News", linkedin: "LinkedIn", freehire: "Freehire",
+};
+const JOB_STATUS_LABEL = { new: "Nueva", ranked: "Calificada", expired: "Vencida" };
+const verdictLabel = (v) => VERDICT_LABEL[v] || v;
+const portalLabel = (p) => {
+  const base = String(p || "").trim().replace(/-search$/i, "");
+  return PORTAL_LABEL[base.toLowerCase()] || (base ? base.charAt(0).toUpperCase() + base.slice(1) : base);
+};
+const jobStatusLabel = (s) => JOB_STATUS_LABEL[s] || s;
 const STATUS_LABEL = {
   drafted: "Borrador", applied: "Enviada", interview: "Entrevista", offer: "Oferta", hired: "Contratado",
   rejected: "Rechazada", no_response: "Sin respuesta", offer_declined: "Oferta rechazada", withdrawn: "Retirada",
@@ -259,9 +272,9 @@ function renderJobs(data) {
     meta.append(
       el("span", { class: "chip", text: MODALITY_LABEL[j.modality] }),
       el("span", { class: "chip", text: ageLabel(j.age_days) }),
-      el("span", { class: "chip", text: j.portal || "portal desconocido" }),
+      el("span", { class: "chip", text: j.portal ? portalLabel(j.portal) : "portal desconocido" }),
     );
-    if (j.rank_verdict) meta.append(el("span", { class: "chip verdict", text: j.rank_verdict }));
+    if (j.rank_verdict) meta.append(el("span", { class: "chip verdict", text: verdictLabel(j.rank_verdict) }));
     if (j.role_family) meta.append(el("span", { class: "chip family", text: j.role_family }));
     if (j.spoken_english) meta.append(el("span", { class: "chip warn", text: "Inglés hablado", title: j.language_note || "" }));
     const salary = $(".salary", card);
@@ -591,7 +604,7 @@ async function refreshTracking() {
     .map(([s, n]) => el("div", { class: `stage s-${s}` }, el("strong", { text: String(n) }), el("span", { text: STATUS_LABEL[s] || s }))));
   if (!$("#pipeline").children.length) $("#pipeline").append(el("p", { class: "muted", text: "Todavía no hay aplicaciones registradas." }));
   rateTable($("#by-channel"), data.byChannel, "Canal");
-  rateTable($("#by-portal"), data.byPortal, "Portal");
+  rateTable($("#by-portal"), Object.fromEntries(Object.entries(data.byPortal).map(([k, v]) => [portalLabel(k), v])), "Portal");
   const rows = $("#tracker-rows");
   rows.replaceChildren(el("tr", {}, ...["Fecha", "Empresa", "Puesto", "Estado", "Canal", "Encaje"].map((h) => el("th", { text: h }))));
   for (const r of [...data.rows].reverse()) {
@@ -1071,7 +1084,7 @@ function renderSkillsTable(data) {
     }
   }
   const d = agg.discards;
-  $("#skills-meta").textContent = `Tipo de cambio: ${Object.entries(agg.fx).filter(([k]) => k !== "MXN").map(([k, v]) => `${k} = $${v}`).join(", ")} (${agg.fx_source === "CLAUDE.md" ? "de tu perfil" : "valores por defecto"}). Portales: ${agg.portals.join(", ")}. ` +
+  $("#skills-meta").textContent = `Tipo de cambio: ${Object.entries(agg.fx).filter(([k]) => k !== "MXN").map(([k, v]) => `${k} = $${v}`).join(", ")} (${agg.fx_source === "CLAUDE.md" ? "de tu perfil" : "valores por defecto"}). Portales: ${agg.portals.map(portalLabel).join(", ")}. ` +
     `Vacantes únicas: ${agg.totals.unique_jobs}; con la habilidad en título o etiquetas: ${agg.totals.relevant_jobs}; con sueldo usable: ${agg.totals.used_with_salary}. ` +
     `Descartadas: ${d.no_salary} sin sueldo, ${d.noise_low} por sueldo absurdamente bajo, ${d.noise_high} por absurdamente alto, ${d.unknown_currency} con moneda desconocida, ${d.no_period} sin periodo, ${d.unclassified} sin ubicación utilizable, ${d.irrelevant} sin relación con tus habilidades. Sueldos por hora se convierten ×160 horas al mes.`;
 }

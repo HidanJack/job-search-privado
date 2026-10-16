@@ -87,31 +87,22 @@ describe("relevance filter", () => {
   });
 });
 
-describe("relevance: portal match trust", () => {
+describe("relevance: strict on every portal", () => {
   const gob = (over: Partial<RawJob> = {}) => job({ portal: "getonbrd", title: "Backend Developer", tags: ["Programming"], queries: ["python"], ...over });
-  test("getonbrd/himalayas: returned for the skill's query is enough for a neutral title", () => {
-    expect(isRelevant(gob(), def("python"))).toBe(true);
-    expect(isRelevant(gob({ portal: "himalayas" }), def("python"))).toBe(true);
+  test("a portal query match alone is not enough (getonbrd and himalayas)", () => {
+    expect(isRelevant(gob(), def("python"))).toBe(false);
+    expect(isRelevant(gob({ portal: "himalayas" }), def("python"))).toBe(false);
+    expect(isRelevant(gob({ title: "Java Developer / ETL", tags: ["Java", "ETL"] }), def("python"))).toBe(false);
   });
-  test("not returned for that skill's query -> still irrelevant", () => {
-    expect(isRelevant(gob({ queries: ["rust"] }), def("python"))).toBe(false);
-    expect(isRelevant(gob({ queries: [] }), def("python"))).toBe(false);
-    expect(isRelevant(gob({ queries: undefined }), def("python"))).toBe(false);
+  test("real tags or title match is accepted, synonyms included", () => {
+    expect(isRelevant(gob({ tags: ["Python", "AWS"] }), def("python"))).toBe(true);
+    expect(isRelevant(gob({ portal: "himalayas", tags: ["Rust Developer"] }), def("rust"))).toBe(true);
+    expect(isRelevant(gob({ tags: ["K8s"] }), def("kubernetes"))).toBe(true);
+    expect(isRelevant(gob({ title: "Python Developer" }), def("python"))).toBe(true);
   });
-  test("obvious other-discipline titles are excluded even if the portal matched", () => {
-    for (const title of ["Sales Manager", "Digital Marketing Specialist", "Graphic Designer", "Diseñador UX", "HR Business Partner", "Recursos Humanos", "Customer Support Agent", "Technical Recruiter"]) {
-      expect(isRelevant(gob({ title }), def("python"))).toBe(false);
-    }
-    expect(isRelevant(gob({ title: "Salesforce Developer" }), def("python"))).toBe(true);
-  });
-  test("a title/tag match wins over the exclusion list", () => {
-    expect(isRelevant(gob({ title: "Marketing Data Analyst (Python)" }), def("python"))).toBe(true);
-  });
-  test("jobicy keeps the strict rule", () => {
+  test("jobicy and AND-combo skills (rust_python) stay strict", () => {
     expect(isRelevant(gob({ portal: "jobicy" }), def("python"))).toBe(false);
     expect(isRelevant(gob({ portal: "jobicy", title: "Python Developer" }), def("python"))).toBe(true);
-  });
-  test("AND-combo skills (rust_python) stay strict on every portal", () => {
     expect(isRelevant(gob({ queries: ["rust python"], title: "Backend Developer" }), def("rust_python"))).toBe(false);
   });
   test("queries are recorded and merged across sightings", () => {

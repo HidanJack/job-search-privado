@@ -26,13 +26,11 @@ export interface SkillDef {
   queries: string[];
   /** OR of AND-groups; every term is a regex source matched case-insensitively. */
   match: string[][];
-  /** Never trust the portal's server-side match (AND-combos such as "rust python"). */
-  strict?: boolean;
 }
 
 export const SKILLS: SkillDef[] = [
   { id: "rust", label: "Rust", queries: ["rust"], match: [["\\brust\\b"]] },
-  { id: "rust_python", label: "Rust + Python (PyO3)", queries: ["rust python"], match: [["\\brust\\b", "\\bpython\\b"], ["pyo3"]], strict: true },
+  { id: "rust_python", label: "Rust + Python (PyO3)", queries: ["rust python"], match: [["\\brust\\b", "\\bpython\\b"], ["pyo3"]] },
   { id: "python", label: "Python", queries: ["python"], match: [["\\bpython\\b"]] },
   { id: "kubernetes", label: "Kubernetes", queries: ["kubernetes"], match: [["\\bkubernetes\\b"], ["\\bk8s\\b"]] },
   { id: "ocr", label: "OCR", queries: ["ocr"], match: [["\\bocr\\b"], ["optical character"], ["document (ai|intelligence|processing)"]] },
@@ -71,36 +69,17 @@ export function jobText(job: Pick<RawJob, "title" | "tags">): string {
   return `${job.title ?? ""} | ${(job.tags ?? []).join(" | ")}`;
 }
 
-/** Portals whose query search already filters server-side (description/skills included). */
-export const TRUSTED_PORTALS = ["getonbrd", "himalayas"];
-
-/** Titles of another discipline: a portal match on these is almost surely noise. */
-export const EXCLUDED_TITLE = new RegExp(
-  [
-    "\\bsales\\b", "\\bventas\\b", "\\bvendedor", "account (executive|manager)", "business development", "\\bsdr\\b",
-    "marketing", "growth (manager|marketer)", "\\bseo\\b", "copywrit", "content (writer|creator|manager)", "social media",
-    "graphic design", "dise[ñn]ador", "\\b(ui|ux|product|visual|web) designer", "\\billustrat", "video edit",
-    "recursos humanos", "human resources", "\\bhr\\b", "recruit", "talent (acquisition|partner)", "reclutador", "people (partner|operations)",
-    "customer (support|success|service)", "soporte al cliente", "atenci[oó]n al cliente", "call center",
-    "\\blegal\\b", "\\babogad", "\\bnurse\\b", "\\bteacher\\b",
-  ].join("|"),
-  "i",
-);
-
 /**
- * Relevance rule. Accept when the skill (or a synonym) is in the title or the
- * portal tags/category. Also, for getonbrd and himalayas (their query search
- * filters server-side, so titles like "Backend Developer" can legitimately
- * need Python) accept a job returned for one of the skill's queries unless its
- * title is an obvious other discipline (EXCLUDED_TITLE). Jobicy and AND-combo
- * skills (`strict`) keep the strict title/tags rule: jobicy showed noise.
+ * Relevance rule (strict on every portal): the skill (or a synonym from the
+ * table) must appear in the title or the portal's real tags/category. We do NOT
+ * trust the portal's query match: getonbrd searches full descriptions, so a
+ * passing mention inflated the sample; himalayas' fuzzy search returned ~90%
+ * unrelated jobs for Rust/Kubernetes, and its tags are rich enough to keep a
+ * usable sample under the strict rule.
  */
-export function isRelevant(job: Pick<RawJob, "title" | "tags"> & Partial<Pick<RawJob, "portal" | "queries">>, def: SkillDef): boolean {
+export function isRelevant(job: Pick<RawJob, "title" | "tags">, def: SkillDef): boolean {
   const text = jobText(job);
-  if (matchers(def).some((all) => all.every((re) => re.test(text)))) return true;
-  if (def.strict || !job.portal || !TRUSTED_PORTALS.includes(job.portal)) return false;
-  if (!(job.queries ?? []).some((q) => def.queries.includes(q))) return false;
-  return !EXCLUDED_TITLE.test(job.title ?? "");
+  return matchers(def).some((all) => all.every((re) => re.test(text)));
 }
 
 // ---------------------------------------------------------------------------
