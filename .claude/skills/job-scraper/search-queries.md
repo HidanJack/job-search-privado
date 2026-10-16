@@ -12,8 +12,9 @@ The `site:` query templates in this file are the **WebSearch fallback** — for 
 
 Five public-API portals for a Mexico-based Python / backend / data engineer. `--latam`
 drops postings restricted to other countries; `--jobage 4` keeps the newest. Run
-each query in English and, where the portal is Spanish-language (GetOnBoard), in
-Spanish too. Credit Remote OK and Jobicy and keep their original posting URLs
+each query in English and, where the portal carries Spanish-language postings
+(GetOnBoard, Himalayas), in Spanish too: Himalayas matches the query against the
+title, so "python backend" misses a title like "Desarrollador Python Senior". Credit Remote OK and Jobicy and keep their original posting URLs
 (their API terms).
 
 **Python backend**
@@ -21,6 +22,9 @@ Spanish too. Credit Remote OK and Jobicy and keep their original posting URLs
 getonbrd-search  search -q python --latam --jobage 4
 getonbrd-search  search -q "desarrollador backend" --country MX --jobage 4
 himalayas-search search -q "python backend" --country Mexico --jobage 4
+himalayas-search search -q "desarrollador python" --country Mexico --jobage 4
+himalayas-search search -q python --country Mexico --jobage 4
+himalayas-search search -q "desarrollador python" --latam --jobage 4
 remoteok-search  search --tags python,backend --latam --jobage 4
 jobicy-search    search -q python --geo latam --jobage 4
 hn-hiring-search search -q "python backend" --latam
