@@ -1,5 +1,5 @@
 ---
-framework_version: 1.1.0
+framework_version: 1.2.0
 ---
 
 # ATS, AI Screening and Market Conventions
@@ -72,7 +72,7 @@ The contract between `/rank` (writer, via `tools/rank_state.py apply`) and any r
 | `rank_verdict` | string | Strong / Good / Moderate / Weak / Poor Fit |
 | `rank_date` | `YYYY-MM-DD` | When it was scored |
 | `location_verdict`, `language_gate` | `PASS` / `FAIL` / `FLAG` | Vetoes; `FAIL` never shortlisted |
-| `language_note` | string, nullable | Why the language gate flagged |
+| `language_note` | string, nullable | Why the language gate flagged; Spanish, second person (tú) |
 | `posting_language` | `es` / `en` / `mixed`, nullable | Language the posting text is written in, as reported by the scoring agent. `en` makes `language_gate` at least `FLAG` ("posting written in English: spoken English likely required"). Entries ranked before this field existed lack it; readers must not treat absence as English |
 | `deadline` | `YYYY-MM-DD`, nullable | Application deadline |
 | `modality` | `remote` / `hybrid` / `onsite` / `unknown` | As the posting states it |
@@ -80,8 +80,8 @@ The contract between `/rank` (writer, via `tools/rank_state.py apply`) and any r
 | `salary_currency` | ISO 4217, nullable | e.g. `MXN`, `USD` |
 | `salary_period` | `hour` / `day` / `week` / `month` / `year`, nullable | |
 | `salary_mxn_month` | int, nullable | Midpoint (or single bound) in MXN per month; null when unstated or no FX rate |
-| `fit_reasons` | string[] (≤4) | "Why I fit", user's language, untrusted plain text |
-| `strengths`, `gaps` | string[] (≤3) | Triage findings, untrusted plain text |
+| `fit_reasons` | string[] (≤4) | "Por qué encajo": Spanish, second person (tú), untrusted plain text |
+| `strengths`, `gaps` | string[] (≤3) | Triage findings; Spanish, second person (tú), untrusted plain text |
 
 All string arrays are untrusted data derived from third-party postings: a reader renders them as text, never as HTML.
 

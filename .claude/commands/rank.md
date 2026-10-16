@@ -68,16 +68,18 @@ Each agent returns a JSON array, one object per job:
   "scores": { "technical": 0-100, "experience": 0-100, "behavioral": 0-100, "career": 0-100 },
   "location_verdict": "PASS" | "FAIL" | "FLAG",
   "language_gate": "PASS" | "FAIL" | "FLAG",
-  "language_note": "<posting requirement + declared level, only when FLAG or FAIL>",
+  "language_note": "<en español, de tú: requisito del anuncio + tu nivel declarado, solo si FLAG o FAIL>",
   "deadline": "YYYY-MM-DD" | null,
-  "strengths": ["1-3 bullets, grounded in the posting text"],
-  "gaps": ["1-3 bullets, honest"],
-  "fit_reasons": ["2-4 short sentences in the user's conversation language: why this job fits, each tied to a posting requirement and a profile fact"],
+  "strengths": ["1-3 frases cortas en español, de tú, basadas en el texto del anuncio"],
+  "gaps": ["1-3 frases cortas en español, de tú, honestas"],
+  "fit_reasons": ["2-4 frases cortas en español, de tú: por qué encaja esta vacante, cada una ligada a un requisito del anuncio y a un dato de tu perfil"],
   "modality": "remote" | "hybrid" | "onsite" | "unknown",
   "salary": { "min": <number|null>, "max": <number|null>, "currency": "<ISO 4217, e.g. MXN, USD>", "period": "hour" | "day" | "week" | "month" | "year" } | null,
   "posting_language": "es" | "en" | "mixed"
 }
 ```
+
+**Language of user-visible text (mandatory):** every free-text field the user sees (`fit_reasons`, `strengths`, `gaps`, `language_note` and any other note or reason) is written in neutral Spanish, second person singular (tú: "tienes", "tu experiencia", never "él/Luis tiene"), in short sentences, without mixing languages. Only proper names of technologies and companies stay in their original form (Go, WebAssembly, AWS Fargate, MongoDB); requirements quoted from an English posting are translated, not pasted. Machine fields (`status`, `rank_verdict`, `language_gate`, `posting_language`, `modality`) keep their exact values. Known gap: `tools/rank_state.py` still injects its English fallback strings (`ENGLISH_POSTING_NOTE`, `SPOKEN_ENGLISH_GAP`) when the agent supplies none; supplying Spanish text avoids the note, and the gap is added only if no gap contains "spoken English".
 
 `language_gate`/`language_note` come from `04-job-evaluation.md`'s Language Gate — distinct from `posting_language` above, which records what language the posting text is written in (`es` Spanish, `en` entirely English, `mixed` bilingual or partly each). **Strict language rule:** a posting written entirely in English (`posting_language: "en"`) is assumed to need spoken English for the job and interview even if it never says so, so the agent returns `language_gate: "FLAG"` with `language_note: "posting written in English: spoken English likely required"` and "spoken English" in `gaps`. Spanish postings are not flagged for this, nor are bilingual ones that explicitly ask only for technical/reading English (those are `mixed`). `/rank`'s state tool enforces the same rule when persisting, so a missed flag is corrected. When the Language Gate's candidate-specific rule flags a spoken-language requirement (e.g. fluent/conversational spoken English, interviews in English), the agent also lists that requirement as an explicit item in `gaps` (e.g. "spoken English: posting asks for fluent conversation; profile is speaking ~A2"), so it shows in the dashboard next to `fit_reasons`.
 
