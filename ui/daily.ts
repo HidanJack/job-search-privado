@@ -3,6 +3,7 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { BASE_TOOLS, SEARCH_TOOLS, buildArgv } from "./lib/runner";
+import { isStale, sampleAll } from "./lib/skills";
 
 const root = resolve(import.meta.dir, "..");
 const claudeBin = process.env.CLAUDE_BIN ?? "claude";
@@ -32,5 +33,18 @@ for (const step of steps) {
   if (err) appendFileSync(logFile, `STDERR ${err}\n`);
   log(`END ${step.prompt} exit=${code}`);
   if (code !== 0) failed = true;
+}
+// Market salaries by skill: refresh only when the aggregate is missing or older than 7 days.
+// A failure here never fails the daily run (it only costs a stale chart).
+if (isStale(root)) {
+  log("START skill_sampler");
+  try {
+    const { aggregate, calls } = await sampleAll({ root });
+    log(`END skill_sampler exit=0 used=${aggregate.totals.used_with_salary} failed_calls=${calls.filter((c) => c.error).length}`);
+  } catch (err) {
+    log(`END skill_sampler exit=1 ${(err as Error).message}`);
+  }
+} else {
+  log("SKIP skill_sampler (aggregate is fresh)");
 }
 process.exit(failed ? 1 : 0);

@@ -343,6 +343,7 @@ function showRunPanel(title) {
 function setRunButtons(disabled) {
   $("#search-btn").disabled = disabled;
   $("#rank-btn").disabled = disabled;
+  $("#skills-refresh").disabled = disabled;
   for (const b of document.querySelectorAll(".apply-btn, .empty-actions button")) b.disabled = disabled;
 }
 function followRun(id, onEnd) {
@@ -891,6 +892,228 @@ async function saveMarketSettings() {
   }
 }
 
+// ---------- skills salaries ("Cuánto pagan tus habilidades") ----------
+const SK = { data: null, tipIndex: new Map(), ROW_PAD: 8, HEAD_H: 22, LINE_H: 32, BAR_H: 10, PAD_X: 14 };
+const SK_GROUPS = [
+  { id: "mx", label: "México" },
+  { id: "latam_local", label: "Otros países de LatAm" },
+  { id: "remote_intl", label: "Remoto abierto a México" },
+];
+const SK_LEVEL = { mid: "mid", sr: "sr" };
+
+function skillTip(row, g, s) {
+  const lines = s.insufficient
+    ? [s.n ? `Muestra insuficiente: ${s.n} vacante${s.n === 1 ? "" : "s"} con sueldo (mínimo 8).` : "Sin vacantes con sueldo publicado.",
+       s.n ? `Rango observado: ${moneyFull(s.min)} a ${moneyFull(s.max)} MXN/mes` : ""]
+    : [`P25 ${moneyFull(s.p25)} · mediana ${moneyFull(s.median)} · P75 ${moneyFull(s.p75)} MXN/mes`, `n = ${s.n}${s.hourly ? ` (${s.hourly} convertidas desde sueldo por hora)` : ""}`];
+  return { title: `${row.label} · ${g.label}`, lines };
+}
+
+function skillRows(agg) {
+  const rows = [agg.combo, ...agg.skills];
+  return rows.map((row) => ({
+    row,
+    groups: SK_GROUPS.map((g) => ({ g, s: row.groups[g.id] })).filter((x) => x.s.n > 0),
+  }));
+}
+
+function renderSkillsLegend() {
+  const ul = $("#skills-legend");
+  ul.replaceChildren();
+  const item = (children, text) => {
+    const s = svgEl("svg", { width: 28, height: 16, viewBox: "0 0 28 16", "aria-hidden": "true" });
+    s.append(...children);
+    ul.append(el("li", {}, s, el("span", { text })));
+  };
+  for (const g of SK_GROUPS) item([svgEl("rect", { x: 1, y: 3, width: 26, height: 10, rx: 3, class: `sk-bar ${g.id}` }), svgEl("rect", { x: 12, y: 0, width: 4, height: 16, rx: 1, class: "mk-avg" })], `${g.label} (P25–P75 y mediana)`);
+  item([svgEl("rect", { x: 1, y: 3, width: 26, height: 10, rx: 3, class: "sk-bar mx dim" })], "Muestra insuficiente (rango observado)");
+  item([svgEl("rect", { x: 1, y: 3, width: 26, height: 10, rx: 3, class: "sk-weak" })], "Fuente débil (Talently)");
+}
+
+function renderSkillsChart(data) {
+  const host = $("#skills-chart");
+  const agg = data.aggregate;
+  const tip = el("div", { class: "mk-tip", role: "tooltip", hidden: "" });
+  SK.tipIndex = new Map();
+  const usd = agg.fx.USD || 18.5;
+  const refBands = data.reference.bands.map((b) => ({ ...b, min: b.min_usd * usd, max: b.max_usd * usd }));
+  const blocks = skillRows(agg);
+
+  const values = [
+    ...blocks.flatMap((b) => b.groups.flatMap(({ s }) => [s.min, s.max, s.p25, s.p75].filter((v) => v !== null))),
+    ...refBands.flatMap((b) => [b.min, b.max]),
+  ];
+  if (!values.length) values.push(20000, 60000);
+  const [lo, hi] = marketDomain(values);
+  const W = Math.max(300, host.clientWidth || 640);
+  const L = SK.PAD_X, R = SK.PAD_X;
+  const x = (v) => L + ((Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo))) * (W - L - R);
+  const TOP = 8;
+
+  // Layout
+  let y = TOP;
+  const layout = blocks.map((b) => {
+    const refs = refBands.filter((r) => r.skill === b.row.id);
+    const lines = Math.max(1, b.groups.length) + (refs.length ? 1 : 0);
+    const h = SK.HEAD_H + lines * SK.LINE_H + SK.ROW_PAD;
+    const top = y;
+    y += h;
+    return { ...b, refs, top, h };
+  });
+  const plotBottom = y;
+  const H = plotBottom + 28;
+
+  const svg = svgEl("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: "img", "aria-labelledby": "sk-title sk-desc" });
+  svg.append(svgEl("title", { id: "sk-title" }, "Sueldos por habilidad y por grupo"));
+  svg.append(svgEl("desc", { id: "sk-desc" }, `Para ${layout.length} habilidades, rango del percentil 25 al 75 y mediana de sueldo mensual en MXN en México, otros países de LatAm y remoto abierto a México. Los mismos datos están en la tabla de abajo.`));
+  const defs = svgEl("defs");
+  const pat = svgEl("pattern", { id: "sk-hatch", width: 6, height: 6, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" });
+  pat.append(svgEl("line", { x1: 0, y1: 0, x2: 0, y2: 6, class: "sk-hatch-line" }));
+  defs.append(pat);
+  svg.append(defs);
+
+  const ticks = [5000, 10000, 20000, 30000, 50000, 100000, 200000, 500000, 1000000].filter((t) => t >= lo && t <= hi);
+  const grid = svgEl("g", { "aria-hidden": "true" });
+  for (const t of ticks) {
+    grid.append(svgEl("line", { x1: x(t), x2: x(t), y1: TOP, y2: plotBottom, class: "mk-grid" }));
+    grid.append(svgEl("text", { x: x(t), y: plotBottom + 18, class: "mk-axis", "text-anchor": "middle" }, moneyShort(t)));
+  }
+  svg.append(grid);
+
+  const textW = (t) => t.length * 6.1;
+  // The note sits above its bar, clamped so it never leaves the plot.
+  const note = (g, text, x0, ly, dim) => {
+    const w = textW(text);
+    g.append(svgEl("text", { x: Math.max(L, Math.min(x0, W - R - w)), y: ly + 11, class: `sk-note${dim ? " dim" : ""}` }, text));
+  };
+
+  for (const b of layout) {
+    const isCombo = b.row.id === "combo";
+    const g = svgEl("g", { class: "sk-row", tabindex: 0, role: "img", "data-tip": `s:${b.row.id}`,
+      "aria-label": `${b.row.label}. ${b.groups.length ? b.groups.map(({ g: gg, s }) => skillTip(b.row, gg, s).lines.filter(Boolean).join(", ")).join(". ") : "Sin vacantes con sueldo publicado."}` });
+    SK.tipIndex.set(`s:${b.row.id}`, {
+      title: b.row.label,
+      lines: b.groups.length ? b.groups.map(({ g: gg, s }) => `${gg.label}: ${s.insufficient ? `muestra insuficiente (n=${s.n})` : `mediana ${moneyFull(s.median)} (n=${s.n})`}`) : ["Sin vacantes con sueldo publicado."],
+    });
+    g.append(svgEl("rect", { x: 0, y: b.top, width: W, height: b.h - 2, class: isCombo ? "sk-combo-bg" : "mk-hit", rx: isCombo ? 8 : 0 }));
+    g.append(svgEl("text", { x: L, y: b.top + 15, class: isCombo ? "sk-combo-label" : "mk-label" },
+      isCombo ? `★ ${b.row.label}: Python + fintech, OCR, LLM, RAG, Rust o Kubernetes` : b.row.label));
+    g.append(svgEl("text", { x: W - R, y: b.top + 15, class: "sk-note", "text-anchor": "end" }, `${b.row.relevant} vacante${b.row.relevant === 1 ? "" : "s"}`));
+    let ly = b.top + SK.HEAD_H;
+    if (!b.groups.length) {
+      g.append(svgEl("text", { x: L, y: ly + 12, class: "sk-note dim" }, "Sin vacantes con sueldo publicado"));
+      ly += SK.LINE_H;
+    }
+    for (const { g: gg, s } of b.groups) {
+      const cy = ly + 22;
+      const a = s.insufficient ? s.min : s.p25;
+      const z = s.insufficient ? s.max : s.p75;
+      const x0 = x(a), x1 = Math.max(x0 + 3, x(z));
+      g.append(svgEl("rect", { x: x0, y: cy - SK.BAR_H / 2, width: x1 - x0, height: SK.BAR_H, rx: 4, class: `sk-bar ${gg.id}${s.insufficient ? " dim" : ""}` }));
+      if (!s.insufficient) {
+        g.append(svgEl("rect", { x: x(s.median) - 4, y: cy - 10, width: 8, height: 20, rx: 2, class: "mk-avg-ring" }));
+        g.append(svgEl("rect", { x: x(s.median) - 2, y: cy - 9, width: 4, height: 18, rx: 1, class: "mk-avg" }));
+      }
+      note(g, s.insufficient ? `${gg.label} · n=${s.n} · muestra insuficiente` : `${gg.label} · n=${s.n} · mediana ${moneyShort(s.median)}`, x0, ly, s.insufficient);
+      ly += SK.LINE_H;
+    }
+    if (b.refs.length) {
+      const cy = ly + 22;
+      const texts = [];
+      for (const r of b.refs) {
+        const x0 = x(r.min), x1 = x(r.max);
+        g.append(svgEl("rect", { x: x0, y: cy - SK.BAR_H / 2, width: Math.max(2, x1 - x0), height: SK.BAR_H, rx: 4, class: "sk-weak" }));
+        texts.push({ t: `Talently ${SK_LEVEL[r.level]}`, x0, x1 });
+              }
+      const label = `Fuente débil · ${texts.map((t) => t.t).join(" / ")}`;
+      note(g, label, Math.min(...texts.map((t) => t.x0)), ly, true);
+      SK.tipIndex.get(`s:${b.row.id}`).lines.push(...b.refs.map((r) => `Fuente débil (Talently, ${r.level}): ${moneyFull(r.min)} a ${moneyFull(r.max)} MXN/mes (${r.min_usd.toLocaleString("en-US")}–${r.max_usd.toLocaleString("en-US")} USD)`));
+    }
+    svg.append(g);
+    svg.append(svgEl("line", { x1: L, x2: W - R, y1: b.top + b.h - 1, y2: b.top + b.h - 1, class: "sk-sep" }));
+  }
+
+  host.replaceChildren(svg, tip);
+  host.removeAttribute("aria-busy");
+  const show = (target) => {
+    const t = SK.tipIndex.get(target.getAttribute("data-tip"));
+    if (!t) return;
+    tip.replaceChildren(el("strong", { text: t.title }), ...t.lines.filter(Boolean).map((line) => el("span", { text: line })));
+    tip.hidden = false;
+    const hb = host.getBoundingClientRect();
+    const tb = target.getBoundingClientRect();
+    const width = tip.offsetWidth;
+    const left = Math.min(Math.max(8, hb.width / 2 - width / 2), hb.width - width - 8);
+    const below = tb.bottom - hb.top + 6;
+    tip.style.left = `${left}px`;
+    tip.style.top = `${Math.min(below, hb.height - tip.offsetHeight - 4)}px`;
+  };
+  const hide = () => (tip.hidden = true);
+  for (const node of svg.querySelectorAll("[data-tip]")) {
+    node.addEventListener("pointerenter", () => show(node));
+    node.addEventListener("pointerleave", hide);
+    node.addEventListener("focus", () => show(node));
+    node.addEventListener("blur", hide);
+  }
+  svg.addEventListener("keydown", (ev) => ev.key === "Escape" && hide());
+}
+
+function renderSkillsTable(data) {
+  const agg = data.aggregate;
+  const t = $("#skills-table");
+  t.replaceChildren(el("tr", {}, ...["Habilidad", "Grupo", "n", "P25", "Mediana", "P75"].map((h) => el("th", { text: h }))));
+  for (const row of [agg.combo, ...agg.skills]) {
+    for (const g of SK_GROUPS) {
+      const s = row.groups[g.id];
+      const m = (v) => (v === null ? "—" : moneyFull(v));
+      t.append(el("tr", {}, el("td", { text: row.label }), el("td", { text: g.label }), el("td", { text: String(s.n) }),
+        ...(s.insufficient ? [el("td", { colspan: "3", class: "muted", text: s.n ? "Muestra insuficiente" : "Sin datos" })] : [m(s.p25), m(s.median), m(s.p75)].map((v) => el("td", { text: v })))));
+    }
+  }
+  const d = agg.discards;
+  $("#skills-meta").textContent = `Tipo de cambio: ${Object.entries(agg.fx).filter(([k]) => k !== "MXN").map(([k, v]) => `${k} = $${v}`).join(", ")} (${agg.fx_source === "CLAUDE.md" ? "de tu perfil" : "valores por defecto"}). Portales: ${agg.portals.join(", ")}. ` +
+    `Vacantes únicas: ${agg.totals.unique_jobs}; con la habilidad en título o etiquetas: ${agg.totals.relevant_jobs}; con sueldo usable: ${agg.totals.used_with_salary}. ` +
+    `Descartadas: ${d.no_salary} sin sueldo, ${d.noise_low} por sueldo absurdamente bajo, ${d.noise_high} por absurdamente alto, ${d.unknown_currency} con moneda desconocida, ${d.no_period} sin periodo, ${d.unclassified} sin ubicación utilizable, ${d.irrelevant} sin relación con tus habilidades. Sueldos por hora se convierten ×160 horas al mes.`;
+}
+
+function renderSkills(data) {
+  SK.data = data;
+  const has = Boolean(data.aggregate);
+  $("#skills-empty").hidden = has;
+  $("#skills-body").hidden = !has;
+  const date = $("#skills-date");
+  if (!has) {
+    date.textContent = "Sin datos todavía.";
+    return;
+  }
+  const when = new Date(data.aggregate.generated_at);
+  const days = Math.floor((Date.now() - when.getTime()) / 86400000);
+  const ago = days <= 0 ? "hoy" : days === 1 ? "hace 1 día" : `hace ${days} días`;
+  date.textContent = `Datos del ${when.toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" })} (${ago}).`;
+  $("#skills-sentences").replaceChildren(...data.sentences.map((t) => el("li", { text: t })));
+  renderSkillsLegend();
+  renderSkillsChart(data);
+  renderSkillsTable(data);
+}
+
+async function loadSkills() {
+  try {
+    renderSkills(await api("/api/skills"));
+  } catch (err) {
+    $("#skills-date").textContent = `No se pudieron cargar los datos: ${err.message}`;
+  }
+}
+
+async function startMarketRefresh() {
+  try {
+    const { id } = await api("/api/market/refresh", {});
+    showRunPanel("Actualizando datos de mercado — puede tardar unos minutos");
+    followRun(id, () => loadSkills());
+  } catch (err) {
+    runError(err);
+  }
+}
+
 // ---------- boot ----------
 async function boot() {
   for (const tab of document.querySelectorAll(".tab")) {
@@ -900,7 +1123,10 @@ async function boot() {
       $("#tab-tracking").hidden = tab.dataset.tab !== "tracking";
       $("#tab-market").hidden = tab.dataset.tab !== "market";
       if (tab.dataset.tab === "tracking") refreshTracking();
-      if (tab.dataset.tab === "market") refreshMarket();
+      if (tab.dataset.tab === "market") {
+        refreshMarket();
+        loadSkills();
+      }
     });
   }
   $("#market-form").addEventListener("change", saveMarketSettings);
@@ -909,8 +1135,10 @@ async function boot() {
     clearTimeout(MK.resizeTimer);
     MK.resizeTimer = setTimeout(() => {
       if (MK.data && !$("#tab-market").hidden) renderMarketChart(MK.data);
+      if (SK.data && SK.data.aggregate && !$("#tab-market").hidden) renderSkillsChart(SK.data);
     }, 120);
   });
+  $("#skills-refresh").addEventListener("click", startMarketRefresh);
   $("#search-btn").addEventListener("click", startSearch);
   $("#rank-btn").addEventListener("click", startRank);
   $("#theme-btn").addEventListener("click", toggleTheme);

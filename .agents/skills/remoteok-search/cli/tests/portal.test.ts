@@ -19,6 +19,7 @@ describe("Remote OK mapping", () => {
     for (const job of jobs) {
       const r = toResult(job) as unknown as Record<string, unknown>;
       for (const k of CONTRACT_KEYS) expect(k in r).toBe(true);
+      for (const k of ["salary_min", "salary_max", "salary_currency", "salary_period"]) expect(k in r).toBe(true);
       expect(String(r.url).toLowerCase()).toStartWith("https://remoteok.com/remote-jobs/");
     }
   });

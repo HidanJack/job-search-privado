@@ -678,3 +678,30 @@ textarea:focus { outline: none; border-color: var(--brand); background: var(--su
   .market-form .field, .market-form .input-wrap { width: 100%; }
   .market-form .input-wrap input { flex: 1; width: auto; }
 }
+
+/* ---------- skills salary section ---------- */
+.sk-panel { margin-top: 0; margin-bottom: 1rem; }
+.sk-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: .75rem 1rem; margin-bottom: .5rem; }
+.sk-head h3 { margin: 0; }
+.sk-head .small-note { margin: .2rem 0 0; }
+.sk-empty { padding: .75rem 0; }
+.sk-empty p { margin: .25rem 0; }
+.sk-sentences { margin-bottom: 1rem; }
+.sk-bar { opacity: .9; }
+.sk-bar.mx { fill: var(--mk-local); }
+.sk-bar.latam_local { fill: var(--mk-band); }
+.sk-bar.remote_intl { fill: var(--mk-remote); }
+.sk-bar.dim { opacity: .3; stroke: currentColor; stroke-width: 1; stroke-dasharray: 3 3; }
+.sk-bar.mx.dim { stroke: var(--mk-local); }
+.sk-bar.latam_local.dim { stroke: var(--mk-band); }
+.sk-bar.remote_intl.dim { stroke: var(--mk-remote); }
+.sk-weak { fill: url(#sk-hatch); stroke: var(--mk-band); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.sk-hatch-line { stroke: var(--mk-band); stroke-width: 1.5; }
+.sk-note { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.sk-note.dim { font-style: italic; }
+.sk-combo-bg { fill: var(--brand-soft); stroke: var(--brand); stroke-width: 1.5; }
+.sk-combo-label { fill: var(--brand-ink); font-size: 12.5px; font-weight: 700; }
+.sk-sep { stroke: var(--line); stroke-width: 1; }
+.sk-row:hover .mk-hit, .sk-row:focus-visible .mk-hit { fill: var(--surface-2); opacity: .6; }
+.sk-row { outline: none; }
+.sk-row:focus-visible .mk-hit { stroke: var(--brand); stroke-width: 2; }

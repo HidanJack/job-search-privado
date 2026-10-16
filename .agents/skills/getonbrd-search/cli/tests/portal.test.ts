@@ -14,6 +14,7 @@ describe("GetOnBoard mapping", () => {
     for (const job of search.data) {
       const r = toResult(job) as unknown as Record<string, unknown>;
       for (const k of CONTRACT_KEYS) expect(k in r).toBe(true);
+      for (const k of ["salary_min", "salary_max", "salary_currency", "salary_period"]) expect(k in r).toBe(true);
       expect(typeof r.title).toBe("string");
       expect(String(r.url)).toStartWith("https://www.getonbrd.com/jobs/");
     }
@@ -27,6 +28,13 @@ describe("GetOnBoard mapping", () => {
     expect(toResult(byModality("fully_remote")).location).toBe("Remote (anywhere)");
     expect(toResult(byModality("no_remote")).location).toContain("(on-site)");
     expect(toResult(byModality("hybrid")).location).toContain("Mexico");
+  });
+
+  test("numeric salary fields mirror the string (USD/month)", () => {
+    const r = search.data.map(toResult).find((x) => x.salary_min !== null)!;
+    expect(r.salary_currency).toBe("USD");
+    expect(r.salary_period).toBe("month");
+    expect(r.salary_max!).toBeGreaterThanOrEqual(r.salary_min!);
   });
 
   test("salary is USD per month", () => {

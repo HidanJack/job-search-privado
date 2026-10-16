@@ -4,6 +4,7 @@ import { bunCommandRunner, getDailyStatus, setDaily, type CommandRunner } from "
 import { filterJobs, loadJobs, parseFilters, skipJob } from "./lib/jobs";
 import { computeReadings, loadMarket, loadSettings, marketJobs, parseSettings, saveSettings } from "./lib/market";
 import { loadProfile } from "./lib/profile";
+import { WEAK_REFERENCE, bunCliSpawner, buildSentences, loadAggregate, sampleAll, type CliSpawner } from "./lib/skills";
 import {
   APPLY_TOOLS, BASE_TOOLS, ResultStore, SEARCH_TOOLS, RunManager, buildApplyPrompt, bunSpawner, type Spawner,
 } from "./lib/runner";
@@ -61,6 +62,10 @@ export interface ServerOptions {
   claudeBin?: string;
   commandRunner?: CommandRunner;
   marketPath?: string;
+  /** Spawner for the portal CLIs used by the market refresh (no Claude). */
+  cliSpawner?: CliSpawner;
+  /** Test hook: skip the pause between portal calls. */
+  samplerPauseMs?: number;
 }
 
 export function createHandler(opts: ServerOptions = {}) {
@@ -118,6 +123,10 @@ export function createHandler(opts: ServerOptions = {}) {
         const settings = loadSettings(root);
         return json({ market, jobs, settings, readings: computeReadings(market, jobs, settings) });
       }
+      case "/api/skills": {
+        const aggregate = loadAggregate(root);
+        return json({ aggregate, sentences: aggregate ? buildSentences(aggregate) : [], reference: WEAK_REFERENCE });
+      }
       case "/api/daily":
         return json(await getDailyStatus(root, commandRunner));
       case "/api/run":
@@ -172,6 +181,17 @@ export function createHandler(opts: ServerOptions = {}) {
           [{ prompt, tools: APPLY_TOOLS, title: "Generando CV y carta (/apply)" }],
           jobUrl,
         );
+        return run ? json({ id: run.id }) : json({ error: "busy" }, 409);
+      }
+      case "/api/market/refresh": {
+        const run = runs.startTask("market", "Actualizar datos de mercado", async (log) => {
+          const { aggregate, calls } = await sampleAll({
+            root, spawn: opts.cliSpawner ?? bunCliSpawner, pauseMs: opts.samplerPauseMs, log,
+          });
+          const failed = calls.filter((c) => c.error).length;
+          log(`Listo: ${aggregate.totals.used_with_salary} vacantes con sueldo usable (${failed} consultas fallidas de ${calls.length}).`);
+          return failed < calls.length;
+        });
         return run ? json({ id: run.id }) : json({ error: "busy" }, 409);
       }
       case "/api/daily": {

@@ -211,6 +211,10 @@ export interface JobResult {
   url: string
   remote: boolean | null
   salary: string | null
+  salary_min: number | null
+  salary_max: number | null
+  salary_currency: string | null
+  salary_period: string | null
   tags: string[]
   source: string
 }
@@ -310,6 +314,25 @@ export function formatSalary(min: number | null | undefined, max: number | null 
   return `${cur}${lo ?? hi}${per}`
 }
 
+/** Numeric salary fields (null when absent; never omitted). Period is normalised to year|month|week|day|hour. */
+export function formatSalaryFields(
+  min: number | null | undefined,
+  max: number | null | undefined,
+  currency?: string | null,
+  period?: string | null,
+): { salary_min: number | null; salary_max: number | null; salary_currency: string | null; salary_period: string | null } {
+  const lo = typeof min === "number" && min > 0 ? min : null
+  const hi = typeof max === "number" && max > 0 ? max : null
+  if (lo === null && hi === null) return { salary_min: null, salary_max: null, salary_currency: null, salary_period: null }
+  const p = period ? period.toLowerCase() : null
+  return {
+    salary_min: lo ?? hi,
+    salary_max: hi ?? lo,
+    salary_currency: currency ? currency.toUpperCase() : null,
+    salary_period: p ? PERIODS[p] ?? p : null,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Jobicy (jobicy.com) - public remote-jobs JSON API v2, no key. API terms:
 // credit Jobicy with a direct link to the source, and send every "apply"
@@ -364,6 +387,7 @@ export function toResult(j: JobicyJob): JobResult {
     url: j.url,
     remote: true,
     salary: formatSalary(j.salaryMin, j.salaryMax, j.salaryCurrency, j.salaryPeriod),
+    ...formatSalaryFields(j.salaryMin, j.salaryMax, j.salaryCurrency, j.salaryPeriod),
     tags: [...(j.jobIndustry ?? []), ...(j.jobType ?? []), ...(j.jobLevel ? [j.jobLevel] : [])].map((t) => decodeEntities(t)),
     source: PORTAL,
   }

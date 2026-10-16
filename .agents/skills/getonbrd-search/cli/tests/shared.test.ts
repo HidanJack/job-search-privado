@@ -4,6 +4,7 @@ import {
   cleanHtml,
   decodeEntities,
   formatSalary,
+  formatSalaryFields,
   getJson,
   matchesLocation,
   matchesQuery,
@@ -129,6 +130,21 @@ describe("shared helpers", () => {
     expect(formatSalary(85000, 95000, "USD", "yearly")).toBe("USD 85000–95000/year");
     expect(formatSalary(0, 0, "USD", "year")).toBeNull();
     expect(formatSalary(2000, null, "USD", "monthly")).toBe("USD 2000/month");
+  });
+
+  test("formatSalaryFields gives numeric fields, null when absent", () => {
+    expect(formatSalaryFields(85000, 95000, "usd", "yearly")).toEqual({
+      salary_min: 85000, salary_max: 95000, salary_currency: "USD", salary_period: "year",
+    });
+    expect(formatSalaryFields(2000, null, "USD", "monthly")).toEqual({
+      salary_min: 2000, salary_max: 2000, salary_currency: "USD", salary_period: "month",
+    });
+    expect(formatSalaryFields(0, 0, "USD", "year")).toEqual({
+      salary_min: null, salary_max: null, salary_currency: null, salary_period: null,
+    });
+    expect(formatSalaryFields(undefined, undefined)).toEqual({
+      salary_min: null, salary_max: null, salary_currency: null, salary_period: null,
+    });
   });
 
   test("paginate slices 1-indexed pages", () => {

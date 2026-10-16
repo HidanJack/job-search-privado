@@ -14,6 +14,7 @@ describe("Himalayas mapping", () => {
     for (const job of search.jobs) {
       const r = toResult(job) as unknown as Record<string, unknown>;
       for (const k of CONTRACT_KEYS) expect(k in r).toBe(true);
+      for (const k of ["salary_min", "salary_max", "salary_currency", "salary_period"]) expect(k in r).toBe(true);
       expect(r.remote).toBe(true);
     }
   });

@@ -211,6 +211,10 @@ export interface JobResult {
   url: string
   remote: boolean | null
   salary: string | null
+  salary_min: number | null
+  salary_max: number | null
+  salary_currency: string | null
+  salary_period: string | null
   tags: string[]
   source: string
 }
@@ -310,6 +314,25 @@ export function formatSalary(min: number | null | undefined, max: number | null 
   return `${cur}${lo ?? hi}${per}`
 }
 
+/** Numeric salary fields (null when absent; never omitted). Period is normalised to year|month|week|day|hour. */
+export function formatSalaryFields(
+  min: number | null | undefined,
+  max: number | null | undefined,
+  currency?: string | null,
+  period?: string | null,
+): { salary_min: number | null; salary_max: number | null; salary_currency: string | null; salary_period: string | null } {
+  const lo = typeof min === "number" && min > 0 ? min : null
+  const hi = typeof max === "number" && max > 0 ? max : null
+  if (lo === null && hi === null) return { salary_min: null, salary_max: null, salary_currency: null, salary_period: null }
+  const p = period ? period.toLowerCase() : null
+  return {
+    salary_min: lo ?? hi,
+    salary_max: hi ?? lo,
+    salary_currency: currency ? currency.toUpperCase() : null,
+    salary_period: p ? PERIODS[p] ?? p : null,
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Remote OK (remoteok.com) - public JSON API, no key. API terms: link back to
 // the Remote OK posting URL (followable, no nofollow) and name Remote OK as the
@@ -370,6 +393,7 @@ export function toResult(j: RokJob): JobResult {
     url: j.url ?? `${BASE_URL}/remote-jobs/${j.slug ?? j.id}`,
     remote: true,
     salary: formatSalary(j.salary_min, j.salary_max, "USD", "year"),
+    ...formatSalaryFields(j.salary_min, j.salary_max, "USD", "year"),
     tags: j.tags ?? [],
     source: PORTAL,
   }

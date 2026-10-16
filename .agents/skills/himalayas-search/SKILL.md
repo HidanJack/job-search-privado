@@ -85,7 +85,7 @@ bun run .agents/skills/himalayas-search/cli/src/cli.ts detail niryu/sr-backend-d
 
 Search JSON is `{ "meta": { "count", "page"[, "total"] }, "results": [...] }`. Each
 result carries `id`, `title`, `company`, `location`, `date`, `url`, plus `remote`,
-`salary`, `tags` and `source` - missing values are `null`, never omitted. Search
+`salary` (display string), `salary_min`, `salary_max`, `salary_currency`, `salary_period` (numeric; period is year|month|week|day|hour), `tags` and `source` - missing values are `null`, never omitted. Search
 results do not include descriptions (keeps `/scrape` context lean); use `detail`
 for a shortlisted posting. Errors go to **stderr** as `{ "error": "...", "code": "..." }`
 with exit code `1`. Unknown flags are rejected (`UNKNOWN_FLAG`), never ignored.

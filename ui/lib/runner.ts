@@ -32,7 +32,7 @@ export const APPLY_TOOLS = [
   "Bash(rm -f cv/main_:*)",
 ];
 
-export type RunKind = "search" | "rank" | "apply";
+export type RunKind = "search" | "rank" | "apply" | "market";
 
 export function buildArgv(claudeBin: string, prompt: string, tools: string[]): string[] {
   // The prompt is one argv element and always starts with "/", so it can
@@ -177,6 +177,33 @@ export class RunManager {
     };
     this.current = run;
     void this.execute(run, prompts);
+    return run;
+  }
+
+  /**
+   * Runs an in-process task (no Claude) under the same lock and event stream as
+   * the headless runs. The task reports progress through `log`; a false return
+   * or a throw marks the run failed. Returns null if busy.
+   */
+  startTask(kind: RunKind, label: string, task: (log: (text: string) => void) => Promise<boolean>): Run | null {
+    if (this.busy()) return null;
+    const run: Run = {
+      id: crypto.randomUUID(), kind, label, url: null, status: "running",
+      startedAt: new Date().toISOString(), events: [], result: null,
+    };
+    this.current = run;
+    void (async () => {
+      try {
+        this.emit(run, "step", label);
+        const ok = await task((text) => this.emit(run, "text", text));
+        run.status = ok ? "done" : "failed";
+        if (!ok) this.emit(run, "error", "La tarea terminó con errores.");
+      } catch (err) {
+        run.status = "failed";
+        this.emit(run, "error", `La tarea falló: ${(err as Error).message}`);
+      }
+      this.emit(run, "done", run.status === "done" ? "Listo." : "Terminó con errores.");
+    })();
     return run;
   }
 
