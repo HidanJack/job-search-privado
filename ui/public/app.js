@@ -23,6 +23,29 @@ const icon = (name) => {
   return svg;
 };
 
+// ---------- motion helpers (presentation only) ----------
+const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+// Counts a number up so the eye can see its size. The final value is always in the
+// DOM for assistive tech; the animated copy is aria-hidden. Skipped under reduced motion.
+function countUp(node, final, format, { delay = 0, duration = 800 } = {}) {
+  node.textContent = format(final);
+  if (reduceMotion() || !(final > 0)) return;
+  const live = el("span", { "aria-hidden": "true", text: format(0) });
+  const sr = el("span", { class: "sr-only", text: format(final) });
+  node.replaceChildren(live, sr);
+  const start = performance.now() + delay;
+  const tick = (now) => {
+    const t = Math.max(0, Math.min(1, (now - start) / duration));
+    live.textContent = format(Math.round(final * easeOutCubic(t)));
+    if (t < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+const NUMBER_WORDS = ["Ninguna", "Una", "Dos", "Tres", "Cuatro", "Cinco", "Seis", "Siete", "Ocho", "Nueve", "Diez"];
+const dayFmt = new Intl.DateTimeFormat("es-MX", { weekday: "long", day: "numeric", month: "long" });
+const WORTH_SCORE = 75; // same threshold as the "high" score band
+
 // ---------- theme (explicit choice persisted; otherwise follow the OS) ----------
 const THEME_KEY = "job-ui-theme";
 const systemDark = () => window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -161,6 +184,8 @@ function renderDaily(status) {
   $("#daily-unavailable").hidden = true;
   const sw = $("#daily-switch");
   sw.setAttribute("aria-checked", String(status.enabled));
+  $("#tick-daily").textContent = status.enabled ? "Búsqueda diaria activa" : "Búsqueda diaria apagada";
+  $("#tick-dot").classList.toggle("is-live", Boolean(status.enabled));
   $("#daily-next").textContent = status.enabled
     ? status.nextRun ? `Próxima: ${whenLabel(status.nextRun)}` : "Próxima: por programar"
     : "Apagada";
@@ -215,17 +240,21 @@ function salaryLabel(j) {
   }
   return text;
 }
-function fillList(ul, items, empty, iconName) {
-  ul.replaceChildren(...(items.length ? items : [empty]).map((t) => {
-    const li = el("li");
-    if (iconName) li.append(icon(iconName));
-    li.append(el("span", { text: t }));
-    return li;
-  }));
+function fillList(ul, items, empty) {
+  ul.replaceChildren(...(items.length ? items : [empty]).map((t) => el("li", { text: t })));
+}
+// Salary as a big figure plus a small qualifier; unknown salaries stay a plain phrase.
+function salaryParts(j) {
+  if (j.salary_mxn_month === null) return { main: salaryLabel(j), sub: "", value: null };
+  let sub = "MXN al mes";
+  if (j.salary_currency && j.salary_currency !== "MXN") {
+    const range = [j.salary_min, j.salary_max].filter((x) => x !== null).join("–");
+    sub += ` · original: ${range} ${j.salary_currency}${j.salary_period ? " / " + j.salary_period : ""}`;
+  }
+  return { main: mxn.format(j.salary_mxn_month), sub, value: j.salary_mxn_month };
 }
 
 function emptyState(pending) {
-  const art = el("div", { class: "empty-art" }, icon("search"));
   const searchBtn = el("button", { type: "button", class: pending ? "secondary" : "primary" }, icon("search"), el("span", { text: "Buscar ahora" }));
   searchBtn.addEventListener("click", startSearch);
   const actions = el("div", { class: "empty-actions" });
@@ -236,12 +265,50 @@ function emptyState(pending) {
   }
   actions.append(searchBtn);
   return el("div", { class: "empty" },
-    art,
     el("h3", { text: pending ? `Tienes ${pending} ${pending === 1 ? "vacante" : "vacantes"} sin calificar` : "Nada por aquí con estos filtros" }),
     el("p", { text: pending
       ? "Califícalas para ver su puntaje, por qué encajas, el sueldo y la modalidad. Tarda unos minutos."
       : "Prueba subir los días de publicación o bajar el sueldo mínimo. Si ya los ajustaste, busca vacantes nuevas: tarda unos minutos." }),
     actions);
+}
+
+// Headline, note and big figure above the list: what today's list is worth.
+function renderLead(data) {
+  const scored = data.ranked.filter((j) => typeof j.rank_score === "number");
+  const worth = scored.filter((j) => j.rank_score >= WORTH_SCORE);
+  const n = worth.length;
+  const a = $("#lead-a");
+  const b = $("#lead-b");
+  if (!data.ranked.length) {
+    a.textContent = "Aún no hay nada que leer.";
+    b.textContent = "Busca o califica para llenar el libro.";
+  } else if (!n) {
+    a.textContent = `Ninguna vacante llega a ${WORTH_SCORE} puntos.`;
+    b.textContent = "Puedes revisar las demás o buscar más.";
+  } else {
+    a.textContent = `${NUMBER_WORDS[n] || n} ${n === 1 ? "vacante vale" : "vacantes valen"} tu tiempo.`;
+    b.textContent = n === data.ranked.length ? "Y ninguna más cumple tus filtros." : "El resto puede esperar.";
+  }
+  const fresh = data.ranked.filter((j) => j.age_days !== null && j.age_days <= data.profile.freshnessDays).length;
+  $("#lead-note").textContent = data.ranked.length
+    ? `${fresh ? `${fresh} ${fresh === 1 ? "vacante nueva" : "vacantes nuevas"} en los últimos ${data.profile.freshnessDays} días. ` : ""}Van ordenadas por qué tan bien encajan con tu experiencia, no por quién pagó más por aparecer primero.`
+    : "Cada vacante se califica contra tu perfil: encaje, sueldo y lo que te falta.";
+  const pool = (n ? worth : scored).map((j) => j.salary_mxn_month).filter((v) => typeof v === "number");
+  const fig = $("#lead-fig");
+  fig.hidden = !pool.length;
+  if (pool.length) {
+    const top = Math.max(...pool);
+    if (state.painted) $("#lead-fig-num").textContent = mxn.format(top); // animate on first load only
+    else countUp($("#lead-fig-num"), top, (v) => mxn.format(v), { delay: 420, duration: 1100 });
+  }
+  $("#lead").classList.add("ready");
+
+  // Day ticker: the same facts in one thin line.
+  $("#ticker").hidden = false;
+  $("#tick-date").textContent = dayFmt.format(new Date());
+  $("#tick-new").textContent = `${fresh} ${fresh === 1 ? "nueva" : "nuevas"}`;
+  const best = scored.reduce((m, j) => (m && m.rank_score >= j.rank_score ? m : j), null);
+  $("#tick-best").textContent = best ? `Mejor encaje: ${best.rank_score} de 100` : "Sin vacantes calificadas";
 }
 
 function renderJobs(data) {
@@ -250,10 +317,13 @@ function renderJobs(data) {
   state.jobs = data.ranked.concat(data.unranked);
   $("#profile-banner").hidden = data.profile.ready;
   const box = $("#jobs");
+  const first = !state.painted;
+  box.classList.toggle("is-first", first);
   box.replaceChildren();
   box.setAttribute("aria-busy", "false");
   const tpl = $("#card-tpl");
-  const rings = [];
+  const rulers = [];
+  let index = 0;
   for (const j of data.ranked) {
     const card = tpl.content.firstElementChild.cloneNode(true);
     $(".title", card).textContent = j.title;
@@ -265,8 +335,18 @@ function renderJobs(data) {
     const hasScore = typeof j.rank_score === "number";
     $(".score-num", score).textContent = hasScore ? String(j.rank_score) : "—";
     score.setAttribute("aria-label", hasScore ? `Encaje: ${j.rank_score} de 100` : "Sin puntaje");
-    score.classList.add(!hasScore ? "is-empty" : j.rank_score >= 75 ? "high" : j.rank_score >= 60 ? "mid" : "low");
-    if (hasScore) rings.push([score, Math.max(0, Math.min(100, j.rank_score))]);
+    score.classList.add(!hasScore ? "is-empty" : j.rank_score >= WORTH_SCORE ? "high" : j.rank_score >= 60 ? "mid" : "low");
+    $(".score-label", score).textContent = j.rank_verdict ? verdictLabel(j.rank_verdict) : "de 100 en encaje";
+    const delay = first ? 380 + index * 70 : 0;
+    card.style.setProperty("--i", String(index));
+    const pct = hasScore ? Math.max(0, Math.min(100, j.rank_score)) : 0;
+    if (hasScore && first && index < 8) {
+      rulers.push([$(".ruler", score), pct]);
+      countUp($(".score-num", score), j.rank_score, String, { delay: delay + 150, duration: 900 });
+    } else {
+      $(".ruler", score).style.setProperty("--s", `${pct}%`);
+    }
+    index += 1;
     const meta = $(".meta", card);
     if (j.age_days !== null && j.age_days <= data.profile.freshnessDays) meta.append(el("span", { class: "chip new", text: "Nueva" }));
     meta.append(
@@ -274,14 +354,16 @@ function renderJobs(data) {
       el("span", { class: "chip", text: ageLabel(j.age_days) }),
       el("span", { class: "chip", text: j.portal ? portalLabel(j.portal) : "portal desconocido" }),
     );
-    if (j.rank_verdict) meta.append(el("span", { class: "chip verdict", text: verdictLabel(j.rank_verdict) }));
     if (j.role_family) meta.append(el("span", { class: "chip family", text: j.role_family }));
     if (j.spoken_english) meta.append(el("span", { class: "chip warn", text: "Inglés hablado", title: j.language_note || "" }));
     const salary = $(".salary", card);
-    salary.textContent = salaryLabel(j);
+    const pay = salaryParts(j);
+    $(".pay-sub", salary).textContent = pay.sub;
+    if (pay.value !== null && first && index <= 8) countUp($(".pay-main", salary), pay.value, (v) => mxn.format(v), { delay: delay + 250, duration: 900 });
+    else $(".pay-main", salary).textContent = pay.main;
     salary.classList.toggle("unknown", j.salary_mxn_month === null);
-    fillList($(".reasons", card), j.fit_reasons.length ? j.fit_reasons : j.strengths, "Sin detalle; vuelve a calificar con Buscar ahora.", "check");
-    fillList($(".gaps", card), j.gaps, "Nada importante.", "gap");
+    fillList($(".reasons", card), j.fit_reasons.length ? j.fit_reasons : j.strengths, "Sin detalle; vuelve a calificar con Buscar ahora.");
+    fillList($(".gaps", card), j.gaps, "Nada importante.");
     const link = $(".link", card);
     if (j.url) link.href = j.url;
     else link.remove();
@@ -307,10 +389,12 @@ function renderJobs(data) {
   const rankBtn = $("#rank-btn");
   rankBtn.hidden = pending === 0;
   $("span", rankBtn).textContent = `Calificar pendientes (${pending})`;
-  // Fill the rings after paint so the conic gradient sweeps in from zero.
+  // Draw the graduated rulers after paint so they sweep in from zero (first load only).
   requestAnimationFrame(() => requestAnimationFrame(() => {
-    for (const [ring, value] of rings) ring.style.setProperty("--score", String(value));
+    for (const [ruler, value] of rulers) ruler.style.setProperty("--s", `${value}%`);
   }));
+  renderLead(data);
+  state.painted = true;
   const f = data.filters;
   $("#jobs-summary").textContent = data.ranked.length
     ? `${data.ranked.length} ${data.ranked.length === 1 ? "vacante cumple" : "vacantes cumplen"} tus filtros (máx. ${f.maxDays} días, desde ${mxn.format(f.minSalaryMxn)} al mes), ordenadas por prioridad.`
@@ -620,7 +704,7 @@ async function refreshTracking() {
 // ---------- market ----------
 const MK = {
   data: null, tipIndex: new Map(), resizeTimer: 0,
-  ROW_H: 56, LANE_PAD: 26, DOT_R: 6, TOP: 46, AXIS_H: 30, PAD_X: 14,
+  ROW_H: 68, LANE_PAD: 26, DOT_R: 6, TOP: 46, AXIS_H: 30, PAD_X: 14,
 };
 const moneyFull = (n) => `$${Math.round(n).toLocaleString("en-US")}`;
 const moneyShort = (n) => (n >= 1000 ? `$${+(n / 1000).toFixed(1)}k` : `$${n}`);
@@ -817,6 +901,8 @@ function renderMarketChart(data) {
     svg.append(lg);
   }
 
+  if (!MK.drawn) svg.classList.add("draw");
+  MK.drawn = true;
   host.replaceChildren(svg, tip);
   host.removeAttribute("aria-busy");
 
@@ -1010,7 +1096,7 @@ function renderSkillsChart(data) {
     });
     g.append(svgEl("rect", { x: 0, y: b.top, width: W, height: b.h - 2, class: isCombo ? "sk-combo-bg" : "mk-hit", rx: isCombo ? 8 : 0 }));
     g.append(svgEl("text", { x: L, y: b.top + 15, class: isCombo ? "sk-combo-label" : "mk-label" },
-      isCombo ? `★ ${b.row.label}: Python + fintech, OCR, LLM, RAG, Rust o Kubernetes` : b.row.label));
+      isCombo ? (W < 560 ? b.row.label : `${b.row.label}: Python + fintech, OCR, LLM, RAG, Rust o Kubernetes`) : b.row.label));
     g.append(svgEl("text", { x: W - R, y: b.top + 15, class: "sk-note", "text-anchor": "end" }, `${b.row.relevant} vacante${b.row.relevant === 1 ? "" : "s"}`));
     let ly = b.top + SK.HEAD_H;
     if (!b.groups.length) {
@@ -1046,6 +1132,8 @@ function renderSkillsChart(data) {
     svg.append(svgEl("line", { x1: L, x2: W - R, y1: b.top + b.h - 1, y2: b.top + b.h - 1, class: "sk-sep" }));
   }
 
+  if (!SK.drawn) svg.classList.add("draw");
+  SK.drawn = true;
   host.replaceChildren(svg, tip);
   host.removeAttribute("aria-busy");
   const show = (target) => {
@@ -1131,7 +1219,10 @@ async function startMarketRefresh() {
 async function boot() {
   for (const tab of document.querySelectorAll(".tab")) {
     tab.addEventListener("click", () => {
-      for (const t of document.querySelectorAll(".tab")) t.classList.toggle("active", t === tab);
+      for (const t of document.querySelectorAll(".tab")) {
+        t.classList.toggle("active", t === tab);
+        t.setAttribute("aria-selected", String(t === tab));
+      }
       $("#tab-jobs").hidden = tab.dataset.tab !== "jobs";
       $("#tab-tracking").hidden = tab.dataset.tab !== "tracking";
       $("#tab-market").hidden = tab.dataset.tab !== "market";

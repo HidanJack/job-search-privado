@@ -4,7 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>Mi búsqueda de empleo</title>
+  <meta name="theme-color" content="#090e0c" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f0eee9" media="(prefers-color-scheme: light)">
+  <title>Libro de vacantes</title>
+  <link rel="preload" href="/fonts/cormorant-garamond-latin-300-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/dm-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/styles.css">
   <script src="/app.js" defer></script>
 </head>
@@ -24,17 +28,11 @@
 
   <header class="top">
     <div class="top-inner">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true"><svg><use href="#i-spark"/></svg></span>
-        <div class="brand-text">
-          <h1>Mi búsqueda</h1>
-          <p class="brand-sub">Vacantes que encajan contigo</p>
-        </div>
-      </div>
+      <p class="mark"><i aria-hidden="true"></i><span class="mark-name">Libro de vacantes</span> <span class="mark-sub">de Luis</span></p>
       <nav class="tabs" role="tablist" aria-label="Secciones">
-        <button type="button" class="tab active" data-tab="jobs" role="tab">Vacantes</button>
-        <button type="button" class="tab" data-tab="tracking" role="tab">Seguimiento</button>
-        <button type="button" class="tab" data-tab="market" role="tab">Mercado</button>
+        <button type="button" class="tab active" data-tab="jobs" role="tab" aria-selected="true">Vacantes</button>
+        <button type="button" class="tab" data-tab="tracking" role="tab" aria-selected="false">Seguimiento</button>
+        <button type="button" class="tab" data-tab="market" role="tab" aria-selected="false">Mercado</button>
       </nav>
       <div class="top-actions">
         <button type="button" id="theme-btn" class="icon-btn" aria-label="Cambiar a modo oscuro" title="Cambiar tema">
@@ -48,6 +46,14 @@
       </div>
     </div>
   </header>
+  <div id="ticker" class="ticker" role="status" hidden>
+    <span id="tick-dot" class="tick-dot" aria-hidden="true"></span>
+    <span id="tick-daily" class="tick-item"></span>
+    <span id="tick-date" class="tick-item"></span>
+    <span id="tick-new" class="tick-item"></span>
+    <span id="tick-best" class="tick-item"></span>
+  </div>
+
 
   <main>
     <p id="profile-banner" class="banner" hidden>
@@ -66,6 +72,13 @@
     </section>
 
     <section id="tab-jobs">
+      <section id="lead" class="lead" aria-live="polite">
+        <h1 class="lead-title"><span id="lead-a" class="lead-line"></span><em id="lead-b" class="lead-line"></em></h1>
+        <div class="lead-side">
+          <p id="lead-note" class="lead-note"></p>
+          <p id="lead-fig" class="lead-fig" hidden><span id="lead-fig-num" class="lead-fig-num"></span><span class="lead-fig-label">al mes: el mejor sueldo entre las que valen tu tiempo</span></p>
+        </div>
+      </section>
       <section id="daily" class="daily" aria-labelledby="daily-title" hidden>
         <div class="daily-text">
           <h2 id="daily-title" class="daily-title">Búsqueda diaria automática</h2>
@@ -125,7 +138,7 @@
     </section>
 
     <section id="tab-tracking" hidden>
-      <h2 class="page-title">Mis aplicaciones</h2>
+      <h1 class="page-title">Mis aplicaciones<em>y quién ha respondido</em></h1>
       <div id="pipeline" class="pipeline"></div>
       <div class="grid-2">
         <div class="panel">
@@ -144,7 +157,7 @@
       </div>
     </section>
     <section id="tab-market" hidden>
-      <h2 class="page-title">Dónde estás frente al mercado</h2>
+      <h1 class="page-title">Dónde estás<em>frente al mercado</em></h1>
       <section id="skills-section" class="panel market-panel sk-panel" aria-labelledby="skills-title">
         <div class="sk-head">
           <div>
@@ -158,10 +171,16 @@
           <p class="muted">Pulsa «Actualizar datos de mercado»: consulta los portales (GetOnBoard, Jobicy y Himalayas), tarda unos minutos y no usa Claude.</p>
         </div>
         <div id="skills-body" hidden>
-          <ul id="skills-sentences" class="mk-readings sk-sentences" aria-label="Lo más importante"></ul>
-          <ul id="skills-legend" class="mk-legend" aria-label="Leyenda"></ul>
-          <div id="skills-chart" class="mk-chart" aria-busy="true"></div>
-          <p class="muted small-note">Sueldos brutos en MXN por mes, misma escala logarítmica de abajo. La barra va del percentil 25 al 75 y la marca negra es la mediana; <code>n</code> es el número de vacantes con sueldo publicado. Con menos de 8 vacantes no se calculan percentiles.</p>
+          <div class="mk-layout">
+            <div class="mk-main">
+              <ul id="skills-legend" class="mk-legend" aria-label="Leyenda"></ul>
+              <div id="skills-chart" class="mk-chart" aria-busy="true"></div>
+              <p class="muted small-note">Sueldos brutos en MXN por mes, misma escala logarítmica de abajo. La barra va del percentil 25 al 75 y la marca negra es la mediana; <code>n</code> es el número de vacantes con sueldo publicado. Con menos de 8 vacantes no se calculan percentiles.</p>
+            </div>
+            <aside class="mk-aside" aria-label="Lo más importante">
+              <ul id="skills-sentences" class="mk-readings sk-sentences"></ul>
+            </aside>
+          </div>
           <details class="mk-table">
             <summary>Ver los datos en tabla</summary>
             <div class="table-wrap"><table class="table" id="skills-table"></table></div>
@@ -183,13 +202,17 @@
       <p id="market-notice" class="banner" hidden>Llena tu sueldo actual y tu objetivo para ver tus líneas en el gráfico. Se guardan solo en esta computadora.</p>
       <div class="panel market-panel">
         <h3 id="market-title">Sueldos de referencia y tus vacantes</h3>
-        <ul id="market-legend" class="mk-legend" aria-label="Leyenda"></ul>
-        <div id="market-chart" class="mk-chart" aria-busy="true"></div>
-        <p class="muted small-note">Sueldos brutos en MXN por mes, escala logarítmica: cada marca vale aproximadamente el doble de la anterior, así los rangos bajos y los sueldos remotos altos caben en el mismo eje.</p>
-      </div>
-      <div class="panel market-panel">
-        <h3>Lectura rápida</h3>
-        <ul id="market-readings" class="mk-readings"></ul>
+        <div class="mk-layout">
+          <div class="mk-main">
+            <ul id="market-legend" class="mk-legend" aria-label="Leyenda"></ul>
+            <div id="market-chart" class="mk-chart" aria-busy="true"></div>
+            <p class="muted small-note">Sueldos brutos en MXN por mes, escala logarítmica: cada marca vale aproximadamente el doble de la anterior, así los rangos bajos y los sueldos remotos altos caben en el mismo eje.</p>
+          </div>
+          <aside class="mk-aside" aria-labelledby="readings-title">
+            <h3 id="readings-title" class="aside-title">Lectura rápida</h3>
+            <ul id="market-readings" class="mk-readings"></ul>
+          </aside>
+        </div>
       </div>
       <details class="panel market-panel mk-table">
         <summary>Ver los datos en tabla</summary>
@@ -212,30 +235,34 @@
 
   <template id="card-tpl">
     <article class="card">
-      <div class="card-head">
-        <div class="score" role="img"><span class="score-num"></span></div>
-        <div class="card-title">
-          <h3 class="title"></h3>
-          <p class="company-line"><span class="company"></span><span class="location"><svg aria-hidden="true"><use href="#i-pin"/></svg><span class="location-text"></span></span></p>
+      <div class="score" role="img">
+        <span class="score-num"></span>
+        <span class="ruler" aria-hidden="true"><i class="ruler-fill"></i><b class="ruler-mark"></b></span>
+        <span class="score-label"></span>
+      </div>
+      <div class="card-main">
+        <h3 class="title"></h3>
+        <p class="company-line"><span class="company"></span><span class="location"><svg aria-hidden="true"><use href="#i-pin"/></svg><span class="location-text"></span></span></p>
+        <p class="meta"></p>
+        <div class="insights">
+          <div class="why">
+            <h4>Por qué encajas</h4>
+            <ul class="reasons"></ul>
+          </div>
+          <div class="gaps-box">
+            <h4>Qué te falta</h4>
+            <ul class="gaps"></ul>
+          </div>
         </div>
       </div>
-      <p class="meta"></p>
-      <p class="salary"></p>
-      <div class="insights">
-        <div class="why">
-          <h4>Por qué encajas</h4>
-          <ul class="reasons"></ul>
+      <div class="card-side">
+        <p class="salary"><span class="pay-main"></span><span class="pay-sub"></span></p>
+        <div class="actions">
+          <button type="button" class="primary apply-btn">Postular</button>
+          <button type="button" class="secondary review-btn" hidden><svg class="btn-icon" aria-hidden="true"><use href="#i-doc"/></svg><span>Revisar documentos</span></button>
+          <a class="link" target="_blank" rel="noopener noreferrer"><span>Ver vacante</span><svg class="btn-icon" aria-hidden="true"><use href="#i-external"/></svg></a>
+          <button type="button" class="ghost skip-btn">Descartar</button>
         </div>
-        <div class="gaps-box">
-          <h4>Qué te falta</h4>
-          <ul class="gaps"></ul>
-        </div>
-      </div>
-      <div class="actions">
-        <button type="button" class="primary apply-btn">Postular</button>
-        <button type="button" class="secondary review-btn" hidden><svg class="btn-icon" aria-hidden="true"><use href="#i-doc"/></svg><span>Revisar documentos</span></button>
-        <a class="link" target="_blank" rel="noopener noreferrer"><span>Ver vacante</span><svg class="btn-icon" aria-hidden="true"><use href="#i-external"/></svg></a>
-        <button type="button" class="ghost skip-btn">Descartar</button>
       </div>
     </article>
   </template>
