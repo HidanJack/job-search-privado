@@ -14,7 +14,7 @@
   --bg2: #e7e4dd;
   --ink: #16150f;
   --dim: #55544a;
-  --faint: #6b6a5e;
+  --faint: #5f5e53;
   --line: rgba(22, 21, 15, .16);
   --line2: rgba(22, 21, 15, .34);
   --brass: #7d5c0d;
@@ -213,7 +213,7 @@ button.danger:hover { color: var(--gap); }
 .ticker {
   max-width: 1160px; margin: 0 auto; padding: 0 40px;
   display: flex; flex-wrap: wrap; align-items: center; gap: 0 22px;
-  font-size: 12.5px; color: var(--faint); min-height: 38px;
+  font-size: 12.5px; color: var(--dim); min-height: 38px;
   border-bottom: 1px solid var(--line);
   animation: fade .6s ease both;
 }
@@ -249,9 +249,9 @@ main { max-width: 1160px; margin: 0 auto; padding: 0 40px 96px; }
 .lead-line { display: block; }
 em.lead-line { font-style: italic; color: var(--brass); margin-top: .06em; }
 .lead:not(.ready) .lead-line { opacity: 0; }
-.lead.ready .lead-line { animation: rise .8s var(--ease-out) both; }
-.lead.ready em.lead-line { animation-delay: .12s; }
-@keyframes rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+.lead.ready .lead-line { animation: rise .5s var(--ease-out) both; }
+.lead.ready em.lead-line { animation-delay: .06s; }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 .lead-side { display: grid; gap: 26px; }
 .lead-note { color: var(--dim); max-width: 36ch; }
 .lead-fig { display: grid; gap: 4px; border-top: 1px solid var(--line2); padding-top: 14px; }
@@ -415,7 +415,27 @@ em.lead-line { font-style: italic; color: var(--brass); margin-top: .06em; }
 .empty { padding: 72px 0 64px; display: grid; gap: 16px; justify-items: start; border-bottom: 1px solid var(--line); }
 .empty h3 { font-weight: 300; font-style: italic; font-size: clamp(34px, 4.6vw, 54px); line-height: 1.05; letter-spacing: -.015em; color: var(--brass); max-width: 20ch; }
 .empty p { color: var(--dim); max-width: 52ch; }
-.empty-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; }
+.steps { list-style: none; padding: 0; margin: 20px 0 0; width: 100%; max-width: 760px; border-top: 1px solid var(--line2); }
+.step { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 0 20px; align-items: baseline; padding: 22px 0; border-bottom: 1px solid var(--line); transition: border-color .2s; }
+.step-num { font: 300 28px/1 var(--serif); color: var(--dim); font-variant-numeric: lining-nums; font-feature-settings: "lnum" 1; }
+.step-body h4 { font: 400 24px/1.2 var(--serif); letter-spacing: -.01em; color: var(--ink); }
+.step-body p { margin-top: 4px; font-size: 14px; color: var(--dim); max-width: 46ch; }
+.step-action { border: 0; border-radius: 0; padding: 4px 0; background: none; color: var(--ink); font-size: 14px; font-weight: 500; white-space: nowrap; display: inline-flex; gap: 8px; align-items: baseline; background-image: linear-gradient(currentColor, currentColor); background-size: 0 1px; background-position: 0 100%; background-repeat: no-repeat; transition: background-size .22s var(--ease-out), color .15s; }
+.step-action .arrow { display: inline-block; transition: transform .22s var(--ease-out); }
+.step.is-primary { border-bottom-color: var(--brass); }
+.step.is-primary .step-num, .step.is-primary .step-action { color: var(--brass); background-size: 100% 1px; }
+@media (hover: hover) and (pointer: fine) {
+  .step:hover { border-bottom-color: var(--line2); }
+  .step.is-primary:hover { border-bottom-color: var(--brass); }
+  .step-action:not(:disabled):hover { background-size: 100% 1px; }
+  .step-action:not(:disabled):hover .arrow { transform: translateX(4px); }
+}
+.step-action:focus-visible { outline: 2px solid var(--brass); outline-offset: 4px; }
+@media (max-width: 640px) {
+  .step { grid-template-columns: 36px minmax(0, 1fr); gap: 0 14px; }
+  .step-action { grid-column: 2; justify-self: start; margin-top: 12px; }
+  .step-body h4 { font-size: 21px; }
+}
 
 /* ---------- unranked ---------- */
 .unranked { margin-top: 40px; border-top: 1px solid var(--line2); }
@@ -683,4 +703,5 @@ textarea:focus { outline: 0; border-color: var(--brass); }
   *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
   .lead:not(.ready) .lead-line { opacity: 1; }
   .card:hover .card-main { transform: none; }
+  .step-action:hover .arrow { transform: none !important; }
 }

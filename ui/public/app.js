@@ -255,21 +255,26 @@ function salaryParts(j) {
 }
 
 function emptyState(pending) {
-  const searchBtn = el("button", { type: "button", class: pending ? "secondary" : "primary" }, icon("search"), el("span", { text: "Buscar ahora" }));
-  searchBtn.addEventListener("click", startSearch);
-  const actions = el("div", { class: "empty-actions" });
+  const steps = [];
   if (pending) {
-    const rankBtn = el("button", { type: "button", class: "primary" }, icon("spark"), el("span", { text: `Calificar pendientes (${pending})` }));
-    rankBtn.addEventListener("click", startRank);
-    actions.append(rankBtn);
+    steps.push({ title: "Calificar pendientes", note: `${pending} ${pending === 1 ? "vacante espera" : "vacantes esperan"} su puntaje, el porqué de tu encaje, el sueldo y la modalidad. Tarda unos minutos.`, action: `Calificar (${pending})`, run: startRank, primary: true });
+    steps.push({ title: "Buscar vacantes nuevas", note: "Rastrea los portales de nuevo. Tarda unos minutos.", action: "Buscar ahora", run: startSearch });
+  } else {
+    steps.push({ title: "Buscar vacantes nuevas", note: "Rastrea los portales de nuevo. Tarda unos minutos.", action: "Buscar ahora", run: startSearch, primary: true });
   }
-  actions.append(searchBtn);
+  const list = el("ol", { class: "steps" });
+  steps.forEach((s, i) => {
+    const btn = el("button", { type: "button", class: "step-action" }, el("span", { text: s.action }), el("span", { class: "arrow", "aria-hidden": "true", text: "→" }));
+    btn.addEventListener("click", s.run);
+    list.append(el("li", { class: `step${s.primary ? " is-primary" : ""}` },
+      el("span", { class: "step-num", "aria-hidden": "true", text: String(i + 1).padStart(2, "0") }),
+      el("div", { class: "step-body" }, el("h4", { text: s.title }), el("p", { text: s.note })),
+      btn));
+  });
   return el("div", { class: "empty" },
     el("h3", { text: pending ? `Tienes ${pending} ${pending === 1 ? "vacante" : "vacantes"} sin calificar` : "Nada por aquí con estos filtros" }),
-    el("p", { text: pending
-      ? "Califícalas para ver su puntaje, por qué encajas, el sueldo y la modalidad. Tarda unos minutos."
-      : "Prueba subir los días de publicación o bajar el sueldo mínimo. Si ya los ajustaste, busca vacantes nuevas: tarda unos minutos." }),
-    actions);
+    pending ? null : el("p", { text: "Prueba bajar el sueldo mínimo, subir los días de publicación o desmarcar «Ocultar vacantes en inglés»." }),
+    list);
 }
 
 // Headline, note and big figure above the list: what today's list is worth.
@@ -441,7 +446,7 @@ function setRunButtons(disabled) {
   $("#search-btn").disabled = disabled;
   $("#rank-btn").disabled = disabled;
   $("#skills-refresh").disabled = disabled;
-  for (const b of document.querySelectorAll(".apply-btn, .empty-actions button")) b.disabled = disabled;
+  for (const b of document.querySelectorAll(".apply-btn, .steps button")) b.disabled = disabled;
 }
 function followRun(id, onEnd) {
   const log = $("#run-log");
