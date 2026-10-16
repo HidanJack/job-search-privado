@@ -75,8 +75,11 @@ STALE_PENALTY = 5
 
 MODALITIES = ("remote", "hybrid", "onsite", "unknown")
 POSTING_LANGUAGES = ("es", "en", "mixed")
-ENGLISH_POSTING_NOTE = "posting written in English: spoken English likely required"
-SPOKEN_ENGLISH_GAP = "spoken English: posting is written in English, so spoken English is likely required"
+ENGLISH_POSTING_NOTE = "La vacante está escrita en inglés: probablemente se requiere inglés hablado."
+SPOKEN_ENGLISH_GAP = "Inglés hablado"
+# Gap wording from earlier runs (English) and the current Spanish one. Matching
+# both keeps an existing entry from getting a second spoken-English gap.
+SPOKEN_ENGLISH_GAP_MARKERS = ("spoken english", "inglés hablado")
 SALARY_PERIODS = {
     "hour": 40 * 52 / 12,
     "day": 5 * 52 / 12,
@@ -445,7 +448,7 @@ def cmd_apply(args) -> int:
             if isinstance(value, list):
                 entry[field] = [str(b) for b in value][:3]
         if entry.get("posting_language") == "en" and not any(
-            "spoken english" in str(g).lower() for g in entry.get("gaps", [])
+            marker in str(g).lower() for g in entry.get("gaps", []) for marker in SPOKEN_ENGLISH_GAP_MARKERS
         ):
             entry["gaps"] = ([SPOKEN_ENGLISH_GAP] + list(entry.get("gaps", [])))[:3]
         # Same verbatim, replace-never-accumulate rule as strengths/gaps.

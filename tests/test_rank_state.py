@@ -700,8 +700,9 @@ class PostingLanguage(RankStateCase):
         stored, _ = self.apply(posting_language="EN", language_gate="PASS", gaps=["g"])
         self.assertEqual(stored["posting_language"], "en")
         self.assertEqual(stored["language_gate"], "FLAG")
-        self.assertEqual(stored["language_note"], "posting written in English: spoken English likely required")
-        self.assertTrue(any("spoken English" in g for g in stored["gaps"]))
+        self.assertEqual(stored["language_note"], "La vacante está escrita en inglés: probablemente se requiere inglés hablado.")
+        self.assertIn("Inglés hablado", stored["gaps"])
+        self.assertEqual(sum("inglés hablado" in g.lower() for g in stored["gaps"]), 1)
 
     def test_english_posting_keeps_agent_note_and_gap_and_caps_gaps_at_three(self):
         stored, _ = self.apply(
@@ -712,7 +713,8 @@ class PostingLanguage(RankStateCase):
         self.assertEqual(stored["gaps"], ["spoken English: asked", "b", "c"])
         stored, _ = self.apply(posting_language="en", gaps=["a", "b", "c"])
         self.assertEqual(len(stored["gaps"]), 3)
-        self.assertIn("spoken English", stored["gaps"][0])
+        self.assertIn("Inglés hablado", stored["gaps"][0])
+        self.assertEqual(len(stored["gaps"]), 3)
 
     def test_english_posting_never_softens_a_fail(self):
         stored, _ = self.apply(posting_language="en", language_gate="FAIL", language_note="Polish")
