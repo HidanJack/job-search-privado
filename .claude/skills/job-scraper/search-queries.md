@@ -108,15 +108,18 @@ himalayas-search search -q "implementation specialist fintech" --latam
 Indeed Mexico cannot be scraped (its robots.txt blocks it), but the account has the
 official Indeed connector: `mcp__claude_ai_Indeed__search_jobs` (params `search`,
 `location`, `country_code`, optional `job_type`). Always use `country_code: "MX"`.
-Run each query twice: `location: "Ciudad de México"` and `location: "remote"`
-(Indeed answers remote with "Desde casa"). Queries are in Spanish because Indeed MX
+Run each query three times: `location: "Ciudad de México"`, `location: "México"`
+(nationwide postings, often Home Office, that neither of the others returns) and
+`location: "remote"` (Indeed answers remote with "Desde casa"). The connector returns
+at most 10 results per call ordered by relevance, not date, so coverage comes from
+many specific queries, not from paging. Queries are in Spanish because Indeed MX
 postings are mostly Spanish. `/job-scraper` Step 1d describes how to run and store them.
 
 | Role family | `search` values |
 |---|---|
 | Python backend | `desarrollador python`, `desarrollador backend python`, `programador python` |
 | Data engineer | `ingeniero de datos`, `data engineer python`, `ETL python` |
-| AI engineer | `ingeniero de inteligencia artificial`, `AI engineer python`, `desarrollador python IA` |
+| AI engineer | `ingeniero de inteligencia artificial`, `AI engineer`, `AI engineer python`, `applied AI engineer`, `machine learning engineer`, `LLM`, `desarrollador python IA` |
 | Web developer | `desarrollador web`, `desarrollador frontend react` |
 | Automation / RPA with Python | `automatización python`, `desarrollador RPA` |
 | Data analyst / BI | `analista de datos`, `analista BI sql` |
