@@ -146,6 +146,7 @@ After creating or updating a CV or cover letter, re-read the generated file and 
 - [ ] Agentic coding / AI tooling references mention **Claude Code** by name
 - [ ] Cover letter is addressed to the correct person (or "Dear Hiring Manager" if unknown)
 - [ ] Cover letter fits approximately one page
+- [ ] CV summary and bullets use one consistent voice, never mixing person (see `05-cv-templates.md` "One voice")
 - [ ] CV section headings (`\section{...}`) and the References boilerplate line match the CV's language, not left as the English template defaults (see `05-cv-templates.md`)
 
 ### Compiled PDF verification (MANDATORY - never skip)
@@ -163,5 +164,6 @@ ATS parsers read the PDF's embedded text layer, not the rendered page. Extract i
 - [ ] Reading order of the extracted text matches the visual order (single-column stock template is safe; multi-column custom templates are where this breaks)
 - [ ] Posting keywords covered or honestly absent - synonym-only matches tightened to the posting's exact term where truthfully applicable, keywords the profile genuinely supports added to experience bullets, genuine gaps left visible and **never stuffed**
 - [ ] `verify_pdf.py --ats-integrity` passes on the CV (and the letter, if written): no ligature glyphs, no instructions addressed to an AI screener, no hidden text (white, invisible or under 3pt) - see `10-ats-and-screening.md`
+- [ ] `verify_pdf.py --keywords-from cv/main_<company>_<role>.tex` passes: every acronym in the CV (AWS, ETL, SQL...) is wrapped in `\acr{}` and reads intact in the text layer, never "A WS"
 - [ ] Knockout requirements from `/apply` Step 0.5 answered truthfully; no photo, age, marital status, CURP or expected salary in either document
 - [ ] Cover letter (when written) passes `tools/check_cover_letter.py`: 150-250 body words, no banned stock phrasing

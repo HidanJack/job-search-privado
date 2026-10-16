@@ -49,6 +49,14 @@
 \usepackage[scale=0.80]{geometry}
 \usepackage{import}
 \usepackage{needspace}
+% Acronyms: kerning pairs such as A-W or A-V make pypdf-style extractors read
+% "AWS" as "A WS", which an ATS keyword match misses. \acr{AWS} inserts a zero
+% kern between letters so no pair is kerned. Wrap every all-caps term (AWS, ETL,
+% API, SQL...) in the body; tools/verify_pdf.py --keywords-from checks it.
+\makeatletter
+\newcommand*{\acr}[1]{\@acr#1\@nil}
+\def\@acr#1#2\@nil{#1\ifx\relax#2\relax\else\kern0pt\@acr#2\@nil\fi}
+\makeatother
 
 % personal data
 \name{Luis}{Catalán Reyes}
@@ -66,7 +74,7 @@
 % ============================================================
 
 \vspace{6pt}
-\small{Python backend and data engineer with 3+ years of experience building production systems for bank reconciliation and financial document processing: ETL over more than 1 million records, OCR and reverse engineering of obfuscated PDF fonts, and a graph-based matching engine rewritten in Rust (PyO3). Led a multi-tenant Kubernetes migration and found and fixed a cross-tenant authorization vulnerability before production. Uses AI agents (Claude Code) to accelerate implementation while keeping design, code review and testing under his own responsibility.}
+\small{Python backend and data engineer with 3+ years of experience building production systems for bank reconciliation and financial document processing: ETL over more than 1 million records, OCR and reverse engineering of obfuscated PDF fonts, and a graph-based matching engine rewritten in Rust (PyO3). Led a multi-tenant Kubernetes migration and found and fixed a cross-tenant authorization vulnerability before production. Accelerated implementation with AI agents (Claude Code) while keeping design, code review and testing under human ownership.}
 
 % ============================================================
 %     CORE COMPETENCIES
@@ -76,7 +84,7 @@
 \vspace{1pt}
 \begin{itemize}
 
-\item \textbf{Backend \& Data}: Python (advanced), Pandas, Polars, NumPy, FastAPI, Flask, REST microservices, SQL, ETL pipelines configurable via JSON/YAML, Kafka, AWS S3.
+\item \textbf{Backend \& Data}: Python (advanced), Pandas, Polars, NumPy, FastAPI, Flask, REST microservices, SQL, ETL pipelines configurable via JSON/YAML, Kafka, \acr{AWS} S3.
 
 \item \textbf{Document AI \& OCR}: Tesseract, OpenCV, YOLOv10 layout detection, PyMuPDF, docTR, binary parsing of embedded CFF/Type1/Type3 fonts.
 

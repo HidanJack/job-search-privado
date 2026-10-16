@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ageInDays, filterJobs, inferRoleFamily, loadJobs, normalizeJob, parseFilters, skipJob, MODALITIES } from "../lib/jobs";
 import { parseProfile } from "../lib/profile";
-import { APPLY_TOOLS, BASE_TOOLS, INDEED_MCP_TOOLS, SEARCH_TOOLS, buildApplyPrompt, buildArgv, describeStreamLine, parseUiResult } from "../lib/runner";
+import { APPLY_TOOLS, BASE_TOOLS, INDEED_MCP_TOOLS, SEARCH_TOOLS, buildApplyPrompt, buildArgv, describeStreamLine, parseUiResult, resolveModel } from "../lib/runner";
 import { isAllowedHost, isAllowedOrigin, safeResolve, sanitizeFeedback, validateJobUrl } from "../lib/security";
 import { markApplied, parseCsv, readTracker, trackerStats } from "../lib/tracker";
 
@@ -133,6 +133,28 @@ describe("headless runner", () => {
     expect(argv.indexOf("--allowedTools")).toBe(argv.length - APPLY_TOOLS.length - 1);
     expect(APPLY_TOOLS.some((t) => t.startsWith("Bash(curl"))).toBe(false);
     expect(APPLY_TOOLS).not.toContain("Bash");
+  });
+
+  test("every run pins a validated --model, sonnet by default", () => {
+    const argv = buildArgv("claude", "/rank", BASE_TOOLS);
+    expect(argv[argv.indexOf("--model") + 1]).toBe(resolveModel(process.env.JOB_UI_MODEL));
+    expect(buildArgv("claude", "/rank", BASE_TOOLS, "opus")).toContain("opus");
+    expect(argv.indexOf("--model")).toBeLessThan(argv.indexOf("--allowedTools"));
+  });
+
+  test("resolveModel accepts aliases and claude ids, rejects anything that could be a flag", () => {
+    expect(resolveModel(undefined)).toBe("sonnet");
+    expect(resolveModel("")).toBe("sonnet");
+    for (const ok of ["sonnet", "opus", "haiku", "claude-sonnet-4-5", "claude-opus-4-1-20250805", "claude-sonnet-4-5[1m]"]) {
+      expect(resolveModel(ok)).toBe(ok);
+    }
+    for (const bad of ["--dangerously-skip-permissions", "sonnet --x", "claude-x; rm -rf /", "gpt-4", "-p", "claude-", "Sonnet\n--x"]) {
+      expect(resolveModel(bad)).toBe("sonnet");
+    }
+  });
+
+  test("apply may delete its own cover letter build leftovers", () => {
+    expect(APPLY_TOOLS).toContain("Bash(rm -f cover_letters/cover_:*)");
   });
 
   test("search, rank and apply runs may call the Indeed MCP tools", () => {

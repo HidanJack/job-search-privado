@@ -15,6 +15,11 @@ layer for a year joined to a Unicode dash - the en-dash LaTeX makes from `--`, w
 a Workday import dropped along with the date (`05-cv-templates.md`, "Date fields
 must be ASCII ranges") - and fails naming each hit with its code point.
 
+`--keywords-from <tex>` takes the acronyms (AWS, ETL, SQL...) written in the .tex body
+and fails when one reaches the text layer split by spaces ("A WS"). Kerning pairs such
+as A-W or A-V make pypdf-style extractors insert a space, so a keyword matcher misses
+the term; wrap the acronym in `\\acr{AWS}` (see `05-cv-templates.md`).
+
 `--ats-integrity` runs the checks from `10-ats-and-screening.md` that guard the
 text layer itself: ligature code points (U+FB00-FB06, which turn "workflow" into a
 token no keyword matcher finds), prompt-injection phrasing aimed at AI screeners,
@@ -164,6 +169,38 @@ _INJECTION = re.compile("|".join(f"(?:{p})" for p in INJECTION_PATTERNS), re.IGN
 def find_injection_phrases(text):
     """Return every phrase in the folded text that reads as an instruction to an AI."""
     return [m.group(0) for m in _INJECTION.finditer(normalize_text(text))]
+
+
+_TEX_COMMENT = re.compile(r"(?<!\\)%.*")
+_ACR_WRAPPER = re.compile(r"\\acr\s*\{([^{}]*)\}")
+_ACRONYM = re.compile(r"(?<![\\A-Za-z0-9])[A-Z]{2,}[A-Z0-9]*(?![A-Za-z0-9])")
+
+
+def tex_acronyms(tex):
+    """Return the all-caps tokens (2+ letters) of the .tex document body, in order."""
+    tex = _TEX_COMMENT.sub("", tex)
+    body = tex.split("\\begin{document}", 1)[-1]
+    body = _ACR_WRAPPER.sub(r"\1", body)
+    seen = []
+    for token in _ACRONYM.findall(body):
+        if token not in seen:
+            seen.append(token)
+    return seen
+
+
+def find_split_acronyms(tex, text):
+    """Return (acronym, snippet) for every acronym of `tex` found split by spaces in `text`."""
+    hits = []
+    for token in tex_acronyms(tex):
+        pattern = re.compile(
+            r"(?<![A-Za-z0-9])" + "[ ]?".join(re.escape(c) for c in token) + r"(?![A-Za-z0-9])"
+        )
+        for match in pattern.finditer(text):
+            if " " in match.group(0):
+                start = max(0, match.start() - 20)
+                hits.append((token, " ".join(text[start : match.end() + 20].split())))
+                break
+    return hits
 
 
 MIN_VISIBLE_PT = 3.0
@@ -316,6 +353,7 @@ def verify_pdf(
     dump_text=None,
     ascii_dates=False,
     ats_integrity=False,
+    keywords_from=None,
 ):
     pdf_path = Path(pdf_path)
     if not pdf_path.is_file():
@@ -364,6 +402,20 @@ def verify_pdf(
                 f"ranges on U+002D drops the date; write the date argument with a single "
                 f"ASCII hyphen (05-cv-templates.md, 'Date fields must be ASCII ranges'): "
                 f"{listed} (extractor: {extractor})"
+            )
+
+    if keywords_from is not None:
+        try:
+            tex = Path(keywords_from).read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            raise VerificationError(f"could not read --keywords-from {keywords_from}: {exc}") from exc
+        split = find_split_acronyms(tex, extracted_text)
+        if split:
+            listed = "; ".join(f"{tok} -> {snip!r}" for tok, snip in split[:10])
+            raise VerificationError(
+                f"{len(split)} acronym(s) split by spaces in the text layer (kerning), so an ATS "
+                f"keyword match misses them - wrap each in \\acr{{...}} in the .tex "
+                f"(05-cv-templates.md): {listed} (extractor: {extractor})"
             )
 
     if ats_integrity:
@@ -423,6 +475,15 @@ def build_parser():
             "AI screener, or invisible text (white fill, render mode 3, under 3pt)"
         ),
     )
+    parser.add_argument(
+        "--keywords-from",
+        type=Path,
+        metavar="TEX",
+        help=(
+            "fail if an all-caps acronym written in this .tex (AWS, ETL, SQL...) reaches "
+            "the text layer split by spaces (e.g. 'A WS' from kerning)"
+        ),
+    )
     return parser
 
 
@@ -451,6 +512,7 @@ def main(argv=None):
             dump_text=args.dump_text,
             ascii_dates=args.ascii_dates,
             ats_integrity=args.ats_integrity,
+            keywords_from=args.keywords_from,
         )
     except VerificationError as exc:
         print(f"Error: {args.pdf}: {exc}", file=sys.stderr)

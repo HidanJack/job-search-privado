@@ -1,5 +1,5 @@
 ---
-framework_version: 1.5.0
+framework_version: 1.6.0
 ---
 
 # CV Templates and Tailoring Guide
@@ -165,6 +165,14 @@ When the role sits outside your home domain, **lead with the domain-transfer arg
 
 Statements labeled *[Used for: <company>_<role>]* were extracted from archived application drafts by `/setup` Path A. They are **phrasing references, never fact sources**: when drafting from one, every factual claim still comes from `01-candidate-profile.md` - a past tailored draft does not vouch for its own accuracy.
 
+### One voice across the summary and the bullets (important)
+
+Use a single grammatical voice in the whole CV. A real run mixed third person in the summary ("Diseña la arquitectura...") with first person in the bullets ("Construí..."), which reads as copy-pasted from two documents.
+
+- **Spanish CV:** implicit first person with past-tense verbs everywhere, summary included: "Construí", "Diseñé", "Reescribí". Never "Diseña", "Es responsable de" or an explicit "Yo".
+- **English CV:** action verbs with no pronoun: "Built", "Led", "Rewrote". Never "He builds" or "I built".
+- Phrasing references in this file written in third person ("Uses AI agents...") are patterns to adapt: convert the verbs to the CV's voice when drafting.
+
 ### Core Competencies / Skills Section (Best Practice)
 Reorder and emphasize based on the role. Use bold category labels.
 
@@ -306,6 +314,18 @@ What to check in the extraction:
 - **Reading order.** The stock banking style is single-column, so extraction order matches visual order. Custom templates (via `/add-template`) with sidebars or multi-column layouts can interleave unrelated lines; if extraction order is scrambled, the user is trading ATS compatibility for looks and should be told.
 - **Keyword coverage.** Match the posting's required/preferred terms against the extracted text, in the posting's language. Prefer the posting's exact term over a synonym when it is truthfully applicable - ATS matching is often literal. Never add a keyword the profile does not support. `verify_pdf.py --contains` folds both sides for whitespace, Unicode normalization (NFC) and LaTeX's typographic substitutions before comparing - `'` reaches the text layer as U+2019 and `--` as U+2013, so `--contains "Master's degree"` and `--contains "2016-2024"` match what the template actually renders. The dumped `.txt` is never folded: it is the raw layer the ATS sees, which is why the date-range check below reads the dump, not `--contains`.
 - **Accents intact (pdflatex fallback).** Under pdflatex without T1 font encoding the text layer stores accented letters decomposed (`e` + combining grave instead of `è`); pypdf reads that as `Gen` `eve` with a stray spacing accent, and neither form matches a typed keyword. The stock template guards this with `\ifpdftex\usepackage[T1]{fontenc}\fi`; keep the line in tailored CVs and custom templates that may be compiled with pdflatex. It is a no-op under lualatex.
+
+### Acronyms must extract whole: wrap them in `\acr{}` (confirmed ATS failure)
+
+A kerned letter pair (A-W, A-V, W-A, Y-A...) is drawn with a negative adjustment between the glyphs. pypdf-style extractors read a large enough adjustment as a word break, so `AWS` reaches the text layer as `A WS` (and `AVA` as `A VA`) while Poppler `pdftotext` shows it intact. An ATS that does literal keyword matching then misses the term. Nothing is wrong with fonts or ligatures; it is kerning in the PDF's `TJ` arrays, and `microtype`, `\textsc` or letterspacing are not involved.
+
+The stock template defines `\acr{...}`, which inserts a zero kern between letters so TeX never kerns the pair (works under lualatex and pdflatex). Wrap every all-caps term in the CV body, in any section: `Kafka, \acr{AWS} S3`, `\acr{ETL}`, `\acr{API}`. Copy the three-line definition after `\usepackage{needspace}` in `cv/main_example.tex` into a custom template that lacks it. Then verify:
+
+```bash
+python tools/verify_pdf.py cv/main_<company>_<role>.pdf --keywords-from cv/main_<company>_<role>.tex
+```
+
+It reads the acronyms from the `.tex` body and exits 1 when one appears split by spaces in the text layer.
 
 ### Date fields must be ASCII ranges (confirmed ATS import failure)
 

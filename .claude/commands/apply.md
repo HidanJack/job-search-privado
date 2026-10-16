@@ -282,6 +282,17 @@ After all edits are applied, the two files on disk are the final drafts.
 
 **Never skip this step.** The source files looking fine is not sufficient — page-break decisions are unpredictable and commonly produce broken layouts (orphaned job titles separated from their bullets, cover letters spilling to 2 pages, bullet fonts not matching body text). Compile both documents and visually verify the PDFs before presenting.
 
+### Command hygiene (headless runs)
+
+Headless runs (the local UI's "Postular" button) cannot approve a command that is not on the allowlist, so a malformed command is denied and silently lost. Run every Bash command exactly like this:
+
+- **One command per call.** No `;`, `&&` (except the exact compile patterns below), pipes, heredocs (`<<EOF`) or `python3 -`.
+- **Compile** only with the exact allowed patterns: `cd cv && lualatex -interaction=nonstopmode main_<company>_<role>.tex` and `cd cover_letters && xelatex -interaction=nonstopmode cover_<company>_<role>.tex` (or the custom template's declared command), with no `timeout`, `env` or other prefix.
+- **Use `python3`, never `python`**: where a snippet in this file says `python tools/...`, run `python3 tools/...`.
+- **Delete build leftovers only with `rm -f cv/main_<...>` or `rm -f cover_letters/cover_<...>`**: relative paths, no absolute paths, no `{}` brace expansion, no `rm -rf` outside the `build/` case in 5e.
+- **Write files with the Write tool**, never `cat >`, `echo >` or `tee`.
+- **No memory tools** (`mcp__plugin_engram_*`): they are not allowed in headless runs and the denial wastes turns.
+
 ### 5a. Compile
 
 Use `<CV_COMPILE>` and `<COVER_COMPILE>` resolved in Step 2 (the active template's declared compile command, or the stock defaults below if no custom template is active):
@@ -352,10 +363,12 @@ An ATS parser reads the PDF's embedded **text layer**, not the rendered page —
 **1. Extract the text layer:**
 
 ```bash
-python tools/verify_pdf.py cv/main_<company>_<role>.pdf --ascii-dates --ats-integrity --dump-text cv/main_<company>_<role>.txt
+python tools/verify_pdf.py cv/main_<company>_<role>.pdf --ascii-dates --ats-integrity --keywords-from cv/main_<company>_<role>.tex --dump-text cv/main_<company>_<role>.txt
 python tools/verify_pdf.py cover_letters/cover_<company>_<role>.pdf --ats-integrity      # only when a letter was written
 python tools/check_cover_letter.py cover_letters/cover_<company>_<role>.tex              # only when a letter was written
 ```
+
+`--keywords-from` reads the all-caps acronyms written in the CV's `.tex` (AWS, ETL, SQL, API...) and exits 1 when one reaches the text layer split by spaces ("A WS"), which an ATS keyword match misses. Fix it by wrapping each acronym in `\acr{...}` in the `.tex` (the macro is defined in `cv/main_example.tex`; copy the definition if the CV lacks it), then re-run 5a-5c. A custom non-LaTeX template has no `.tex`: skip the flag.
 
 `--ats-integrity` enforces `10-ats-and-screening.md`'s hard rules on the text layer: it exits 1 on ligature glyphs (U+FB00-FB06, which break literal keyword matching), on any instruction addressed to an AI screener (English or Spanish), and on text a reader cannot see (white fill, render mode 3, under 3pt). A hit is never waived: remove the content, or for ligatures disable them in the template, then re-run 5a-5c. If pypdf is missing it warns that the hidden-text part was skipped - note that degraded mode in the Step 6 report. `check_cover_letter.py` exits 1 when the letter body falls outside 150-250 words or contains a stock phrase from its banned list; rewrite the flagged sentences with something specific to this company and candidate rather than swapping in a synonym. For a custom non-LaTeX letter template, dump the PDF text and pass it with `--plain`.
 
@@ -399,7 +412,8 @@ After the final clean compile (and after 5b-5d have passed), delete the intermed
 
 - **Stock or custom LaTeX toolchain:**
   ```bash
-  rm -f cv/main_<company>_<role>.{aux,log,out,fls,fdb_latexmk,synctex.gz} cover_letters/cover_<company>_<role>.{aux,log,out,fls,fdb_latexmk,synctex.gz}
+  rm -f cv/main_<company>_<role>.aux cv/main_<company>_<role>.log cv/main_<company>_<role>.out cv/main_<company>_<role>.fls cv/main_<company>_<role>.fdb_latexmk cv/main_<company>_<role>.synctex.gz
+  rm -f cover_letters/cover_<company>_<role>.aux cover_letters/cover_<company>_<role>.log cover_letters/cover_<company>_<role>.out cover_letters/cover_<company>_<role>.fls cover_letters/cover_<company>_<role>.fdb_latexmk cover_letters/cover_<company>_<role>.synctex.gz
   ```
 - **Custom template whose compile command redirects to `build/`:** also `rm -rf cv/build cover_letters/build` (`/add-template` Step 4 already says `/apply` must delete it).
 - **Zero-artifact toolchain (e.g. `typst compile`):** nothing to delete.
@@ -411,7 +425,7 @@ After the final clean compile (and after 5b-5d have passed), delete the intermed
 Run the full verification checklist from `CLAUDE.md` now — this is the **only** verification pass in the workflow. Re-read both files once here to verify final state on disk matches your mental model after the Step 4 and Step 5 edits.
 
 ### Verification Checklist
-Report pass/fail for each item in the CLAUDE.md verification checklist (factual accuracy, targeting, consistency, quality).
+Report pass/fail for each item in the CLAUDE.md verification checklist (factual accuracy, targeting, consistency, quality). Quality includes **one voice**: the CV summary and every bullet use the same grammatical person (Spanish CV: first person implied, past-tense verbs - "Construí", "Diseñé"; English CV: action verbs with no pronoun); a summary in third person ("Diseña") over first-person bullets fails.
 
 ### Key Tailoring Decisions
 Summarize 3-5 key decisions made to tailor the application:

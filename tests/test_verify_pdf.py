@@ -13,6 +13,8 @@ from tools.verify_pdf import (
     find_injection_phrases,
     find_ligature_codepoints,
     find_non_ascii_date_ranges,
+    find_split_acronyms,
+    tex_acronyms,
     normalize_text,
     parse_page_count,
     run_tool,
@@ -382,6 +384,38 @@ class HiddenTextTests(unittest.TestCase):
 
     def test_flag_is_exposed_on_the_cli(self):
         self.assertTrue(build_parser().parse_args(["x.pdf", "--ats-integrity"]).ats_integrity)
+
+
+class SplitAcronymTests(unittest.TestCase):
+    """`--keywords-from`: kerned acronyms ("A WS") the text layer splits by spaces."""
+
+    TEX = "\\begin{document}\nKafka, AWS S3, ETL and \\acr{SQL}. % AVA in a comment\n"
+
+    def test_acronyms_come_from_the_body_without_comments_or_commands(self):
+        tex = "\\documentclass{moderncv}\n\\usepackage{PDF}\n" + self.TEX + "\\LaTeX \\textbf{API}"
+        self.assertEqual(tex_acronyms(tex), ["AWS", "ETL", "SQL", "API"])
+
+    def test_split_acronym_is_reported_and_intact_one_is_not(self):
+        hits = find_split_acronyms(self.TEX, "Kafka, A WS S3, ETL and SQL.")
+        self.assertEqual([t for t, _ in hits], ["AWS"])
+        self.assertEqual(find_split_acronyms(self.TEX, "Kafka, AWS S3, ETL and SQL."), [])
+
+    def test_verify_pdf_fails_on_a_kerned_acronym_and_passes_when_intact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            tex = tmp / "cv.tex"
+            tex.write_text(self.TEX, encoding="utf-8")
+            bad, good = tmp / "bad.pdf", tmp / "good.pdf"
+            bad.write_bytes(_minimal_pdf("BT /F1 12 Tf 72 720 Td [(Kafka, A) 400 (WS S3)] TJ ET"))
+            good.write_bytes(_minimal_pdf("BT /F1 12 Tf 72 720 Td (Kafka, AWS S3) Tj ET"))
+            with self.assertRaisesRegex(VerificationError, "acronym.*split"):
+                verify_pdf(bad, keywords_from=tex)
+            verify_pdf(good, keywords_from=tex)
+            verify_pdf(bad)  # off by default
+
+    def test_flag_is_exposed_on_the_cli(self):
+        args = build_parser().parse_args(["x.pdf", "--keywords-from", "cv.tex"])
+        self.assertEqual(str(args.keywords_from), "cv.tex")
 
 
 if __name__ == "__main__":

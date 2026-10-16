@@ -42,15 +42,38 @@ export const APPLY_TOOLS = [
   "Bash(python tools/check_cover_letter.py:*)",
   "Bash(python3 tools/check_cover_letter.py:*)",
   "Bash(rm -f cv/main_:*)",
+  "Bash(rm -f cover_letters/cover_:*)",
 ];
 
 export type RunKind = "search" | "rank" | "apply" | "market";
 
-export function buildArgv(claudeBin: string, prompt: string, tools: string[]): string[] {
+export const DEFAULT_MODEL = "sonnet";
+const MODEL_ALIASES = ["sonnet", "opus", "haiku"];
+
+/**
+ * Validates a --model value so an env var can never smuggle in a flag or a
+ * shell-looking string: a known alias or a `claude-...` id made of
+ * letters, digits, dots, dashes and an optional `[1m]` suffix. Anything else
+ * falls back to the default.
+ */
+export function resolveModel(value: string | undefined): string {
+  const model = (value ?? "").trim();
+  if (MODEL_ALIASES.includes(model)) return model;
+  if (/^claude-[a-z0-9][a-z0-9.-]{0,63}(\[1m\])?$/.test(model)) return model;
+  return DEFAULT_MODEL;
+}
+
+export function buildArgv(
+  claudeBin: string,
+  prompt: string,
+  tools: string[],
+  model: string = resolveModel(process.env.JOB_UI_MODEL),
+): string[] {
   // The prompt is one argv element and always starts with "/", so it can
   // never be read as a flag. --allowedTools is variadic and must come last.
   return [
     claudeBin, "-p", prompt,
+    "--model", resolveModel(model),
     "--output-format", "stream-json", "--verbose",
     "--permission-mode", "acceptEdits",
     "--allowedTools", ...tools,

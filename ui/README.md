@@ -9,7 +9,7 @@ bun run ui/server.ts          # from the repo root
 # or: cd ui && bun run start
 ```
 
-Open <http://127.0.0.1:8787>. Set `JOB_UI_PORT` to change the port and `CLAUDE_BIN` if `claude` is not on `PATH`.
+Open <http://127.0.0.1:8787>. Set `JOB_UI_PORT` to change the port and `CLAUDE_BIN` if `claude` is not on `PATH`. `JOB_UI_MODEL` (`sonnet` by default; `opus`, `haiku` or a `claude-...` id) sets the model of every headless run, which keeps them off the Opus default.
 
 **Before the first run:** open `claude` interactively once in the repo root and accept the workspace trust dialog. Until then, headless runs ignore `.claude/settings.json` ("this workspace has not been trusted"), so `/rank` cannot even call `tools/rank_state.py` and `/job-scraper` cannot call the portal CLIs. Run `/setup` in that same session so scoring and drafting have a real profile.
 
