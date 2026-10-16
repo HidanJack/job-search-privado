@@ -63,6 +63,19 @@ class Exclusions(unittest.TestCase):
             with self.subTest(loc=loc):
                 self.assertFalse(out("Backend Developer", location=loc)["out"])
 
+    def test_title_open_to_region_overrides_single_country_location(self):
+        for title in ["Freelance Python Developer (Remote, South / Latin America)",
+                      "Python Developer - LATAM", "Backend Developer (Latinoam\u00e9rica)",
+                      "Backend Developer, Am\u00e9rica Latina", "Python Dev (Sudam\u00e9rica)",
+                      "Python Dev (South America)", "Python Dev (M\u00e9xico)", "Python Dev - Worldwide",
+                      "Python Dev, work from anywhere", "Global Python Developer"]:
+            with self.subTest(title=title):
+                self.assertFalse(out(title, location="Remote (Brazil)")["out"])
+
+    def test_other_text_field_open_to_region_overrides_location(self):
+        entry = job("Backend Developer", location="Remote (Brazil)", fit="Open to LATAM")
+        self.assertFalse(prefilter.evaluate(entry, TODAY)["out"])
+
     def test_truncated_location_is_not_trusted(self):
         loc = "Remote (" + ", ".join(["Argentina", "Bahamas", "Barbados", "Belize", "Bolivia", "Brazil", "Canada", "Chile"] * 3)
         self.assertGreaterEqual(len(loc), 190)

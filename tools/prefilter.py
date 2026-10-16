@@ -151,6 +151,16 @@ TRUNCATED_LOCATION = 190
 LOCATION_OK = ("mexico", "worldwide", "anywhere", "latam", "latin america", "americas", "global", "north america", "international")
 
 
+REGION_OPEN = re.compile(
+    r"(?<![a-z])(latam|latin america|latinoamerica|america latina|south america|sudamerica|mexico|worldwide|anywhere|global)(?![a-z])")
+OPEN_TEXT_FIELDS = ("title", "fit", "description", "summary", "notes")
+
+
+def region_open(entry: dict) -> bool:
+    """True when a text field other than location says the role is open to LatAm/anywhere."""
+    return any(isinstance(entry.get(k), str) and REGION_OPEN.search(fold(entry[k])) for k in OPEN_TEXT_FIELDS)
+
+
 def location_restriction(location) -> str | None:
     """Foreign place name when the posting is limited to it, else None."""
     loc = fold(location)
@@ -184,7 +194,7 @@ def exclusion(entry: dict) -> str | None:
     for pattern, label in FUNCTION_OUT:
         if pattern.search(title) and not is_engineer and not keep_skill:
             return f"Puesto de {label}, no es desarrollo ni datos"
-    place = location_restriction(entry.get("location"))
+    place = None if region_open(entry) else location_restriction(entry.get("location"))
     if place:
         return f"Solo para residentes de {place}"
     return None
