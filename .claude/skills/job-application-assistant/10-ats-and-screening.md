@@ -1,5 +1,5 @@
 ---
-framework_version: 1.0.0
+framework_version: 1.1.0
 ---
 
 # ATS, AI Screening and Market Conventions
@@ -73,6 +73,7 @@ The contract between `/rank` (writer, via `tools/rank_state.py apply`) and any r
 | `rank_date` | `YYYY-MM-DD` | When it was scored |
 | `location_verdict`, `language_gate` | `PASS` / `FAIL` / `FLAG` | Vetoes; `FAIL` never shortlisted |
 | `language_note` | string, nullable | Why the language gate flagged |
+| `posting_language` | `es` / `en` / `mixed`, nullable | Language the posting text is written in, as reported by the scoring agent. `en` makes `language_gate` at least `FLAG` ("posting written in English: spoken English likely required"). Entries ranked before this field existed lack it; readers must not treat absence as English |
 | `deadline` | `YYYY-MM-DD`, nullable | Application deadline |
 | `modality` | `remote` / `hybrid` / `onsite` / `unknown` | As the posting states it |
 | `salary_min`, `salary_max` | number, nullable | Figures as stated |

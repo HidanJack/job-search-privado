@@ -366,6 +366,8 @@ main { max-width: 1120px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
 }
 .chip.new { background: var(--teal-soft); color: var(--teal-ink); }
 .chip.verdict { background: var(--brand-soft); color: var(--brand-ink); }
+.chip.family { background: var(--surface-2); color: var(--muted); }
+.chip.warn { background: var(--bad-soft); color: var(--bad); }
 .salary {
   margin-top: .85rem;
   font-size: 1.02rem; font-weight: 650; font-variant-numeric: tabular-nums;

@@ -84,8 +84,19 @@ This repo is a job application workspace. Claude acts as a career advisor and ap
 - Hard technical problems: reverse engineering, performance (Rust), reliable AI systems
 - Continuous learning - "never finishing learning" is what he loves most about the field
 
+### Target Roles
+- **Primary families:** Python backend, data engineer, AI engineer
+- **Secondary families (neighbor roles: simpler work that still pays at or above the salary floor):**
+  - (a) Web developer / landing pages / frontend (Astro, React, Tailwind; WordPress only if the posting needs little beyond that)
+  - (b) Automation / RPA with Python
+  - (c) Data analyst / BI (Python, SQL, Excel; Power BI is not on the profile - flag it as a gap)
+  - (d) QA automation (pytest, Selenium)
+  - (e) Implementation / technical support of accounting-tax software or fintech (CFDI)
+- A secondary-family role is never penalized as "overqualified" when its pay is at or above the floor; freelance / per-project engagements are flagged (see `04-job-evaluation.md`, Neighbor Role Families).
+
 ### Target Sectors
 - Fintech / accounting & tax automation: companies building reconciliation, invoicing (CFDI) or financial data products
+- Accounting-tax software vendors and consultancies (implementation, support, automation around CFDI)
 - Data/AI product companies and remote-first tech (LatAm and international) hiring Python backend, data or AI engineers
 
 ### Deal-breakers

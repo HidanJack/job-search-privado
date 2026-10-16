@@ -273,7 +273,7 @@ class Apply(RankStateCase):
                 self.assertEqual([row["key"] for row in selected], ["a"])
                 result = {"key": "a", "status": "scored", "deadline": None,
                           "scores": {dimension: 80 for dimension in ("technical", "experience", "behavioral", "career")},
-                          "location_verdict": "PASS", "language_gate": "PASS", "language": "en",
+                          "location_verdict": "PASS", "language_gate": "PASS", "posting_language": "en",
                           "strengths": ["fresh strength"], "gaps": []}
                 out = self.run_tool("apply", "--results", self.results([result]))
                 self.assertEqual(out["ranked"], [])
@@ -593,7 +593,7 @@ def scored(key="a", **over):
         "scores": {d: 70 for d in ("technical", "experience", "behavioral", "career")},
         "location_verdict": "PASS",
         "language_gate": "PASS",
-        "language": "es",
+        "posting_language": "es",
         "strengths": ["s"],
         "gaps": ["g"],
     }
@@ -677,6 +677,57 @@ class SalaryModalityFreshness(RankStateCase):
         row = out["ranked"][0]
         self.assertIsNone(row["age_days"])
         self.assertEqual(row["priority_score"], row["score"])
+
+
+class PostingLanguage(RankStateCase):
+    """`posting_language` and the strict English-posting rule (04-job-evaluation.md)."""
+
+    def apply(self, **over):
+        self.write_state({"a": entry()})
+        path = self.tmp / "results.json"
+        path.write_text(json.dumps([scored(**over)]), encoding="utf-8")
+        out = self.run_tool("apply", "--results", str(path))
+        return self.read_state()["a"], (out["ranked"] + out["vetoed"])[0]
+
+    def test_spanish_posting_is_persisted_and_not_flagged(self):
+        stored, row = self.apply(posting_language="es")
+        self.assertEqual(stored["posting_language"], "es")
+        self.assertEqual(row["posting_language"], "es")
+        self.assertEqual(stored["language_gate"], "PASS")
+        self.assertNotIn("language_note", stored)
+
+    def test_english_posting_is_flagged_even_if_agent_said_pass(self):
+        stored, _ = self.apply(posting_language="EN", language_gate="PASS", gaps=["g"])
+        self.assertEqual(stored["posting_language"], "en")
+        self.assertEqual(stored["language_gate"], "FLAG")
+        self.assertEqual(stored["language_note"], "posting written in English: spoken English likely required")
+        self.assertTrue(any("spoken English" in g for g in stored["gaps"]))
+
+    def test_english_posting_keeps_agent_note_and_gap_and_caps_gaps_at_three(self):
+        stored, _ = self.apply(
+            posting_language="en", language_gate="FLAG", language_note="agent note",
+            gaps=["spoken English: asked", "b", "c"],
+        )
+        self.assertEqual(stored["language_note"], "agent note")
+        self.assertEqual(stored["gaps"], ["spoken English: asked", "b", "c"])
+        stored, _ = self.apply(posting_language="en", gaps=["a", "b", "c"])
+        self.assertEqual(len(stored["gaps"]), 3)
+        self.assertIn("spoken English", stored["gaps"][0])
+
+    def test_english_posting_never_softens_a_fail(self):
+        stored, _ = self.apply(posting_language="en", language_gate="FAIL", language_note="Polish")
+        self.assertEqual(stored["language_gate"], "FAIL")
+
+    def test_mixed_posting_is_not_flagged(self):
+        stored, _ = self.apply(posting_language="mixed")
+        self.assertEqual(stored["posting_language"], "mixed")
+        self.assertEqual(stored["language_gate"], "PASS")
+
+    def test_invalid_or_missing_value_is_not_stored(self):
+        stored, _ = self.apply(posting_language="klingon")
+        self.assertNotIn("posting_language", stored)
+        stored, _ = self.apply(posting_language=None)
+        self.assertNotIn("posting_language", stored)
 
 
 if __name__ == "__main__":

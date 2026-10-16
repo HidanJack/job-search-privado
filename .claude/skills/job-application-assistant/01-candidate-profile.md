@@ -1,5 +1,5 @@
 ---
-framework_version: 1.1.2
+framework_version: 1.1.3
 ---
 
 # Candidate Profile
@@ -81,7 +81,7 @@ Ciudad de México
 - **Apex Face Studio / DeepFace** (personal): real-time face-swap for webcam, video and a Gradio web UI using InsightFace + ONNX Runtime (OpenVINO on Intel CPU), multi-photo embedding averaging, ffmpeg audio remux.
 - **Soffia.mx CFDI reconciliation** (2026): hexagonal architecture (domain / application / infrastructure / presentation) with an optimal-assignment adapter using scipy's linear_sum_assignment (Hungarian algorithm) and RapidFuzz name similarity; tests per layer plus end-to-end; CLI.
 - **reparto** (logistics/invoicing correlation): Neo4j graph (Company/Invoice/Waybill), Cypher queries, layered architecture, confidence-scored matching.
-- **Portfolio**: https://hidanjack.github.io (Astro, GitHub Actions deploy).
+- **Portfolio**: https://hidanjack.github.io (Astro + Tailwind, GitHub Actions deploy; built by Luis himself, confirmed 2026-10-15).
 
 ## Technical Skills
 

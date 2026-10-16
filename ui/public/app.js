@@ -93,6 +93,7 @@ function readFilterForm() {
     minSalary: form.minSalary.value,
     includeNoSalary: form.includeNoSalary.checked,
     includeUndated: form.includeUndated.checked,
+    hideEnglish: form.hideEnglish.checked,
     modality: [...form.querySelectorAll("input[name=modality]:checked")].map((i) => i.value),
   };
 }
@@ -102,6 +103,7 @@ function fillFilterForm(f) {
   form.minSalary.value = f.minSalary;
   form.includeNoSalary.checked = f.includeNoSalary;
   form.includeUndated.checked = f.includeUndated;
+  form.hideEnglish.checked = f.hideEnglish !== false; // filters saved before this option existed: on
   for (const i of form.querySelectorAll("input[name=modality]")) i.checked = f.modality.includes(i.value);
 }
 function filterQuery(f) {
@@ -111,6 +113,7 @@ function filterQuery(f) {
     if (f.minSalary !== "") p.set("minSalary", f.minSalary);
     p.set("includeNoSalary", f.includeNoSalary ? "1" : "0");
     p.set("includeUndated", f.includeUndated ? "1" : "0");
+    p.set("hideEnglish", f.hideEnglish === false ? "0" : "1");
     p.set("modality", f.modality.join(","));
   }
   return p.toString();
@@ -259,6 +262,8 @@ function renderJobs(data) {
       el("span", { class: "chip", text: j.portal || "portal desconocido" }),
     );
     if (j.rank_verdict) meta.append(el("span", { class: "chip verdict", text: j.rank_verdict }));
+    if (j.role_family) meta.append(el("span", { class: "chip family", text: j.role_family }));
+    if (j.spoken_english) meta.append(el("span", { class: "chip warn", text: "Inglés hablado", title: j.language_note || "" }));
     const salary = $(".salary", card);
     salary.textContent = salaryLabel(j);
     salary.classList.toggle("unknown", j.salary_mxn_month === null);
@@ -621,7 +626,7 @@ async function boot() {
   const f = first.filters;
   fillFilterForm(loadSavedFilters() || {
     maxDays: f.maxDays, minSalary: f.minSalaryMxn, includeNoSalary: f.includeNoSalary,
-    includeUndated: f.includeUndated, modality: f.modalities,
+    includeUndated: f.includeUndated, hideEnglish: f.hideEnglish, modality: f.modalities,
   });
   renderJobs(first);
   $("#filters").addEventListener("input", () => {

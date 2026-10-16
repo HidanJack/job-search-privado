@@ -12,6 +12,9 @@ export const STATE_PATHS = [
 export type Modality = "remote" | "hybrid" | "onsite" | "unknown";
 export const MODALITIES: Modality[] = ["remote", "hybrid", "onsite", "unknown"];
 
+export type PostingLanguage = "es" | "en" | "mixed";
+export const POSTING_LANGUAGES: PostingLanguage[] = ["es", "en", "mixed"];
+
 export interface Job {
   key: string;
   title: string;
@@ -28,6 +31,10 @@ export interface Job {
   rank_verdict: string | null;
   location_verdict: string | null;
   language_gate: string | null;
+  language_note: string | null;
+  posting_language: PostingLanguage | null;
+  spoken_english: boolean;
+  role_family: string | null;
   deadline: string | null;
   modality: Modality;
   salary_min: number | null;
@@ -45,6 +52,7 @@ export interface Filters {
   minSalaryMxn: number;
   includeNoSalary: boolean;
   includeUndated: boolean;
+  hideEnglish: boolean;
   modalities: Modality[];
 }
 
@@ -52,6 +60,31 @@ const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? 
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 const strList = (v: unknown, max: number): string[] =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, max) : [];
+
+const SPOKEN_ENGLISH = /spoken english|inglés (hablado|conversacional)|english[^.]{0,40}(interview|conversation|calls?)/i;
+
+/** True when the stored language fields say the job likely needs spoken English. */
+export function needsSpokenEnglish(gate: string | null, note: string | null, lang: PostingLanguage | null): boolean {
+  if (gate !== "FLAG" && gate !== "FAIL") return false;
+  return lang === "en" || (note !== null && SPOKEN_ENGLISH.test(note));
+}
+
+// Title-only keyword match. Deliberately conservative: unknown titles get no family.
+const FAMILY_RULES: [string, RegExp][] = [
+  ["QA / pruebas", /\b(qa|tester|quality assurance|automatizaci[oó]n de pruebas|test automation)\b/i],
+  ["RPA / automatización", /\b(rpa|automation engineer|automatizaci[oó]n)\b/i],
+  ["Analista de datos / BI", /\b(data analyst|analista de datos|analista bi|bi analyst|business intelligence)\b/i],
+  ["Datos", /\b(data engineer|ingeniero de datos|etl)\b/i],
+  ["IA", /\b(ai engineer|machine learning|ml engineer|llm|inteligencia artificial)\b/i],
+  ["Frontend / web", /\b(front-?end|web developer|desarrollador web|landing|wordpress|react)\b/i],
+  ["Soporte / implementación", /\b(soporte t[eé]cnico|technical support|implementaci[oó]n|implementation|cfdi)\b/i],
+  ["Backend", /\b(backend|back-end|python)\b/i],
+];
+
+export function inferRoleFamily(title: string): string | null {
+  for (const [label, re] of FAMILY_RULES) if (re.test(title)) return label;
+  return null;
+}
 
 /** Days between a stored date (YYYY-MM-DD or ISO) and today; null if unparseable. */
 export function ageInDays(value: string | null, today: Date): number | null {
@@ -67,9 +100,15 @@ export function ageInDays(value: string | null, today: Date): number | null {
 export function normalizeJob(key: string, raw: Record<string, unknown>, today: Date): Job {
   const modality = MODALITIES.includes(raw.modality as Modality) ? (raw.modality as Modality) : "unknown";
   const posted = str(raw.posted_date);
+  const title = str(raw.title) ?? "(sin título)";
+  const gate = str(raw.language_gate);
+  const note = str(raw.language_note);
+  const lang = POSTING_LANGUAGES.includes(raw.posting_language as PostingLanguage)
+    ? (raw.posting_language as PostingLanguage)
+    : null;
   return {
     key,
-    title: str(raw.title) ?? "(sin título)",
+    title,
     company: str(raw.company) ?? "(sin empresa)",
     url: str(raw.url),
     portal: str(raw.portal),
@@ -82,7 +121,11 @@ export function normalizeJob(key: string, raw: Record<string, unknown>, today: D
     priority_score: num(raw.priority_score) ?? num(raw.rank_score),
     rank_verdict: str(raw.rank_verdict),
     location_verdict: str(raw.location_verdict),
-    language_gate: str(raw.language_gate),
+    language_gate: gate,
+    language_note: note,
+    posting_language: lang,
+    spoken_english: needsSpokenEnglish(gate, note, lang),
+    role_family: inferRoleFamily(title),
     deadline: str(raw.deadline),
     modality,
     salary_min: num(raw.salary_min),
@@ -125,6 +168,8 @@ export function filterJobs(jobs: Job[], f: Filters): { ranked: Job[]; unranked: 
   const ranked = jobs
     .filter((j) => j.status === "ranked" && !vetoed(j))
     .filter((j) => passesAge(j, f))
+    // Absence of the field is not evidence of English: only an explicit "en" hides.
+    .filter((j) => !(f.hideEnglish && j.posting_language === "en"))
     .filter((j) => (j.salary_mxn_month === null ? f.includeNoSalary : j.salary_mxn_month >= f.minSalaryMxn))
     .filter((j) => f.modalities.includes(j.modality))
     .sort(
@@ -151,6 +196,7 @@ export function parseFilters(params: URLSearchParams, defaults: { maxDays: numbe
     minSalaryMxn: int("minSalary", defaults.minSalaryMxn, 10_000_000),
     includeNoSalary: flag("includeNoSalary", true),
     includeUndated: flag("includeUndated", true),
+    hideEnglish: flag("hideEnglish", true),
     modalities: params.has("modality") ? requested : [...MODALITIES],
   };
 }

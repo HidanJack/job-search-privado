@@ -15,6 +15,19 @@ per-file diff commands.
 
 ### Added
 
+- **Neighbor role families and a strict English-posting rule** - `CLAUDE.md` Target Roles lists five
+  secondary families (web/frontend, Python automation/RPA, data analyst/BI, QA automation,
+  accounting-tax software support); `04-job-evaluation.md` (1.2.7 -> 1.3.0) scores them without an
+  "overqualified" penalty at or above the salary floor and flags freelance work;
+  `05-cv-templates.md` (1.4.7 -> 1.5.0) has one profile paragraph per family, grounded in
+  `01-candidate-profile.md` (1.1.2 -> 1.1.3); `search-queries.md` has Spanish MX/LatAm queries per
+  family. A posting written entirely in English now gets `language_gate: FLAG` ("spoken English
+  likely required"). `/rank` Step 2 replaces the unpersisted `language` field with
+  `posting_language` (`es`/`en`/`mixed`), which `tools/rank_state.py` stores and enforces
+  (schema in `10-ats-and-screening.md` 1.0.0 -> 1.1.0). The local UI gains an "Ocultar vacantes en
+  inglés" filter (on by default; entries without the field stay visible), an "Inglés hablado" pill
+  and a title-inferred role-family pill.
+
 - **One cross-platform command installs every portal CLI: `python3 tools/install_portal_clis.py`**
   (#540, `README.md` quick start step 2, `SETUP.md` section 3,
   `tests/test_install_portal_clis.py`) - the README and SETUP.md each carried a PowerShell and a

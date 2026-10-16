@@ -1,5 +1,5 @@
 ---
-framework_version: 1.2.7
+framework_version: 1.3.0
 ---
 
 # Job Evaluation Framework
@@ -34,7 +34,7 @@ A role that fails this gate is not scored and not drafted. Everything below appl
 
 This gate checks a posting's language requirements against what the candidate actually speaks. It is not one of the five Scoring Dimensions below - it runs before them, structured the same way as the Eligibility Gate above: read the posting, classify against profile data, and treat a hard mismatch as FAIL before scoring. Its verdict is tracked downstream: `/rank` records the result as `language_gate` (PASS/FAIL/FLAG) with a supporting `language_note`, persists both into `seen_jobs.json`, and treats a FAIL as a shortlist veto; `/scrape` surfaces the flag in its results table and carries a language-override rule for postings whose ad language differs from the role's working language. `/apply`'s language detection (Step 1, which extracts a posting's required language generically) feeds this same check.
 
-Read the posting's language requirements as stated for **the role itself** — not the language the ad happens to be written in. A posting written in a language you don't work in, for a role that only needs languages you do work in on the job, passes fine; only an explicit job-condition requirement ("fluent X required," "must communicate with the Y team in Z") triggers this check. For each language the posting requires as a job condition, compare it against your Languages table in CLAUDE.md / `01-candidate-profile.md`:
+Read the posting's language requirements as stated for **the role itself** — not the language the ad happens to be written in, with one candidate-specific exception: the strict posting-language rule below, which treats a posting written entirely in English as a spoken-English signal. A posting written in a language you don't work in, for a role that only needs languages you do work in on the job, passes fine; only an explicit job-condition requirement ("fluent X required," "must communicate with the Y team in Z") triggers this check. For each language the posting requires as a job condition, compare it against your Languages table in CLAUDE.md / `01-candidate-profile.md`:
 
 | Posting requirement vs. your Languages table | Verdict |
 |---|---|
@@ -50,6 +50,18 @@ Judge the level comparison the same way you judge everything else in this framew
 - Postings that require **fluent or conversational spoken English**, English-language interviews, client-facing calls in English, or daily stand-ups with English-speaking teams → **FLAG, never FAIL**. Record `language_gate: FLAG` with a `language_note` quoting the requirement, and add **"spoken English"** as an explicit item in `gaps` (and mention it in `fit_reasons` context when relevant) so it is visible in `/rank` output and the UI.
 - Postings that only need **written/reading English** (documentation, code review, async communication, English CV) → **PASS**.
 - Writing his CV and cover letter in English for international postings is fine - the gap is spoken, not written.
+
+**Strict posting-language rule (Luis, confirmed 2026-10-15):** if the posting text is written entirely in English, assume the job and its interview are conducted in spoken English even when it does not say so. Record `language_gate: FLAG` with `language_note: "posting written in English: spoken English likely required"` and add **"spoken English"** to `gaps`. Postings written in Spanish are not flagged, and neither are bilingual postings that explicitly ask only for technical or reading English. The scoring agent reports `posting_language` (`es` / `en` / `mixed`) for every scored job; `en` triggers this rule unless the posting explicitly says English is only for reading/documentation. It is a FLAG, never a FAIL, and does not lower the scores by itself; the UI hides `en` postings by default (filter "Ocultar vacantes en inglés").
+
+## Neighbor Role Families (secondary targets)
+
+Besides the primary families (Python backend, data engineer, AI engineer), these are valid targets because they pay at or above the salary floor with simpler work: (a) web developer / landing pages / frontend (Astro, React, Tailwind, WordPress if applicable), (b) automation / RPA with Python, (c) data analyst / BI (Python, SQL, Excel/Power BI), (d) QA automation (pytest, Selenium), (e) implementation / technical support of accounting-tax software or fintech (CFDI).
+
+Evaluation rules for these families:
+- **No "overqualified" penalty.** Do not lower Experience, Career Alignment or the verdict because the role is more junior or simpler than Luis's current work, provided the stated salary is at or above the floor (30,000 MXN/month). Below the floor, or salary unstated and clearly junior-priced, say so in `gaps`.
+- **Score against real evidence only**: Technical Skills Match uses what `01-candidate-profile.md` proves (Astro portfolio, React/React Native, pytest, Selenium, Python/Excel analysis with MOS certifications, CFDI/reconciliation domain). A required tool the profile does not show (Power BI, WordPress, Cypress, a specific ERP) is a gap, not a match.
+- **Flag engagement type.** If the posting is freelance, per-project, honorarios or short-term contract rather than a salaried position, state it in `gaps` ("freelance / per project: no stable salary") and in `fit_reasons` context. It is a flag for Luis to judge, not a veto.
+- Name the family in the report (e.g. "family: QA automation") so the dashboard and the CV profile paragraph (`05-cv-templates.md`) can follow it.
 
 ## Scoring Dimensions
 

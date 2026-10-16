@@ -74,6 +74,9 @@ FRESH_BONUS = 5
 STALE_PENALTY = 5
 
 MODALITIES = ("remote", "hybrid", "onsite", "unknown")
+POSTING_LANGUAGES = ("es", "en", "mixed")
+ENGLISH_POSTING_NOTE = "posting written in English: spoken English likely required"
+SPOKEN_ENGLISH_GAP = "spoken English: posting is written in English, so spoken English is likely required"
 SALARY_PERIODS = {
     "hour": 40 * 52 / 12,
     "day": 5 * 52 / 12,
@@ -424,6 +427,14 @@ def cmd_apply(args) -> int:
             entry.pop("language_note", None)
         else:
             entry["language_note"] = result.get("language_note")
+        posting_language = str(result.get("posting_language") or "").lower()
+        if posting_language in POSTING_LANGUAGES:
+            entry["posting_language"] = posting_language
+        # Strict rule: a posting written entirely in English implies spoken
+        # English. A missed flag is raised here; a FAIL is never softened.
+        if entry.get("posting_language") == "en" and entry["language_gate"] == "PASS":
+            entry["language_gate"] = "FLAG"
+            entry["language_note"] = ENGLISH_POSTING_NOTE
         # Absence is not a correction: a fetch that degraded to a listing page
         # returns no deadline, and blanking a stored one would erase a real
         # date and make the entry immortal to rule 6's sweep.
@@ -433,6 +444,10 @@ def cmd_apply(args) -> int:
             value = result.get(field)
             if isinstance(value, list):
                 entry[field] = [str(b) for b in value][:3]
+        if entry.get("posting_language") == "en" and not any(
+            "spoken english" in str(g).lower() for g in entry.get("gaps", [])
+        ):
+            entry["gaps"] = ([SPOKEN_ENGLISH_GAP] + list(entry.get("gaps", [])))[:3]
         # Same verbatim, replace-never-accumulate rule as strengths/gaps.
         reasons = result.get("fit_reasons")
         if isinstance(reasons, list):
@@ -456,6 +471,7 @@ def cmd_apply(args) -> int:
                 "location_verdict": entry["location_verdict"],
                 "language_gate": entry["language_gate"],
                 "language_note": entry.get("language_note"),
+                "posting_language": entry.get("posting_language"),
                 "deadline": entry.get("deadline"),
                 "posted_date": entry.get("posted_date"),
                 "urgent": bool(parsed and today <= parsed <= today + timedelta(days=URGENT_DAYS)),

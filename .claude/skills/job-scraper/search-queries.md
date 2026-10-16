@@ -1,6 +1,6 @@
 # Search Queries for Job Scraper
 
-<!-- Personalized 2026-10-15 for Luis Catalán (Python backend / data / AI engineer, CDMX, remote or hybrid). Target titles: Python Developer, Backend Developer, Data Engineer, Software Engineer, Desarrollador/a de software, Analista/Programador Python. -->
+<!-- Personalized 2026-10-15 for Luis Catalán (Python backend / data / AI engineer, CDMX, remote or hybrid). Secondary families: web/frontend, automation/RPA, data analyst/BI, QA automation, accounting-tax software support. Target titles: Python Developer, Backend Developer, Data Engineer, Software Engineer, Desarrollador/a de software, Analista/Programador Python. -->
 
 ## Installed portal CLIs (primary for `/scrape`)
 
@@ -63,6 +63,38 @@ jobicy-search    search --geo latam --industry dev --jobage 4
 Each line is `bun run .agents/skills/<portal>/cli/src/cli.ts <args>`.
 
 **Language scope:** write every query category in every language listed in your CLAUDE.md Languages table (typically 1-2, sometimes more). A posting requiring a language you have *not* declared, as a job condition, is excluded before scoring; a posting requiring a *higher level* than you declared in a language you *do* work in is flagged for your own judgment, not excluded — see `04-job-evaluation.md`'s Language Gate, the single source of truth for this rule. Translate each category's keywords rather than machine-translating word-for-word (e.g. "Frontend Developer" -> "Desarrollador Frontend", not a literal word-for-word translation) if you work in more than one language.
+
+**Neighbor role families (secondary targets; Spanish first, Mexico/LatAm)**
+
+Same flags as above. Spanish is the primary language here because these roles are mostly hired locally; the strict posting-language rule means English-only postings come back flagged.
+```
+# Web / landing pages / frontend
+getonbrd-search  search -q "desarrollador frontend" --country MX --jobage 4
+getonbrd-search  search -q "desarrollador web" --latam --jobage 4
+getonbrd-search  search -q react --latam --jobage 4
+himalayas-search search -q "frontend developer" --latam --jobage 4
+remoteok-search  search --tags react,frontend --latam --jobage 4
+jobicy-search    search -q "web developer" --geo latam --jobage 4
+# Automation / RPA with Python
+getonbrd-search  search -q "automatización python" --latam --jobage 4
+getonbrd-search  search -q rpa --country MX --jobage 4
+himalayas-search search -q "automation engineer python" --latam --jobage 4
+# Data analyst / BI
+getonbrd-search  search -q "analista de datos" --country MX --jobage 4
+getonbrd-search  search --category data-science-analytics --latam --jobage 4
+himalayas-search search -q "data analyst" --latam --jobage 4
+jobicy-search    search -q "data analyst" --geo latam --jobage 4
+# QA automation
+getonbrd-search  search -q "QA automation" --latam --jobage 4
+getonbrd-search  search -q "analista QA" --country MX --jobage 4
+himalayas-search search -q "qa automation" --latam --jobage 4
+remoteok-search  search --tags qa,testing --latam --jobage 4
+# Accounting-tax software / fintech implementation and support
+getonbrd-search  search -q "soporte técnico software" --country MX --jobage 4
+getonbrd-search  search -q "implementación software" --country MX --jobage 4
+himalayas-search search -q "implementation specialist fintech" --latam --jobage 4
+```
+`linkedin-search` and `freehire-search`: reuse the Spanish titles above (e.g. "Desarrollador Frontend", "Analista de Datos", "Analista QA", "Consultor de implementación CFDI") with Mexico / Ciudad de México.
 
 ## Search Sites
 
@@ -128,6 +160,35 @@ site:occ.com.mx "programador python" "Ciudad de México"
 site:mx.computrabajo.com "analista programador" python
 site:linkedin.com/jobs "Software Engineer" Python Mexico remote
 site:occ.com.mx "consultor" python datos
+```
+
+### Priority 5: Neighbor role families (web, automation, data analyst, QA, accounting-tax software)
+
+Simpler roles that still pay at or above 30,000 MXN/month. Flag freelance / per-project postings in the results.
+
+```
+# (a) Web developer / landing pages / frontend
+site:occ.com.mx "desarrollador web" OR "desarrollador frontend" "Ciudad de México"
+site:mx.computrabajo.com "desarrollador frontend" react
+site:linkedin.com/jobs "Desarrollador Frontend" OR "Desarrollador Web" México remoto
+site:linkedin.com/jobs "Astro" OR "landing page" desarrollador México
+# (b) Automation / RPA with Python
+site:occ.com.mx "automatización" python OR rpa "Ciudad de México"
+site:mx.computrabajo.com "desarrollador rpa" OR "automatización de procesos"
+site:linkedin.com/jobs "RPA Developer" OR "Automation Engineer" Python México
+# (c) Data analyst / BI
+site:occ.com.mx "analista de datos" OR "analista BI" python sql "Ciudad de México"
+site:mx.computrabajo.com "analista de datos" excel sql
+site:linkedin.com/jobs "Analista de Datos" OR "Data Analyst" México remoto
+# (d) QA automation
+site:occ.com.mx "QA automation" OR "analista QA" "Ciudad de México"
+site:linkedin.com/jobs "QA Automation" pytest OR selenium México
+site:mx.computrabajo.com "automatización de pruebas" OR "tester QA"
+# (e) Accounting-tax software / fintech implementation and support
+site:occ.com.mx "implementador" OR "soporte técnico" software contable CFDI
+site:mx.computrabajo.com "consultor de implementación" OR "soporte" "sistema contable"
+site:linkedin.com/jobs "CFDI" OR "facturación electrónica" implementación soporte México
+site:linkedin.com/jobs fintech "customer success" OR "soporte técnico" México
 ```
 
 ## Location Filter

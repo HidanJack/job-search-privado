@@ -1,5 +1,5 @@
 ---
-framework_version: 1.4.7
+framework_version: 1.5.0
 ---
 
 # CV Templates and Tailoring Guide
@@ -145,6 +145,23 @@ When the role sits outside your home domain, **lead with the domain-transfer arg
 
 **For AI Engineer / Python Developer (AI) roles:**
 > Python engineer who builds LLM features with reliability controls: on-device LLM app with guardrails (code verifies sensitive data, the LLM only drafts) and a 20-case eval harness on real ground truth; designs multi-agent workflows on Claude Code (7 own agents) with specs, TDD and adversarial review; production experience in document AI (OCR, YOLOv10).
+
+**Introductory profile paragraphs for neighbor role families** (secondary targets, see `04-job-evaluation.md`). Each uses only facts from `01-candidate-profile.md`; do not add tools or claims it does not show (no Power BI, WordPress or Cypress experience is on file):
+
+**For Web Developer / Landing Pages / Frontend roles:**
+> Developer who builds and ships web interfaces: his own portfolio site in Astro and Tailwind deployed with GitHub Actions, plus TypeScript/React and React Native (Expo) apps, including a local-LLM mobile app with a GPU-rendered graph view. Brings backend discipline to frontend work: tests, version control and automated deploys.
+
+**For Automation / RPA (Python) roles:**
+> Python developer who automates repetitive business work: scripts that consolidate and report business data (Grupo Gabssa), ETL pipelines over 1M+ records in CSV/Excel/TXT, browser automation with Selenium, and OCR/PDF extraction from bank statements (~95% accuracy). Documents and tests what he automates.
+
+**For Data Analyst / BI roles:**
+> Data analyst with 3+ years turning messy business and financial data into consolidated, reliable reports: Python (Pandas, Polars, OpenPyXL), SQL and Excel, validated with Microsoft Office Specialist certifications (Excel, Word, PowerPoint). Domain depth in Mexican accounting data: bank reconciliation, CFDI and ledgers.
+
+**For QA Automation roles:**
+> Developer with a test-first habit: pytest suites and a ~1,000-line test harness built from zero on an untested codebase, golden tests at three levels, an end-to-end regression run over 211 real bank PDFs, and Selenium browser scripts. Treats verification as part of the work, not a final step.
+
+**For Accounting-Tax Software / Fintech Implementation and Support roles:**
+> Software developer who knows the Mexican accounting-tax domain from the inside: bank reconciliation, CFDI matching, ledgers and CLABE validation, built into production tooling at Intelitax. Can configure, troubleshoot and explain accounting data flows to finance users, and automate the repetitive parts with Python.
 
 Statements labeled *[Used for: <company>_<role>]* were extracted from archived application drafts by `/setup` Path A. They are **phrasing references, never fact sources**: when drafting from one, every factual claim still comes from `01-candidate-profile.md` - a past tailored draft does not vouch for its own accuracy.
 

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ageInDays, filterJobs, loadJobs, parseFilters, skipJob, MODALITIES } from "../lib/jobs";
+import { ageInDays, filterJobs, inferRoleFamily, loadJobs, normalizeJob, parseFilters, skipJob, MODALITIES } from "../lib/jobs";
 import { parseProfile } from "../lib/profile";
 import { APPLY_TOOLS, SEARCH_TOOLS, buildApplyPrompt, buildArgv, describeStreamLine, parseUiResult } from "../lib/runner";
 import { isAllowedHost, isAllowedOrigin, safeResolve, sanitizeFeedback, validateJobUrl } from "../lib/security";
@@ -193,5 +193,49 @@ describe("tracker", () => {
     expect(stats.byChannel.portal).toEqual({ sent: 2, responded: 1, rate: 0.5 });
     expect(stats.byChannel.referral).toEqual({ sent: 1, responded: 1, rate: 1 });
     expect(stats.byPortal["getonbrd.com"]).toEqual({ sent: 1, responded: 0, rate: 0 });
+  });
+});
+
+describe("English-posting filter, pills and role family", () => {
+  const base = { status: "ranked", rank_score: 80, posted_date: "2026-10-14", salary_mxn_month: 40000, modality: "remote" };
+  const mk = (key: string, extra: Record<string, unknown>) => normalizeJob(key, { title: key, company: "X", ...base, ...extra }, TODAY);
+  const jobs = [
+    mk("english", { posting_language: "en", language_gate: "FLAG", language_note: "posting written in English: spoken English likely required" }),
+    mk("spanish", { posting_language: "es" }),
+    mk("mixed", { posting_language: "mixed" }),
+    mk("legacy", {}), // ranked before the field existed
+  ];
+
+  test("hideEnglish defaults to on and hides only explicit 'en'", () => {
+    const f = parseFilters(new URLSearchParams(), defaults);
+    expect(f.hideEnglish).toBe(true);
+    expect(filterJobs(jobs, f).ranked.map((j) => j.key).sort()).toEqual(["legacy", "mixed", "spanish"]);
+  });
+
+  test("hideEnglish=0 shows English postings again", () => {
+    const f = parseFilters(new URLSearchParams("hideEnglish=0"), defaults);
+    expect(f.hideEnglish).toBe(false);
+    expect(filterJobs(jobs, f).ranked.map((j) => j.key)).toContain("english");
+  });
+
+  test("posting_language is validated; unknown values become null", () => {
+    expect(mk("a", { posting_language: "fr" }).posting_language).toBeNull();
+    expect(mk("b", { posting_language: "en" }).posting_language).toBe("en");
+  });
+
+  test("spoken_english comes from language_gate/language_note/posting_language", () => {
+    expect(jobs[0].spoken_english).toBe(true);
+    expect(mk("c", { language_gate: "FLAG", language_note: "Requires conversational spoken English (fluent)" }).spoken_english).toBe(true);
+    expect(mk("d", { language_gate: "FLAG", language_note: "Requires fluent Polish" }).spoken_english).toBe(false);
+    expect(mk("e", { language_gate: "PASS", language_note: "spoken English" }).spoken_english).toBe(false);
+    expect(jobs[3].spoken_english).toBe(false);
+  });
+
+  test("role family is inferred from the title only, or left null", () => {
+    expect(inferRoleFamily("QA Automation Engineer")).toBe("QA / pruebas");
+    expect(inferRoleFamily("Desarrollador Frontend")).toBe("Frontend / web");
+    expect(inferRoleFamily("Analista de Datos")).toBe("Analista de datos / BI");
+    expect(inferRoleFamily("Senior Python Developer")).toBe("Backend");
+    expect(inferRoleFamily("Gerente de ventas")).toBeNull();
   });
 });
