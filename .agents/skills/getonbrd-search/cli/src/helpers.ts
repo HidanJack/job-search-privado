@@ -361,6 +361,8 @@ export interface GobJob {
     remote_modality?: string | null
     countries?: string[]
     category_name?: string | null
+    /** Skill tags; carry a name only when the request used expand=["tags"]. */
+    tags?: { data?: Array<{ id?: string | number; attributes?: { name?: string | null } }> }
     min_salary?: number | null
     max_salary?: number | null
     published_at?: number | null
@@ -405,6 +407,12 @@ export function gobCompany(a: GobJob["attributes"]): string | null {
   return a.company?.data?.attributes?.name?.trim() || null
 }
 
+/** Category plus skill tag names (e.g. "Programming", "Python"); [] when neither is present. */
+export function gobTags(a: GobJob["attributes"]): string[] {
+  const names = (a.tags?.data ?? []).map((t) => t.attributes?.name?.trim() ?? "").filter(Boolean)
+  return [...new Set([...(a.category_name ? [a.category_name] : []), ...names])]
+}
+
 /** GetOnBoard job -> portal contract result (missing values are null, never omitted). */
 export function toResult(job: GobJob): JobResult {
   const a = job.attributes
@@ -418,7 +426,7 @@ export function toResult(job: GobJob): JobResult {
     remote: a.remote ?? null,
     salary: formatSalary(a.min_salary, a.max_salary, "USD", "month"),
     ...formatSalaryFields(a.min_salary, a.max_salary, "USD", "month"),
-    tags: a.category_name ? [a.category_name] : [],
+    tags: gobTags(a),
     source: PORTAL,
   }
 }

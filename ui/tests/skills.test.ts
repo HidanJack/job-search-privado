@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { createHandler } from "../server";
 import type { Spawner } from "../lib/runner";
 import {
-  DEFAULT_FX, PORTALS, SKILLS, aggregate, aggregatePath, buildSentences, classifyGroup, groupStats, isRelevant, isStale,
+  DEFAULT_FX, PORTALS, SKILLS, addJob, aggregate, aggregatePath, buildSentences, classifyGroup, groupStats, isRelevant, isStale,
   loadAggregate, monthlyMxn, parseSalaryString, percentile, rawDir, readFx, sampleAll, toRawJob, type CliSpawner, type RawJob,
 } from "../lib/skills";
 
@@ -84,6 +84,43 @@ describe("relevance filter", () => {
     expect(isRelevant(job({ title: "Rust developer" }), def("rust_python"))).toBe(false);
     expect(isRelevant(job({ title: "Rust and Python developer" }), def("rust_python"))).toBe(true);
     expect(isRelevant(job({ title: "Ingeniero de datos" }), def("data_engineer"))).toBe(true);
+  });
+});
+
+describe("relevance: portal match trust", () => {
+  const gob = (over: Partial<RawJob> = {}) => job({ portal: "getonbrd", title: "Backend Developer", tags: ["Programming"], queries: ["python"], ...over });
+  test("getonbrd/himalayas: returned for the skill's query is enough for a neutral title", () => {
+    expect(isRelevant(gob(), def("python"))).toBe(true);
+    expect(isRelevant(gob({ portal: "himalayas" }), def("python"))).toBe(true);
+  });
+  test("not returned for that skill's query -> still irrelevant", () => {
+    expect(isRelevant(gob({ queries: ["rust"] }), def("python"))).toBe(false);
+    expect(isRelevant(gob({ queries: [] }), def("python"))).toBe(false);
+    expect(isRelevant(gob({ queries: undefined }), def("python"))).toBe(false);
+  });
+  test("obvious other-discipline titles are excluded even if the portal matched", () => {
+    for (const title of ["Sales Manager", "Digital Marketing Specialist", "Graphic Designer", "Diseñador UX", "HR Business Partner", "Recursos Humanos", "Customer Support Agent", "Technical Recruiter"]) {
+      expect(isRelevant(gob({ title }), def("python"))).toBe(false);
+    }
+    expect(isRelevant(gob({ title: "Salesforce Developer" }), def("python"))).toBe(true);
+  });
+  test("a title/tag match wins over the exclusion list", () => {
+    expect(isRelevant(gob({ title: "Marketing Data Analyst (Python)" }), def("python"))).toBe(true);
+  });
+  test("jobicy keeps the strict rule", () => {
+    expect(isRelevant(gob({ portal: "jobicy" }), def("python"))).toBe(false);
+    expect(isRelevant(gob({ portal: "jobicy", title: "Python Developer" }), def("python"))).toBe(true);
+  });
+  test("AND-combo skills (rust_python) stay strict on every portal", () => {
+    expect(isRelevant(gob({ queries: ["rust python"], title: "Backend Developer" }), def("rust_python"))).toBe(false);
+  });
+  test("queries are recorded and merged across sightings", () => {
+    const a = toRawJob("getonbrd", { id: "1", title: "x" }, variant, "python")!;
+    const b = toRawJob("getonbrd", { id: "1", title: "x" }, variant, "rust")!;
+    const m = new Map<string, RawJob>();
+    addJob(m, a);
+    addJob(m, b);
+    expect(m.get(a.key)!.queries).toEqual(["python", "rust"]);
   });
 });
 

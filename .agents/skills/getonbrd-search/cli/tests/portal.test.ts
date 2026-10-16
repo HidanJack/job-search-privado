@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { runSearch } from "../src/commands/search";
 import { runDetail } from "../src/commands/detail";
-import { gobAcceptsLatam, normalizeId, slugQuery, toResult, type GobEnvelope } from "../src/helpers";
+import { gobAcceptsLatam, gobTags, normalizeId, slugQuery, toResult, type GobEnvelope } from "../src/helpers";
 import { CONTRACT_KEYS, baseOpts, capture, emptyFlags, fixture, mockFetch, requested, restore } from "./harness";
 
 const search = fixture<GobEnvelope>("search.json");
@@ -22,6 +22,18 @@ describe("GetOnBoard mapping", () => {
 
   test("company name comes from the expanded company relationship", () => {
     expect(toResult(byModality("fully_remote")).company).toBeTruthy();
+  });
+
+  test("tags: category plus expanded skill names, deduped; [] when absent", () => {
+    const base = byModality("fully_remote").attributes;
+    const a = {
+      ...base,
+      category_name: "Programming",
+      tags: { data: [{ id: "python", attributes: { name: "Python" } }, { id: 2 }, { attributes: { name: "Programming" } }] },
+    };
+    expect(gobTags(a)).toEqual(["Programming", "Python"]);
+    expect(gobTags({ ...base, category_name: null, tags: undefined })).toEqual([]);
+    expect(toResult({ ...byModality("fully_remote"), attributes: a }).tags).toEqual(["Programming", "Python"]);
   });
 
   test("location describes the remote modality", () => {
@@ -68,7 +80,7 @@ describe("GetOnBoard commands", () => {
     expect(url.pathname).toBe("/api/v0/search/jobs");
     expect(url.searchParams.get("query")).toBe("python");
     expect(url.searchParams.get("country_code")).toBe("MX");
-    expect(url.searchParams.get("expand")).toBe('["company"]');
+    expect(url.searchParams.get("expand")).toBe('["company","tags"]');
     const out = JSON.parse(io.out());
     expect(out.meta.count).toBe(search.data.length);
     expect(out.results).toHaveLength(search.data.length);

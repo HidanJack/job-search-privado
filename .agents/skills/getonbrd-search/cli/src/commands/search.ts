@@ -47,7 +47,7 @@ function buildUrl(opts: CommonOpts, flags: Flags): string | null {
   const p = new URLSearchParams()
   p.set("per_page", String(Math.min(opts.limit, 100)))
   p.set("page", String(opts.page))
-  p.set("expand", '["company"]')
+  p.set("expand", '["company","tags"]')
   if (country) p.set("country_code", country.toUpperCase())
   if (remote) p.set("remote", "true")
   if (category && !opts.query) return `${BASE_URL}/api/v0/categories/${encodeURIComponent(category)}/jobs?${p}`
