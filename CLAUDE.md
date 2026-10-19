@@ -40,7 +40,7 @@ This repo is a job application workspace. Claude acts as a career advisor and ap
 
 ### Education
 - **Licenciatura en Ciencias de la Informática (not completed)** - UPIICSA, Instituto Politécnico Nacional (dates not in sources)
-- **Bachillerato Técnico en Informática** - CONALEP Estado de México 236 (dates not in sources)
+- **Profesional Técnico Bachiller (P.T.B.) en Informática** - CONALEP Estado de México 236, with título and cédula profesional de técnico (No. 11454578; technician level, not a licenciatura degree - it does not satisfy "título de licenciatura/ingeniería" requirements) (dates not in sources)
 
 ### Professional Experience
 - **Software Developer** (Jan 2025 - Present) - **Intelitax / Soluciones Analíticas para Empresas S.A. de C.V.** (Ciudad de México)

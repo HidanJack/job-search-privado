@@ -42,7 +42,7 @@ a hard no, not a gap to smooth over. -->
 | Degree | Period | Institution | Key Topics |
 |--------|--------|-------------|------------|
 | Licenciatura en Ciencias de la Informática (not completed / "trunca") | Dates not stated in sources | UPIICSA - Instituto Politécnico Nacional (IPN) | Informatics |
-| Bachillerato Técnico en Informática | Dates not stated in sources | CONALEP Estado de México 236 | Informatics |
+| Profesional Técnico Bachiller (P.T.B.) en Informática, con título y cédula profesional de técnico (No. 11454578) | Dates not stated in sources | CONALEP Estado de México 236 | Informatics; technician-level título, not a licenciatura |
 
 ### Certifications
 - Python Profesional
