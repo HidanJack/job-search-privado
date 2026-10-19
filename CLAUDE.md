@@ -54,7 +54,7 @@ This repo is a job application workspace. Claude acts as a career advisor and ap
 
 ### Technical Skills
 - **Primary:** Python (Pandas, Polars, FastAPI, Flask, pytest), ETL, OCR/PDF processing, graph matching (NetworkX, Neo4j), Rust via PyO3
-- **Secondary:** TypeScript/React/React Native, Docker/Podman, Kubernetes (EKS), nginx, AWS S3, Kafka, Azure, SQL, on-device LLMs (llama.rn, Ollama)
+- **Secondary:** TypeScript/React/React Native, Docker/Podman, Kubernetes (EKS), nginx, AWS S3, Kafka, Azure, SQL (PostgreSQL; any SQL dialect, no Oracle-specific experience), Bash/shell scripting (e.g. a 560-line script that orchestrates a 6-service Podman stack: build, start/stop, health checks, logs), on-device LLMs (llama.rn, Ollama)
 - **Domain:** Mexican bank reconciliation and accounting automation, financial document AI, multi-tenant platform security
 - **Software:** Git, GitHub Actions, Claude Code (AI agents, MCP, evals, guardrails), draw.io, Selenium
 

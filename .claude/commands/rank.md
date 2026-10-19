@@ -93,6 +93,8 @@ Each agent returns a JSON array, one object per job:
 
 `salary` is copied from the posting only when it states figures - `null` otherwise, never estimated (a benchmark belongs to `/apply`, not triage). `modality` is what the posting states; `unknown` when it does not say. `fit_reasons` are what the local dashboard shows under each job as "why I fit": plain sentences, no markup, no URLs, grounded like `strengths`.
 
+**Alternatives and synonyms are not gaps:** a requirement written as alternatives ("Oracle / PostgreSQL", "Django, Flask o FastAPI") is met when the candidate has any one of them, so never list the others as a gap. Treat synonyms as the same skill: "shell scripting" = Bash, "bases de datos relacionales" = SQL/PostgreSQL. Check the profile's Technical Skills before calling something missing.
+
 Scoring uses the dimension definitions from `04-job-evaluation.md` verbatim. The honesty rule applies to triage too: gaps are stated, never smoothed over, and a posting that is a poor fit gets a low score even if it looks prestigious.
 
 ---
