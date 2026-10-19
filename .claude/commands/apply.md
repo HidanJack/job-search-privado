@@ -156,6 +156,7 @@ Apply `10-ats-and-screening.md` sections 3-4 while drafting, not only when verif
 - Tailor the profile statement and experience bullets to the specific role
 - Reframe skills and achievements to match job requirements
 - Keep to 2 pages (`10-ats-and-screening.md`: 1-2 pages for 3+ years of experience; the stock template's hard limit is 2)
+- **Header check:** the header must render name and title without awkward wrapping (name + " | " + title on one line); check the rendered page 1 (`pdftoppm -r 70 -png -f 1 -l 1`) before moving on.
 - **Grounding Audit:** Before writing to disk, audit all tailored bullet points against the union of three sources: `.claude/skills/job-application-assistant/01-candidate-profile.md` + the master CV (`cv/main_example.tex`) + `CLAUDE.md`'s Candidate Profile section to verify that all dates, roles, and metrics match exactly (zero profile drift or fabrication).
 
 ### Cover Letter (`cover_letters/cover_<company>_<role><COVER_EXT>`)

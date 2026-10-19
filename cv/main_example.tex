@@ -16,11 +16,18 @@
 % frozen before \moderncvcolor runs. Re-let them after. \namefont is the hook
 % every name-style macro routes through, so this also works on moderncv 2.3.1
 % (Debian/Ubuntu apt), which has no \firstnamestyle/\lastnamestyle at all.
-\renewcommand*{\namefont}{\fontsize{34}{36}\bfseries\upshape}
+\renewcommand*{\namefont}{\fontsize{26}{28}\bfseries\upshape}
+\renewcommand*{\titlefont}{\fontsize{17}{19}\mdseries\upshape}
 \colorlet{firstnamecolor}{color1}
 \colorlet{lastnamecolor}{color1}
 \colorlet{namecolor}{color1}
 \renewcommand*{\sectionstyle}[1]{{\sectionfont\color{color1}#1}}
+
+% Header box: moderncv's headiii sets the name/title box to 0.8\textwidth, which
+% wraps "Name | Title" for titles over ~20 characters. Widen it to the full text
+% width so name + " | " + title (up to ~35 characters) stay on one line.
+\usepackage{etoolbox}
+\patchcmd{\makehead}{\setlength{\makeheaddetailswidth}{0.8\textwidth}}{\setlength{\makeheaddetailswidth}{\textwidth}}{}{\PackageWarning{cv}{makehead patch failed}}
 
 \usepackage[utf8]{inputenc}
 % pdflatex fallback only (the documented engine is lualatex, which skips this
