@@ -121,12 +121,13 @@ postings are mostly Spanish. `/job-scraper` Step 1d describes how to run and sto
 | Data engineer | `ingeniero de datos`, `data engineer python`, `ETL python` |
 | AI engineer | `ingeniero de inteligencia artificial`, `AI engineer`, `AI engineer python`, `applied AI engineer`, `machine learning engineer`, `LLM`, `desarrollador python IA` |
 | Web developer | `desarrollador web`, `desarrollador frontend react` |
+| Full stack / AI-assisted development | `desarrollador full stack`, `full stack python`, `full stack IA`, `Claude`, `desarrollador IA generativa`, `ingeniero de IA full stack` |
 | Automation / RPA with Python | `automatización python`, `desarrollador RPA` |
 | Data analyst / BI | `analista de datos`, `analista BI sql` |
 | QA automation | `QA automation`, `analista QA automatización` |
 | Accounting-tax software (CFDI) | `implementación software contable`, `soporte CFDI facturación electrónica` |
 
-By default run the first three families; the neighbor families on "broad" or when
+By default run the first three families plus "Full stack / AI-assisted development"; the neighbor families on "broad" or when
 the user names them.
 
 ## Search Sites
