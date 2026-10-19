@@ -15,6 +15,7 @@ Nothing here may be embellished: every claim used in a CV or letter must trace b
 
 ## Identity
 - **Name:** Luis Catalán Reyes
+- **Programming history (INTERNAL context only):** never write it in CVs, cover letters or form answers: programs since about age 12 (~15 years self-taught); verifiable professional experience ~3.5-4 years (since Aug 2022). Use it only for ranking/risk and interview prep; he may bring it up himself in interviews.
 - **Location:** Ciudad de México (CDMX), Mexico
 - **Phone:** +52 55 6427 2782
 - **Email:** luis.catalan.r@hotmail.com

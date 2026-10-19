@@ -81,7 +81,22 @@ class Risk(unittest.TestCase):
         r = calc(gaps=["Piden 8+ años de experiencia y tienes ~3.5"])
         self.assertIn("8+ años", r["risk_driver"])
         self.assertGreater(r["risk"], calc()["risk"])
-        self.assertEqual(calc(gaps=["Piden 3 años"])["risk"], calc(gaps=["Otro requisito"])["risk"])
+        self.assertEqual(calc(gaps=["Piden 3 años"])["risk"], calc()["risk"])
+
+    def test_years_within_tolerance_add_no_risk(self):
+        base = calc()["risk"]
+        self.assertEqual(calc(gaps=["Piden 6 años de experiencia"])["risk"], base)
+        self.assertEqual(calc(gaps=["Piden 5+ años de experiencia"])["risk"], base)
+        self.assertGreater(calc(gaps=["Piden 7 años de experiencia"])["risk"], base)
+        self.assertEqual(opp.CANDIDATE_YEARS, 4)
+
+    def test_degree_gap_adds_no_meaningful_risk(self):
+        base = calc()["risk"]
+        for gap in ["Piden título profesional/licenciatura", "Requieren licenciatura en ingeniería",
+                    "Bachelor's degree required", "Degree in Computer Science", "Título en Ingeniería en Sistemas"]:
+            self.assertLessEqual(calc(gaps=[gap])["risk"] - base, 2, gap)
+        self.assertEqual(calc(gaps=["Piden licenciatura", "No tienes GCP"])["risk"] - base,
+                         calc(gaps=["No tienes GCP"])["risk"] - base + 2)
 
     def test_missing_skills_add_risk(self):
         self.assertGreater(calc(gaps=["No tienes GCP", "Sin BigQuery"])["risk"], calc()["risk"])

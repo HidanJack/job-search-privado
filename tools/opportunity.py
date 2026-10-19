@@ -22,8 +22,12 @@ FORMULAS (all weights live in OPPORTUNITY_WEIGHTS / RISK_POINTS below)
   Riesgo (0-100) = sum of additive points, capped at 100:
     spoken English  English posting (assumed spoken English) or a stated
                     spoken-English gap; more when C1/C2/fluent is asked
-    gaps            years required above your 3.5, each non-language gap
-                    from the fit analysis, "senior" in the title
+    gaps            years required above your verifiable 4 plus a 2-year
+                    tolerance (you have programmed ~15 years, so asks up to 6
+                    cost nothing), each non-language gap from the fit
+                    analysis, "senior" in the title. A degree/licenciatura gap
+                    is never a real risk (your licenciatura is unfinished but
+                    you pass those screens): it adds a token 2 points, once
     friction        location FLAG/FAIL (US/EU hours do not add risk: the
                     candidate works night shifts; CST is his own timezone)
     ghost job       very old, reposted, no salary and vague analysis
@@ -43,7 +47,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import prefilter  # noqa: E402  (settings loader and paths shared with the prefilter)
 
-CANDIDATE_YEARS = 3.5
+CANDIDATE_YEARS = 4          # verifiable professional years (CVs state these)
+YEARS_TOLERANCE = 2          # ~15 years of hands-on programming: asks up to 6 are realistic
 
 OPPORTUNITY_WEIGHTS = {
     "fit": 0.40, "salary": 0.20, "freshness": 0.15, "language": 0.10, "modality": 0.08, "source": 0.07,
@@ -53,10 +58,11 @@ RISK_POINTS = {
     "english_posting": 40,       # English posting => spoken English assumed
     "english_stated": 25,        # Spanish/mixed posting that still states a spoken-English gap
     "english_advanced": 15,      # C1/C2/fluent/native asked on top of the above
-    "years_each": 7,             # per year above CANDIDATE_YEARS (max years_max)
+    "years_each": 7,             # per year above CANDIDATE_YEARS + YEARS_TOLERANCE (max years_max)
     "years_max": 25,
     "gap_each": 7,               # per non-language gap (max gap_max)
     "gap_max": 21,
+    "degree_gap": 2,             # token points for a degree/licenciatura gap (never a knockout)
     "senior_title": 6,
     "location_flag": 15,
     "location_fail": 40,
@@ -76,6 +82,7 @@ DEFAULT_SOURCE_QUALITY = 50
 
 ENGLISH_ADVANCED = re.compile(r"\b(c1|c2|fluent|fluido|nativo|native|advanced|avanzado)\b", re.I)
 ENGLISH_GAP = re.compile(r"ingl[eé]s hablado|spoken english|ingl[eé]s (fluido|conversacional)|english[^.]{0,40}(interview|conversation|calls?)", re.I)
+DEGREE = re.compile(r"t[ií]tulo|titulad|licenciatura|ingenier[ií]a|degree|bachelor|c[eé]dula", re.I)
 YEARS = re.compile(r"(\d{1,2})\s*\+?\s*(?:a[nñ]os|years|yrs)", re.I)
 UNPAID = re.compile(r"\b(unpaid|no remunerad|sin sueldo|voluntari|solo comisi|commission[- ]only|a comisi)", re.I)
 ISO = re.compile(r"^\d{4}-\d{2}-\d{2}")
@@ -204,12 +211,17 @@ def risk_items(entry: dict, today: date, current: int) -> list[tuple[int, str]]:
 
     years = [int(m.group(1)) for g in gaps + [str(r) for r in entry.get("fit_reasons") or []] for m in YEARS.finditer(g)]
     top = max(years, default=0)
-    if top > CANDIDATE_YEARS:
-        items.append((min(p["years_max"], int(round((top - CANDIDATE_YEARS) * p["years_each"]))), f"piden {top}+ años y tienes ~3.5"))
-    other_gaps = [g for g in gaps if not ENGLISH_GAP.search(g) and not (top > CANDIDATE_YEARS and YEARS.search(g))]
+    limit = CANDIDATE_YEARS + YEARS_TOLERANCE
+    years_risk = top > limit
+    if years_risk:
+        items.append((min(p["years_max"], int(round((top - limit) * p["years_each"]))), f"piden {top}+ años y tienes ~4 verificables"))
+    degree_gaps = [g for g in gaps if DEGREE.search(g) and not ENGLISH_GAP.search(g)]
+    if degree_gaps:
+        items.append((p["degree_gap"], "piden título o licenciatura"))
+    other_gaps = [g for g in gaps if not ENGLISH_GAP.search(g) and g not in degree_gaps and not YEARS.search(g)]
     if other_gaps:
         items.append((min(p["gap_max"], p["gap_each"] * len(other_gaps)), f"{len(other_gaps)} {'requisito' if len(other_gaps) == 1 else 'requisitos'} que no cubres"))
-    if re.search(r"\b(senior|sr|lead|principal)\b", str(entry.get("title") or ""), re.I) and not top:
+    if re.search(r"\b(senior|sr|lead|principal)\b", str(entry.get("title") or ""), re.I) and not years_risk:
         items.append((p["senior_title"], "puesto senior"))
 
     verdict = entry.get("location_verdict")

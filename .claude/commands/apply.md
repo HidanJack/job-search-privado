@@ -63,7 +63,9 @@ Scan the posting (and the application form, when the portal CLI's `detail` outpu
 
 For each one found, state the requirement as quoted and the **truthful answer from the profile** (CLAUDE.md Identity/Languages, `01-candidate-profile.md`): `meets`, `does not meet`, or `unclear` (the profile does not say - ask the user, then write the answer back to `01-candidate-profile.md` per the standing rule). Present the list as a short table at the top of the Step 1 output.
 
-**If any knockout is `does not meet`, stop and say so before evaluating further:** quote it, explain that an ATS knockout auto-rejects regardless of fit, and ask whether to continue anyway. Never draft a CV that hides or blurs a knockout gap, and never suggest answering a knockout question untruthfully - the form answer has to agree with the CV.
+**Exceptions - never a stopping knockout:** a degree requirement (licenciatura, título, "bachelor's") is not a stop even when it is `does not meet`: his licenciatura is unfinished but he regularly passes screens that ask for it. Mark it `unclear`, note it, and keep drafting. For form answers suggest the honest wording "Licenciatura en Ciencias de la Informática (trunca), UPIICSA-IPN; título y cédula de Profesional Técnico en Informática (CONALEP)". For years, state the verifiable professional years (~3.5-4) and never inflate them; a requirement up to 6 years is not a stop either.
+
+**If any other knockout is `does not meet`, stop and say so before evaluating further:** quote it, explain that an ATS knockout auto-rejects regardless of fit, and ask whether to continue anyway. Never draft a CV that hides or blurs a knockout gap, and never suggest answering a knockout question untruthfully - the form answer has to agree with the CV.
 
 ---
 

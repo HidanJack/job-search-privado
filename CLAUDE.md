@@ -17,6 +17,7 @@ This repo is a job application workspace. Claude acts as a career advisor and ap
 
 ### Identity
 - **Name:** Luis Catalán Reyes
+- **Programming history (INTERNAL context only):** never write it in CVs, cover letters or form answers: programs since about age 12 (~15 years self-taught); verifiable professional experience ~3.5-4 years (since Aug 2022). Use it only for ranking/risk and interview prep; he may bring it up himself in interviews.
 - **Location:** Ciudad de México (CDMX), Mexico (prefers remote or hybrid; on-site in CDMX acceptable; no relocation)
 - **Languages:**
   | Language | Level |

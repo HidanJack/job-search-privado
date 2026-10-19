@@ -182,7 +182,7 @@ def exclusion(entry: dict) -> str | None:
     m = SENIORITY_OUT.search(title)
     if m:
         label = SENIORITY_LABEL.get(m.group(0), m.group(0).title())
-        return f"Nivel {label}: muy por encima de tus ~3.5 años"
+        return f"Nivel {label}: muy por encima de tu experiencia"
     if PORTUGUESE.search(title):
         return "Anuncio en portugués"
     for pattern, label in STACK_ONLY:
