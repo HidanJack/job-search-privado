@@ -156,6 +156,7 @@ Apply `10-ats-and-screening.md` sections 3-4 while drafting, not only when verif
 - **Language = the posting's language** when the candidate declares it in CLAUDE.md's Languages table (a Spanish posting gets a Spanish CV; a remote-international or foreign-employer posting in English gets an English CV). When the posting's language is not declared, that is a Language Gate failure from Step 1, not a translation job. A profile can pin one language for every CV by setting `CV language:` in CLAUDE.md's Identity section to a single language instead of `match posting`; honour that when it is set. Translate section headings and boilerplate too (`05-cv-templates.md`, Spanish worked example)
 - Follow the moderncv/banking format from `05-cv-templates.md`
 - Tailor the profile statement and experience bullets to the specific role
+- When choosing CV content for AI, ML, data, automation, document-processing or computer-vision roles, consult the "Evidence bank: ML and computer vision" section of `01-candidate-profile.md` and pick the projects that match the posting.
 - Reframe skills and achievements to match job requirements
 - Keep to 2 pages (`10-ats-and-screening.md`: 1-2 pages for 3+ years of experience; the stock template's hard limit is 2)
 - **Header check:** the header must render name and title without awkward wrapping (name + " | " + title on one line); check the rendered page 1 (`pdftoppm -r 70 -png -f 1 -l 1`) before moving on.

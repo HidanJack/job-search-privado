@@ -67,12 +67,14 @@ Ciudad de México
 - Built and later rewrote in Rust (PyO3, rayon) a multi-criteria graph-based matching engine (NetworkX, Neo4j) for bank reconciliation; on a real manufacturing client case, unmatched movements dropped from 82 to 2. Diagnosed and fixed 6 logic bugs introduced while porting from Python to Rust.
 - Third-generation matcher (MATCHER_V2): architecture documented in draw.io diagrams before coding, phased reversible migration with feature flags and golden tests (3 levels), built a ~1,000-line test harness from zero on a codebase that had none.
 - Led the migration of the pipeline to a multi-tenant platform on Kubernetes/EKS integrated with a real third-party auth service (nginx auth_request, JWT); in self-initiated audits found and fixed a cross-tenant authorization vulnerability (any valid session could read another client's job) and a race condition, before production. Per-client job ownership, service-to-service auth, generated-and-validated K8s ConfigMaps, React (Vite + Tailwind) frontend.
+- Built ocr_lab, a Flask tool to tune OCR pre-processing (grayscale histograms, two-pass thresholding, contrast, per-page overrides), with live preview and batch export.
 - Built end-to-end QA: a regression run of the full pipeline over 211 real PDFs from 11 banks (~88-89% success per stage).
 - Uses AI agents (Claude Code) as part of development with engineering controls: design-first diagrams, specification, TDD and adversarial review; built 7 own agents (see Technical Skills > AI-Augmented Engineering).
 
 ### Information Analyst - Grupo Gabssa (Aug 2023 - Aug 2024)
 - Automated analysis, consolidation and reporting of business data with Python scripts, reducing manual processing work.
 - Built an OCR + self-trained document-classification model (scikit-learn; demandas, invitation letters and other document types) that organized 7 TB of PDFs on the company NAS
+- Trained a YOLO + OpenCV detection model for stamps and signatures in documents (same document-processing work; he later reused that logic for bank-statement table detection). "Trained" is correct here (his words).
 - INTERNAL only: the end clients of this call center (housing-loan collections) must not be named in CVs/letters; use generic wording ("documentos legales y de cobranza").
 
 ### Technology Analyst - Ingeniería Integral Consultores México (Aug 2022 - Aug 2023)
@@ -92,7 +94,7 @@ Ciudad de México
 - **Python** (advanced): Pandas, Polars, NumPy, OpenPyXL, FastAPI, Flask, SQLAlchemy, pytest, ThreadPoolExecutor/ProcessPoolExecutor
 - **Rust** (intermediate-advanced, via PyO3 extensions): rayon, ahash
 - **SQL**, **TypeScript/JavaScript** (React, React Native/Expo), Cypher
-- OCR & documents: Tesseract, OpenCV, YOLOv10 (PyTorch; table/header detection in v1 of bank-statement extraction), deepdoctection, docTR, PyMuPDF (word-coordinate parsing of PDF text layer in v2; OCR only as scanned-PDF fallback), binary parsing of embedded CFF/Type1/Type3 fonts
+- OCR & documents: computer vision (YOLO, OpenCV), image pre-processing for OCR (histograms/thresholding), scikit-learn, Tesseract, OpenCV, YOLOv10 (PyTorch; table/header detection in v1 of bank-statement extraction), deepdoctection, docTR, PyMuPDF (word-coordinate parsing of PDF text layer in v2; OCR only as scanned-PDF fallback), binary parsing of embedded CFF/Type1/Type3 fonts
 - ML/AI (pre-LLM): has trained his own document-classification model (scikit-learn) since 2023 (Grupo Gabssa), in addition to LLM work with Claude since Jan 2025; used PyTorch via YOLOv10 table/header detection in v1 of bank-statement extraction at Intelitax, later replaced by coordinate-based PyMuPDF parsing in v2 for text PDFs (verified on disk: ultralytics YOLOv10, torch; whether he trained the weights is NOT stated - never write "trained" about YOLO); TensorFlow: stated by Luis, no evidence found - do not put in CVs; never attribute these to the Gabssa classifier
 - ML/AI: deep learning, embeddings (sentence-transformers), on-device LLMs (llama.rn, Ollama), InsightFace/ONNX
 - Graphs & matching: NetworkX, Neo4j, RapidFuzz, scipy (combinatorial optimization)
@@ -112,6 +114,17 @@ Ciudad de México
 
 ### Software & Tools
 - Docker/Podman, Kubernetes (EKS), nginx, Git, GitHub Actions, AWS S3 (boto3), Kafka, Azure, Selenium, LaTeX-free docs tooling, draw.io
+
+## Evidence bank: ML and computer vision
+
+**Rule:** for AI, ML, data, automation, document-processing or computer-vision roles, always consider these projects and pick the ones that match the posting; they were underused in earlier CVs. Record only what is stated here; add no accuracy, dataset-size or speed figures.
+
+- **Gabssa scikit-learn document classifier** (trained by him; OCR + classification of demandas, invitation letters and other types; organized 7 TB of PDFs on the company NAS). Use for ML, classification, document-processing and data-organization roles.
+- **Gabssa YOLO + OpenCV stamp/signature detector** (trained by him; detects stamps and signatures in documents; he reused that logic later for bank-statement table detection). Use for computer-vision, document-AI and detection roles.
+- **Intelitax YOLOv10 table detection -> coordinate-based Parseador 2.0** (v1 detected the statement table/header with YOLOv10 + PyTorch + OCR; v2 reads word coordinates from the PDF text layer with PyMuPDF, simpler and faster, OCR only as scanned-PDF fallback). Do NOT claim he trained those YOLOv10 weights. Use for document-extraction, pipeline-simplification and engineering-judgment stories.
+- **ocr_lab** (Flask tool to tune image pre-processing before Tesseract OCR: PDF page rendering, per-page grayscale histograms with numpy, two-pass thresholding, contrast, per-page overrides, live preview, batch export; part of the Parseador work). Use for OCR, image pre-processing and tooling roles.
+- **Knoto on-device LLM with evals** (see Independent Projects: local LLM via llama.rn, guardrails, evals). Use for GenAI/LLM-engineering roles.
+- **PyTorch via YOLO** (ultralytics YOLOv10 verified on disk). TensorFlow: stated by Luis, no evidence on disk - never put it in CVs.
 
 ## Publications
 None.

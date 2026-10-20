@@ -157,6 +157,8 @@ Every skill file under `.claude/skills/job-application-assistant/` opens with a 
 
 ## Technical Skills
 
+## Evidence bank: ML and computer vision
+
 ## Publications
 
 ## Awards
