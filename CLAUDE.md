@@ -13,6 +13,8 @@ This repo is a job application workspace. Claude acts as a career advisor and ap
 
 ## Candidate Profile
 
+> **INTERNAL (Grupo Gabssa):** the end clients of this call center (housing-loan collections) must not be named in CVs/letters; use generic wording ("documentos legales y de cobranza").
+
 > **CONFIDENTIALITY (hard rule):** never name Intelitax's end clients in any CV, cover letter, form answer or outreach message - describe them generically ("a manufacturing client", "a media-sector client"). Full rule in `01-candidate-profile.md`.
 
 ### Identity
@@ -50,10 +52,12 @@ This repo is a job application workspace. Claude acts as a career advisor and ap
   - Graph-based reconciliation engine rewritten in Rust (PyO3): real case 82 -> 2 unmatched movements; led Kubernetes/EKS multi-tenant migration, found and fixed a cross-tenant authorization vulnerability and a race condition before production
 - **Information Analyst** (Aug 2023 - Aug 2024) - **Grupo Gabssa**
   - Automated business data analysis, consolidation and reporting with Python
+  - Built an OCR + self-trained document-classification model (scikit-learn; demandas, invitation letters and other document types) that organized 7 TB of PDFs on the company NAS
 - **Technology Analyst** (Aug 2022 - Aug 2023) - **Ingeniería Integral Consultores México**
   - Python analysis scripts for technology requirements; IT infrastructure support
 
 ### Technical Skills
+- **ML (pre-LLM):** has trained his own document-classification model (scikit-learn) since 2023 (Grupo Gabssa), in addition to LLM work with Claude since Jan 2025; has also used TensorFlow and PyTorch on another PDF-related project (details not provided; never attribute them to the Gabssa classifier)
 - **Primary:** Python (Pandas, Polars, FastAPI, Flask, pytest), ETL, OCR/PDF processing, graph matching (NetworkX, Neo4j), Rust via PyO3
 - **Secondary:** TypeScript/React/React Native, Docker/Podman, Kubernetes (EKS), nginx, AWS S3, Kafka, Azure, SQL (PostgreSQL; any SQL dialect, no Oracle-specific experience), Bash/shell scripting (e.g. a 560-line script that orchestrates a 6-service Podman stack: build, start/stop, health checks, logs), on-device LLMs (llama.rn, Ollama)
 - **Domain:** Mexican bank reconciliation and accounting automation, financial document AI, multi-tenant platform security

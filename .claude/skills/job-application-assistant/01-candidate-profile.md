@@ -72,6 +72,8 @@ Ciudad de México
 
 ### Information Analyst - Grupo Gabssa (Aug 2023 - Aug 2024)
 - Automated analysis, consolidation and reporting of business data with Python scripts, reducing manual processing work.
+- Built an OCR + self-trained document-classification model (scikit-learn; demandas, invitation letters and other document types) that organized 7 TB of PDFs on the company NAS
+- INTERNAL only: the end clients of this call center (housing-loan collections) must not be named in CVs/letters; use generic wording ("documentos legales y de cobranza").
 
 ### Technology Analyst - Ingeniería Integral Consultores México (Aug 2022 - Aug 2023)
 - Developed Python analysis scripts for technology requirements and supported IT infrastructure.
@@ -91,6 +93,7 @@ Ciudad de México
 - **Rust** (intermediate-advanced, via PyO3 extensions): rayon, ahash
 - **SQL**, **TypeScript/JavaScript** (React, React Native/Expo), Cypher
 - OCR & documents: Tesseract, OpenCV, YOLOv10 (deepdoctection), docTR, PyMuPDF, binary parsing of embedded CFF/Type1/Type3 fonts
+- ML/AI (pre-LLM): has trained his own document-classification model (scikit-learn) since 2023 (Grupo Gabssa), in addition to LLM work with Claude since Jan 2025; has also used TensorFlow and PyTorch on another PDF-related project (details not provided; never attribute them to the Gabssa classifier)
 - ML/AI: deep learning, embeddings (sentence-transformers), on-device LLMs (llama.rn, Ollama), InsightFace/ONNX
 - Graphs & matching: NetworkX, Neo4j, RapidFuzz, scipy (combinatorial optimization)
 
