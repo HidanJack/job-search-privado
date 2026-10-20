@@ -175,7 +175,7 @@ function fillFilterForm(f) {
   form.maxDays.value = f.maxDays;
   form.minSalary.value = f.minSalary;
   form.rankBatch.value = f.rankBatch ?? 10;
-  form.minPrefilterScore.value = f.minPrefilterScore ?? 60;
+  form.minPrefilterScore.value = f.minPrefilterScore ?? 55;
   form.includeNoSalary.checked = f.includeNoSalary;
   form.includeUndated.checked = f.includeUndated;
   form.hideEnglish.checked = f.hideEnglish !== false; // filters saved before this option existed: on
@@ -454,9 +454,18 @@ function renderJobs(data) {
     const a = el("a", { text: `${j.title} — ${j.company}`, target: "_blank", rel: "noopener noreferrer" });
     if (j.url) a.href = j.url;
     li.append(a, document.createTextNode(` (${ageLabel(j.age_days)})`));
+    const why = prefilterWhy(j);
+    if (why) li.title = why;
     return li;
   }));
   $("#unranked-summary").textContent = queueSummary(pending, data.rankBatch, data.counts && data.counts.prefilteredOut, eligible, data.minPrefilterScore);
+}
+
+// Tooltip for the queue: the prefilter score plus what the learned scorer says moves it.
+function prefilterWhy(j) {
+  const why = (j.prefilter_why || []).join("; ");
+  if (typeof j.prefilter_score !== "number") return why;
+  return `Puntaje previo ${j.prefilter_score}${why ? ` · ${why}` : ""}`;
 }
 
 // "10 de 340 pendientes cumplen el puntaje mínimo (52) · Y descartadas automáticamente"
@@ -523,7 +532,8 @@ function renderGated(data) {
     const text = el("span");
     const a = el("a", { text: `${j.title} — ${j.company}`, target: "_blank", rel: "noopener noreferrer" });
     if (j.url) a.href = j.url;
-    text.append(a, el("span", { class: "gate-score", text: ` · puntaje ${j.prefilter_score}` }));
+    const why = (j.prefilter_why || []).join("; ");
+    text.append(a, el("span", { class: "gate-score", text: ` · puntaje ${j.prefilter_score}${why ? ` · ${why}` : ""}`, title: prefilterWhy(j) }));
     const btn = el("button", { type: "button", class: "ghost small recover-btn", text: "Calificar esta" });
     btn.addEventListener("click", async () => {
       btn.disabled = true;

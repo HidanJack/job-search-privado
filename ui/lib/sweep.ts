@@ -178,6 +178,35 @@ export interface SweepPosting {
   portal: string;
   source: "cli";
   location: string | null;
+  /** Only present when the search row carried tags/category (never fetched separately). */
+  tags?: string[];
+  /** First ~400 characters of an excerpt/description, only when the search row already has one. */
+  snippet?: string;
+}
+
+export const MAX_SNIPPET = 400;
+const MAX_TAGS = 30;
+
+/** Short, trimmed, de-duplicated tag strings from a search row (anything else is dropped). */
+export function cleanTags(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const t of v) {
+    if (typeof t !== "string") continue;
+    const tag = t.replace(/\s+/g, " ").trim().slice(0, 60);
+    if (!tag || seen.has(tag.toLowerCase())) continue;
+    seen.add(tag.toLowerCase());
+    out.push(tag);
+  }
+  return out.slice(0, MAX_TAGS);
+}
+
+export function cleanSnippet(row: { excerpt?: unknown; description?: unknown; snippet?: unknown }): string | null {
+  for (const v of [row.snippet, row.excerpt, row.description]) {
+    if (typeof v === "string" && v.trim()) return v.replace(/\s+/g, " ").trim().slice(0, MAX_SNIPPET);
+  }
+  return null;
 }
 
 export type SweepSaver = (postings: SweepPosting[]) => Promise<{ added: number; skipped: number }>;
@@ -240,6 +269,10 @@ interface RawRow {
   location?: unknown;
   date?: unknown;
   url?: unknown;
+  tags?: unknown;
+  excerpt?: unknown;
+  description?: unknown;
+  snippet?: unknown;
 }
 
 const cliPath = (root: string, portal: string) => join(root, ".agents", "skills", `${portal}-search`, "cli", "src", "cli.ts");
@@ -370,9 +403,12 @@ export async function runSweep(opts: SweepOptions): Promise<SweepStats> {
       const gid = `${task.portal}\u0000${label}`;
       let group = groups.get(gid);
       if (!group) groups.set(gid, (group = { portal: task.portal, query: label, postings: [] }));
+      const tags = cleanTags(row.tags);
+      const snippet = cleanSnippet(row);
       group.postings.push({
         title, company: text(row.company) ?? "(sin empresa)", url, posted_date: date, deadline: null, fit: "medium",
         status: "new", portal: task.portal, source: "cli", location: location ? location.slice(0, 200) : null,
+        ...(tags.length ? { tags } : {}), ...(snippet ? { snippet } : {}),
       });
       stats.kept++;
     }

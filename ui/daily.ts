@@ -62,6 +62,10 @@ for (const step of steps) {
   if (code !== 0) failed = true;
   if (!rankOnly && step.prompt.startsWith("/job-scraper")) finalizeCoverage(root, indeedBefore, log);
   if (step.prompt === "/rank") {
+    // Retrain on the labels /rank just added (free, no LLM); a failure never fails the run.
+    log("RUN learned");
+    const learned = await runTool(root, "learned", log);
+    log(`DONE learned ok=${learned}`);
     log("RUN opportunity");
     const ok = await runTool(root, "opportunity", log);
     log(`DONE opportunity ok=${ok}`);

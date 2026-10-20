@@ -11,7 +11,9 @@ when present) against Luis's skills and role families, and:
     accounting titles, Staff/Principal/Director/Head seniority, Portuguese
     postings, postings restricted to another country). They are never deleted
     and never sent to /rank; `recover` puts one back in the pending pool.
-  * stores `prefilter_score` (0-100) on the rest, which `rank_state.py
+  * stores `prefilter_score` (0-100) on the rest (the handcrafted heuristic, blended 50/50
+    with tools/learned_score.py when ui/state/learned_model.json exists and is active,
+    plus `prefilter_why`), which `rank_state.py
     candidates` uses to hand /rank the best N first.
 
 Rules are intentionally conservative: when in doubt a job is kept and merely
@@ -37,12 +39,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 ROOT = Path(__file__).resolve().parent.parent
 STATE = ROOT / "job_scraper" / "seen_jobs.json"
 SETTINGS = ROOT / "ui" / "state" / "settings.json"
+MODEL = ROOT / "ui" / "state" / "learned_model.json"
 
 OUT_STATUS = "prefiltered_out"
 DEFAULT_RANK_BATCH = 10
 # Deterministic gate in front of the LLM: `new` jobs scoring below this are never
-# sent to /rank automatically (chosen from the real score distribution: ~30% of new jobs).
-DEFAULT_MIN_PREFILTER_SCORE = 60
+# sent to /rank automatically (55 keeps the plausible 55-60 band, e.g. full stack / DevOps titles).
+DEFAULT_MIN_PREFILTER_SCORE = 55
 DEFAULT_MIN_SALARY = 35000
 DEFAULT_MAX_DAYS = 7
 CURRENT_SALARY = 21000
@@ -260,10 +263,12 @@ TECH_WEAK = rx(
 )
 # "AI"/"IA" alone is not enough ("Creative Producer (AI-Driven)"): it needs an engineering role beside it.
 AI_WORD = rx("ai", "ia")
+AI_STACK = rx("ai", "ia", "ml", "llm", "rag", "agents", "agentic", "claude", "machine learning", "inteligencia artificial", "genai")
 AI_ROLE = rx(
     "engineer", "engineering", "developer", "programmer", "ingeniero", "ingeniera", "desarrollador",
     "desarrolladora", "programador", "scientist", "architect", "arquitecto", "arquitecta", "devops", "sre",
 )
+AI_PAIRED_BONUS = 4  # AI/LLM/agents word beside an engineer/developer word: 10 -> 14 points
 TECH_STRONG_POINTS = 38
 TECH_WEAK_POINTS = 24
 # (pattern, points): his stack named in the title. Every hit counts once, capped overall.
@@ -274,7 +279,8 @@ STACK_POINTS = [
     (rx("backend", "back end", "back-end", "api", "microservices", "microservicios"), 6),
     (rx("fastapi", "django", "flask", "pandas", "polars", "ocr", "pytest"), 6),
     (rx("kubernetes", "k8s", "docker", "aws", "sql", "postgres", "postgresql", "terraform"), 4),
-    (rx("typescript", "react", "node", "nodejs", "full stack", "fullstack", "full-stack"), 4),
+    (rx("typescript", "react", "node", "nodejs"), 4),
+    (rx("full stack", "fullstack", "full-stack"), 14),
     (rx("rust"), 5),
     (rx("rpa", "automation", "automatizacion", "automate"), 4),
     (rx("data analyst", "analista de datos", "bi analyst", "business intelligence", "data scientist", "analytics"), 2),
@@ -287,9 +293,9 @@ SPANISH_TITLE_WORDS = rx(
 )
 PENALTIES = [
     (rx("manager", "gerente", "jefe", "lider"), -10),
-    (rx("lead"), -4),
+    (rx("lead"), -2),
     (rx("architect", "arquitecto", "arquitecta"), -6),
-    (rx("senior", "sr"), -3),
+    (rx("senior", "sr"), -1),
     (rx("intern", "internship", "trainee", "practicante", "becario"), -15),
     # Stacks or gigs that are not his: kept (a skill word may still redeem them) but demoted.
     (rx("golang", "go", "scala", "elixir", "game", "unity", "trading", "low latency", "low-latency", "pega", "hyland", "looker", "powercampus", "salesforce"), -8),
@@ -315,7 +321,10 @@ def score(entry: dict, today: date, floor: int = DEFAULT_MIN_SALARY, current: in
     strong = bool(TECH_STRONG.search(title)) or bool(AI_WORD.search(title) and AI_ROLE.search(title))
     is_tech = strong or bool(TECH_WEAK.search(title))
     points = BASE_SCORE + (TECH_STRONG_POINTS if strong else TECH_WEAK_POINTS if is_tech else 0)
-    points += min(STACK_CAP, sum(value for pattern, value in STACK_POINTS if pattern.search(title)))
+    stack = sum(value for pattern, value in STACK_POINTS if pattern.search(title))
+    if AI_STACK.search(title) and AI_ROLE.search(title):
+        stack += AI_PAIRED_BONUS
+    points += min(STACK_CAP, stack)
     for pattern, value in PENALTIES:
         if pattern.search(title):
             points += value
@@ -350,18 +359,40 @@ def evaluate(entry: dict, today: date, floor: int = DEFAULT_MIN_SALARY, current:
 
 
 # ---- state -------------------------------------------------------------------
-def prefilter_state(seen: dict, today: date, settings: dict) -> dict:
+def apply_score(entry: dict, today: date, settings: dict, model: dict | None = None) -> int:
+    """Store prefilter_score: handcrafted, or the 50/50 blend with the learned model when it is active."""
+    hand = score(entry, today, settings["minSalaryMxn"], settings["currentSalary"])
+    if not model or not model.get("active"):
+        entry["prefilter_score"] = hand
+        return hand
+    import learned_score  # imported lazily: learned_score imports this module
+
+    final, parts = learned_score.blended_score(model, entry, today, hand=hand)
+    entry["prefilter_score"] = final
+    entry["prefilter_hand_score"] = hand
+    if "learned" in parts:
+        entry["prefilter_learned_score"] = parts["learned"]
+    why = learned_score.explain(model, entry)
+    if why:
+        entry["prefilter_why"] = why
+    else:
+        entry.pop("prefilter_why", None)
+    return final
+
+
+def prefilter_state(seen: dict, today: date, settings: dict, model: dict | None = None) -> dict:
     """Update `new` entries in place; returns counts. Recovered entries are kept."""
     kept = out = recovered = 0
     for entry in seen.values():
         if entry.get("status") != "new":
             continue
         if entry.get("prefilter_recovered"):
-            entry["prefilter_score"] = score(entry, today, settings["minSalaryMxn"], settings["currentSalary"])
+            apply_score(entry, today, settings, model)
             recovered += 1
             continue
-        verdict = evaluate(entry, today, settings["minSalaryMxn"], settings["currentSalary"])
-        entry["prefilter_score"] = verdict["score"]
+        reason = exclusion(entry)
+        apply_score(entry, today, settings, model)
+        verdict = {"out": reason is not None, "reason": reason}
         if verdict["out"]:
             entry["status"] = OUT_STATUS
             entry["prefilter_reason"] = verdict["reason"]
@@ -400,19 +431,25 @@ def _save(path: Path, doc: dict) -> None:
 
 def cmd_run(args) -> int:
     doc, seen = _load(args.state)
-    counts = prefilter_state(seen, args.today, load_search_settings(args.settings))
+    import learned_score
+
+    model = learned_score.load_model(args.model)
+    counts = prefilter_state(seen, args.today, load_search_settings(args.settings), model=model)
     if args.write:
         _save(args.state, doc)
-    print(json.dumps({**counts, "written": bool(args.write)}, ensure_ascii=False))
+    blend = bool(model and model.get("active"))
+    print(json.dumps({**counts, "written": bool(args.write), "learned_blend": blend}, ensure_ascii=False))
     return 0
 
 
 def cmd_recover(args) -> int:
+    import learned_score
+
     doc, seen = _load(args.state)
     entry = seen.get(args.key)
     if entry is None or not recover_entry(entry):
         sys.exit(f"{args.key}: not a prefiltered_out entry")
-    entry["prefilter_score"] = score(entry, args.today)
+    apply_score(entry, args.today, load_search_settings(args.settings), learned_score.load_model(args.model))
     _save(args.state, doc)
     print(json.dumps({"recovered": args.key}))
     return 0
@@ -433,6 +470,7 @@ def main() -> int:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--state", type=Path, default=STATE)
     common.add_argument("--settings", type=Path, default=SETTINGS)
+    common.add_argument("--model", type=Path, default=MODEL, help="learned model (ui/state/learned_model.json); used when present")
     common.add_argument("--today", type=date.fromisoformat, default=date.today())
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = ap.add_subparsers(dest="cmd", required=True)

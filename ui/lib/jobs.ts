@@ -47,6 +47,8 @@ export interface Job {
   gaps: string[];
   /** Deterministic pre-ranking relevance (tools/prefilter.py). */
   prefilter_score: number | null;
+  /** Spanish one-liners from the learned scorer ("Sube: python, fastapi"), when a model scored it. */
+  prefilter_why: string[];
   /** Spanish reason when status is "prefiltered_out". */
   prefilter_reason: string | null;
   /** The user asked for this job to be ranked in the next run despite a low prefilter score. */
@@ -149,6 +151,7 @@ export function normalizeJob(key: string, raw: Record<string, unknown>, today: D
     strengths: strList(raw.strengths, 3),
     gaps: strList(raw.gaps, 3),
     prefilter_score: num(raw.prefilter_score),
+    prefilter_why: strList(raw.prefilter_why, 3),
     prefilter_reason: str(raw.prefilter_reason),
     force_rank: raw.force_rank === true,
     opportunity: num(raw.opportunity),

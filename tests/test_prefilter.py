@@ -162,8 +162,23 @@ class Discrimination(unittest.TestCase):
         self.assertLessEqual(self.score_of("Creative Producer (AI-Driven)", "Remote (Mexico)"), 30)
         self.assertGreaterEqual(self.score_of("AI Engineer", "Remote (Mexico)"), 60)
 
-    def test_default_gate_is_sixty(self):
-        self.assertEqual(prefilter.DEFAULT_MIN_PREFILTER_SCORE, 60)
+    def test_default_gate_is_fifty_five(self):
+        self.assertEqual(prefilter.DEFAULT_MIN_PREFILTER_SCORE, 55)
+
+    def test_full_stack_ai_and_devops_fits_clear_the_gate(self):
+        for title in ["Ingeniero Full Stack", "Senior DevOps Engineer", "DevSecOps AWS", "Full Stack Developer",
+                      "Fullstack Engineer", "Senior Backend Engineer", "Claude Agents Developer"]:
+            with self.subTest(title=title):
+                self.assertGreaterEqual(self.score_of(title, "Remote (Mexico)"), self.GATE, title)
+
+    def test_full_stack_outranks_plain_frontend_and_ai_pair_gets_bonus(self):
+        self.assertGreater(self.score_of("Full Stack Developer"), self.score_of("Frontend Developer") + 8)
+        self.assertGreater(self.score_of("AI Engineer"), self.score_of("AI Specialist"))
+
+    def test_senior_and_lead_penalties_are_mild(self):
+        base = self.score_of("Backend Engineer")
+        self.assertGreaterEqual(self.score_of("Senior Backend Engineer"), base - 1)
+        self.assertGreaterEqual(self.score_of("Lead Backend Engineer"), base - 2)
 
 
 class State(unittest.TestCase):
@@ -196,7 +211,7 @@ class State(unittest.TestCase):
         with TemporaryDirectory() as d:
             p = Path(d) / "s.json"
             self.assertEqual(prefilter.load_search_settings(p)["rankBatch"], 10)
-            self.assertEqual(prefilter.load_search_settings(p)["minPrefilterScore"], 60)
+            self.assertEqual(prefilter.load_search_settings(p)["minPrefilterScore"], 55)
             p.write_text(json.dumps({"currentSalary": 21000, "search": {"rankBatch": 40, "minSalaryMxn": "x"}}))
             s = prefilter.load_search_settings(p)
             self.assertEqual((s["rankBatch"], s["minSalaryMxn"]), (40, 35000))
@@ -204,7 +219,7 @@ class State(unittest.TestCase):
     def test_min_prefilter_score_accepts_zero_and_rejects_out_of_range(self):
         with TemporaryDirectory() as d:
             p = Path(d) / "s.json"
-            for raw, expected in ((0, 0), (80, 80), (101, 60), (-1, 60), ("9", 60), (True, 60)):
+            for raw, expected in ((0, 0), (80, 80), (101, 55), (-1, 55), ("9", 55), (True, 55)):
                 p.write_text(json.dumps({"search": {"minPrefilterScore": raw}}))
                 self.assertEqual(prefilter.load_search_settings(p)["minPrefilterScore"], expected, raw)
 

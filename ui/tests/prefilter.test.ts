@@ -47,8 +47,8 @@ describe("rankBatch setting", () => {
 });
 
 describe("minPrefilterScore gate", () => {
-  test("defaults to 60, accepts 0..100 integers only", () => {
-    expect(DEFAULT_SEARCH.minPrefilterScore).toBe(60);
+  test("defaults to 55, accepts 0..100 integers only", () => {
+    expect(DEFAULT_SEARCH.minPrefilterScore).toBe(55);
     expect(parseSearchPatch({ minPrefilterScore: 0 })).toEqual({ minPrefilterScore: 0 });
     expect(parseSearchPatch({ minPrefilterScore: 100 })).toEqual({ minPrefilterScore: 100 });
     for (const bad of [-1, 101, 1.5, "52", null]) expect(parseSearchPatch({ minPrefilterScore: bad })).toBeNull();
@@ -115,6 +115,12 @@ describe("prefiltered jobs", () => {
     expect(out[0].prefilter_reason).toBe("Puesto de ventas");
   });
 
+  test("prefilter_why keeps only short strings, defaults to an empty list", () => {
+    const a = normalizeJob("a", raw({ prefilter_why: ["Sube: python, fastapi", 7, "Baja: net", "x", "y"] }), TODAY);
+    expect(a.prefilter_why).toEqual(["Sube: python, fastapi", "Baja: net", "x"]);
+    expect(normalizeJob("b", raw({}), TODAY).prefilter_why).toEqual([]);
+  });
+
   test("ranked cards sort by final_priority, falling back to priority_score", () => {
     const base = { status: "ranked", rank_score: 70 };
     const jobs = [
@@ -178,9 +184,22 @@ describe("python tool steps", () => {
   test("argv is fixed and a missing script is skipped, not failed", async () => {
     expect(toolArgv("prefilter")).toEqual(["python3", "tools/prefilter.py", "run", "--write"]);
     expect(toolArgv("opportunity")).toEqual(["python3", "tools/opportunity.py", "recompute", "--write"]);
+    expect(toolArgv("learned")).toEqual(["python3", "tools/learned_score.py", "train"]);
     const logs: string[] = [];
     expect(await runTool(root(), "prefilter", (l) => logs.push(l), async () => { throw new Error("must not spawn"); })).toBe(true);
     expect(logs[0]).toContain("Omitido");
+  });
+
+  test("learned training logs CV metrics compactly in Spanish", async () => {
+    const r = root();
+    mkdirSync(join(r, "tools"));
+    writeFileSync(join(r, "tools", "learned_score.py"), "");
+    const logs: string[] = [];
+    const summary = { labels: 217, good: 46, active: true, cv: { hand_full: { spearman: 0.36, auc: 0.63, p10: 0.44, p25: 0.41 }, blend: { spearman: 0.4, auc: 0.62, p10: 0.57, p25: 0.41 } } };
+    expect(await runTool(r, "learned", (l) => logs.push(l), async () => ({ code: 0, stdout: JSON.stringify(summary) + "\n" }))).toBe(true);
+    expect(logs.at(-1)).toContain("Modelo aprendido: 217 etiquetas");
+    expect(logs.at(-1)).toContain("blend spearman=0.4 auc=0.62 p10=0.57 p25=0.41");
+    expect(logs.at(-1)).toContain("heurística spearman=0.36");
   });
 
   test("runs the script and reports its summary or its failure", async () => {

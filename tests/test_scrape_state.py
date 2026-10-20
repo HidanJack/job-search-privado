@@ -87,6 +87,48 @@ class ScrapeStateTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(next(iter(self.stored().values()))["location"], "Remote (Mexico)")
 
+    def test_stores_optional_tags_and_snippet(self):
+        code, _, _ = self.run_main([], json.dumps([posting(tags=[" Python ", "Data Engineering", "python", ""], snippet="  Build ETL pipelines.  ")]))
+        self.assertEqual(code, 0)
+        entry = next(iter(self.stored().values()))
+        self.assertEqual(entry["tags"], ["Python", "Data Engineering"])
+        self.assertEqual(entry["snippet"], "Build ETL pipelines.")
+
+    def test_omits_empty_tags_and_snippet(self):
+        self.run_main([], json.dumps([posting(tags=[], snippet=None)]))
+        entry = next(iter(self.stored().values()))
+        self.assertNotIn("tags", entry)
+        self.assertNotIn("snippet", entry)
+
+    def test_rejects_malformed_tags_and_snippet(self):
+        for bad in ({"tags": "python"}, {"tags": [1]}, {"snippet": 5}, {"snippet": "x" * 2001}):
+            with self.subTest(bad=bad):
+                code, _, err = self.run_main([], json.dumps([posting(**bad)]))
+                self.assertEqual(code, 1)
+                self.assertIn(next(iter(bad)), err)
+
+    def test_tags_and_snippet_are_capped(self):
+        code, _, _ = self.run_main([], json.dumps([posting(tags=[f"t{i}" for i in range(50)] + ["y" * 200], snippet="z" * 900)]))
+        self.assertEqual(code, 0)
+        entry = next(iter(self.stored().values()))
+        self.assertEqual(len(entry["tags"]), scrape_state.MAX_TAGS)
+        self.assertEqual(len(entry["snippet"]), scrape_state.MAX_SNIPPET)
+
+    def test_rescrape_fills_missing_tags_without_rewriting_the_entry(self):
+        self.run_main([], json.dumps([posting()]))
+        key = next(iter(self.stored()))
+        doc = json.loads(self.state.read_text(encoding="utf-8"))
+        doc["seen"][key]["status"] = "ranked"
+        self.state.write_text(json.dumps(doc), encoding="utf-8")
+        code, out, _ = self.run_main([], json.dumps([posting(title="Changed", tags=["Python"], snippet="Hi")]))
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out)["enriched"], 1)
+        entry = self.stored()[key]
+        self.assertEqual((entry["status"], entry["title"], entry["tags"], entry["snippet"]), ("ranked", "Backend Engineer", ["Python"], "Hi"))
+        code, out, _ = self.run_main([], json.dumps([posting(tags=["Other"])]))
+        self.assertNotIn("enriched", json.loads(out))
+        self.assertEqual(self.stored()[key]["tags"], ["Python"])
+
     def test_omits_empty_location(self):
         self.run_main([], json.dumps([posting(location=None)]))
         self.assertNotIn("location", next(iter(self.stored().values())))

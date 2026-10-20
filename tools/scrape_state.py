@@ -10,12 +10,13 @@ whole run's results were lost. This is the one sanctioned way to store results.
   add   merge a JSON list of postings into seen_jobs.json
 
 Input is a JSON array of objects with `title, company, url, posted_date,
-deadline, fit, status, portal, source` (plus optional `location`), read from `--file` (which must live
+deadline, fit, status, portal, source` (plus optional `location`, `tags` (list of short strings) and `snippet` (text
+excerpt, stored cut to 400 characters)), read from `--file` (which must live
 inside job_scraper/ and is removed after a successful merge) or from stdin.
 
 Dedup follows Step 4 exactly: a posting is skipped when its URL matches any
 stored entry under any key, or when its company+title (or canonical key)
-already exists. Existing entries are never rewritten, so a `ranked` or
+already exists. Existing entries are never rewritten (only `tags`/`snippet` are filled in when a re-scrape brings ones they lack), so a `ranked` or
 `expired` status set by /rank always survives a later scrape. `first_seen` is
 set to today. The write is atomic (temp file + rename in the same directory).
 
@@ -45,10 +46,14 @@ STATE_NAME = "seen_jobs.json"
 
 FIELDS = (
     "title", "company", "url", "posted_date", "deadline", "fit", "status", "portal", "source",
-    "location",
+    "location", "tags", "snippet",
 )
-OPTIONAL_FIELDS = ("location",)
+OPTIONAL_FIELDS = ("location", "tags", "snippet")
 MAX_LOCATION = 200
+MAX_TAGS = 30
+MAX_TAG = 60
+MAX_SNIPPET = 400  # stored length; longer input is cut (up to MAX_SNIPPET_INPUT, beyond that it is refused)
+MAX_SNIPPET_INPUT = 2000
 FITS = {"high", "medium", "low"}
 STATUSES = {"new", "skipped", "ranked", "expired"}
 SOURCES = {"cli", "websearch", "mcp"}
@@ -75,6 +80,17 @@ def _norm_url(url: str) -> str:
 
 def _pair(company: str, title: str) -> tuple[str, str]:
     return (" ".join(company.split()).casefold(), " ".join(title.split()).casefold())
+
+
+def _clean_tags(tags) -> list[str]:
+    """Trimmed, case-insensitively de-duplicated, length-capped tag list."""
+    out, seen = [], set()
+    for tag in tags or []:
+        tag = " ".join(tag.split())[:MAX_TAG]
+        if tag and tag.casefold() not in seen:
+            seen.add(tag.casefold())
+            out.append(tag)
+    return out[:MAX_TAGS]
 
 
 def validate(raw) -> list[dict]:
@@ -108,7 +124,15 @@ def validate(raw) -> list[dict]:
         location = item.get("location")
         if location is not None and (not isinstance(location, str) or len(location) > MAX_LOCATION):
             raise InputError(f"{where}: 'location' must be a short string or null")
+        tags = item.get("tags")
+        if tags is not None and (not isinstance(tags, list) or not all(isinstance(t, str) for t in tags)):
+            raise InputError(f"{where}: 'tags' must be a list of strings or null")
+        snippet = item.get("snippet")
+        if snippet is not None and (not isinstance(snippet, str) or len(snippet) > MAX_SNIPPET_INPUT):
+            raise InputError(f"{where}: 'snippet' must be a short string or null")
         clean.append({
+            "tags": _clean_tags(tags),
+            "snippet": " ".join(snippet.split())[:MAX_SNIPPET] if snippet else None,
             "location": location.strip() if location and location.strip() else None,
             "title": item["title"].strip(),
             "company": item["company"].strip(),
@@ -156,13 +180,21 @@ def add(state: Path, postings: list[dict], today: str) -> dict:
     urls = {_norm_url(e.get("url") or "") for e in seen.values() if isinstance(e, dict)}
     urls.discard("")
     pairs = {_pair(e.get("company") or "", e.get("title") or "") for e in seen.values() if isinstance(e, dict)}
-    added = skipped = 0
+    by_url = {_norm_url(e.get("url") or ""): e for e in seen.values() if isinstance(e, dict)}
+    added = skipped = enriched = 0
     for post in postings:
         key = make_key(post["company"], post["title"], post["url"])
         url = _norm_url(post["url"])
         pair = _pair(post["company"], post["title"])
         if url in urls or key in seen or pair in pairs:
             skipped += 1
+            # Additive only: a known entry gains tags/snippet it never had; nothing else changes.
+            known = by_url.get(url) or seen.get(key)
+            if isinstance(known, dict):
+                gained = [f for f in ("tags", "snippet") if post.get(f) and not known.get(f)]
+                for f in gained:
+                    known[f] = post[f]
+                enriched += bool(gained)
             continue
         seen[key] = {
             "title": post["title"],
@@ -184,9 +216,12 @@ def add(state: Path, postings: list[dict], today: str) -> dict:
         urls.add(url)
         pairs.add(pair)
         added += 1
-    if added:
+    if added or enriched:
         save(state, doc)
-    return {"added": added, "skipped": skipped, "total": len(seen)}
+    result = {"added": added, "skipped": skipped, "total": len(seen)}
+    if enriched:
+        result["enriched"] = enriched
+    return result
 
 
 def _force_utf8_output() -> None:

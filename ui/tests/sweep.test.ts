@@ -9,7 +9,7 @@ import {
 
 const TODAY = new Date("2026-10-16T12:00:00Z");
 
-interface Row { id: string; title: string; company: string | null; location: string | null; date: string | null; url: string }
+interface Row { id: string; title: string; company: string | null; location: string | null; date: string | null; url: string; tags?: unknown; excerpt?: unknown; description?: unknown }
 const row = (n: number | string, over: Partial<Row> = {}): Row => ({
   id: String(n), title: `Python Dev ${n}`, company: `Co${n}`, location: "Remote (Mexico)", date: "2026-10-15T10:00:00.000Z",
   url: `https://example.com/jobs/${n}`, ...over,
@@ -197,6 +197,23 @@ describe("runSweep", () => {
       title: "Python Dev 1", company: "(sin empresa)", url: "https://example.com/jobs/1", posted_date: "2026-10-15",
       deadline: null, fit: "medium", status: "new", portal: "getonbrd", source: "cli", location: "Remote (Mexico)",
     });
+  });
+
+  test("persists tags and a 400-char snippet when the search row carries them", async () => {
+    const long = "x".repeat(900);
+    const { opts, saved } = base(async () => ok([
+      row(1, { tags: ["Python", " Data Engineering ", "", 7, "python"], excerpt: "  Build   pipelines  " }),
+      row(2, { tags: [], description: long }),
+      row(3),
+    ]));
+    await runSweep(opts);
+    const byUrl = Object.fromEntries(saved.flat().map((p) => [p.url, p]));
+    expect(byUrl["https://example.com/jobs/1"].tags).toEqual(["Python", "Data Engineering"]);
+    expect(byUrl["https://example.com/jobs/1"].snippet).toBe("Build pipelines");
+    expect(byUrl["https://example.com/jobs/2"].snippet).toHaveLength(400);
+    expect("tags" in byUrl["https://example.com/jobs/2"]).toBe(false);
+    expect("tags" in byUrl["https://example.com/jobs/3"]).toBe(false);
+    expect("snippet" in byUrl["https://example.com/jobs/3"]).toBe(false);
   });
 
   test("runs at most `concurrency` calls at once", async () => {

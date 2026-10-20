@@ -29,7 +29,7 @@ export const DEFAULT_SEARCH: SearchSettings = {
   includeUnpublishedSalary: true,
   includeUndated: true,
   rankBatch: 10,
-  minPrefilterScore: 60,
+  minPrefilterScore: 55,
 };
 
 const isInt = (v: unknown, min: number, max: number): v is number =>
