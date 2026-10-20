@@ -68,7 +68,10 @@ class ToolsWriteUtf8(unittest.TestCase):
 
     def test_rank_candidates_lists_non_latin_postings(self):
         state = self.write_state({"a": self.entry(CYRILLIC, "Инженер"), "b": self.entry(CJK, "工程师")})
-        proc = run_legacy_stdout([TOOLS / "rank_state.py", "candidates", "--state", state, "--today", "2026-09-21"])
+        gate_off = self.tmp / "settings.json"
+        gate_off.write_text(json.dumps({"search": {"minPrefilterScore": 0}}), encoding="utf-8")
+        proc = run_legacy_stdout([TOOLS / "rank_state.py", "candidates", "--state", state, "--today", "2026-09-21",
+                                  "--settings", gate_off])
         out = json.loads(self.assert_clean_utf8(proc, 0, CYRILLIC, CJK))
         self.assertEqual(out["eligible"], 2)
 

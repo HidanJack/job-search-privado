@@ -39,7 +39,10 @@ STATE = ROOT / "job_scraper" / "seen_jobs.json"
 SETTINGS = ROOT / "ui" / "state" / "settings.json"
 
 OUT_STATUS = "prefiltered_out"
-DEFAULT_RANK_BATCH = 25
+DEFAULT_RANK_BATCH = 10
+# Deterministic gate in front of the LLM: `new` jobs scoring below this are never
+# sent to /rank automatically (chosen from the real score distribution: ~30% of new jobs).
+DEFAULT_MIN_PREFILTER_SCORE = 60
 DEFAULT_MIN_SALARY = 35000
 DEFAULT_MAX_DAYS = 7
 CURRENT_SALARY = 21000
@@ -49,6 +52,7 @@ def load_search_settings(path: Path = SETTINGS) -> dict:
     """ui/state/settings.json["search"] merged over the same defaults the UI uses."""
     out = {
         "rankBatch": DEFAULT_RANK_BATCH,
+        "minPrefilterScore": DEFAULT_MIN_PREFILTER_SCORE,
         "minSalaryMxn": DEFAULT_MIN_SALARY,
         "maxDays": DEFAULT_MAX_DAYS,
         "currentSalary": CURRENT_SALARY,
@@ -64,6 +68,9 @@ def load_search_settings(path: Path = SETTINGS) -> dict:
         value = search.get(key)
         if isinstance(value, int) and not isinstance(value, bool) and value > 0:
             out[key] = value
+    gate = search.get("minPrefilterScore")
+    if isinstance(gate, int) and not isinstance(gate, bool) and 0 <= gate <= 100:
+        out["minPrefilterScore"] = gate
     current = doc.get("currentSalary")
     if isinstance(current, int) and not isinstance(current, bool) and current > 0:
         out["currentSalary"] = current
@@ -120,8 +127,7 @@ MOBILE = (rx("ios", "android", "swift", "kotlin", "mobile", "movil"), "móvil")
 MOBILE_KEEP = rx("react native", "flutter")
 # (pattern, Spanish label) - business functions that are not engineering.
 FUNCTION_OUT = [
-    (rx("sales", "ventas", "vendedor", "vendedora", "account executive", "account manager", "business development", "sdr", "bdr"), "ventas"),
-    (rx("marketing", "growth", "seo", "sem", "brand", "publicidad"), "marketing"),
+    (rx("growth", "seo", "sem", "brand", "publicidad"), "marketing"),
     (rx("recruiter", "recruiting", "talent acquisition", "hr", "human resources", "recursos humanos", "people partner", "reclutador", "reclutadora", "compensation"), "recursos humanos"),
     (rx("accountant", "accounting", "bookkeeper", "contador", "contadora", "contable", "payroll", "nomina", "billing", "cobranza", "tax"), "contabilidad"),
     (rx("customer success", "customer support", "customer service", "call center", "contact center", "agente", "agent", "appointment setter", "atencion a clientes"), "atención a clientes"),
@@ -132,9 +138,34 @@ FUNCTION_OUT = [
     (rx("teacher", "tutor", "profesor", "education", "instructor", "nurse", "enfermera", "healthcare"), "educación/salud"),
     (rx("assistant", "asistente", "secretary", "receptionist"), "asistencia administrativa"),
 ]
+# Clearly non-tech functions. Only an engineering word (never a mere skill word such
+# as "AI" or "automation") rescues them: "Account Executive - Industrial AI" stays out.
+HARD_OUT = [
+    (rx("sales", "ventas", "vendedor", "vendedora", "account executive", "account manager", "business development", "sdr", "bdr", "major ae", "deal desk"), "ventas"),
+    (rx("marketing", "paid social", "influencer", "influencers"), "marketing"),
+    (rx("ceo", "coo", "cfo", "cpo", "co-founder", "cofounder", "co founder"), "dirección ejecutiva"),
+    (rx("logistics", "logistica", "planner", "buyer", "procurement", "warehouse", "supply chain", "field service"), "logística/operaciones"),
+    (rx("accounts payable", "accounts receivable", "financial", "finance", "finanzas", "financiero", "financiera"), "finanzas/administración"),
+    (rx("interpreter", "interpreters", "interprete", "interpretes", "linguist", "linguistic"), "idiomas/interpretación"),
+    (rx("patient", "clinical", "regulatory affairs", "mental health", "medical", "pharma", "paciente"), "salud"),
+    (rx("estimator", "construction", "construccion"), "construcción"),
+    (rx("learning", "talent", "hris", "people ops", "onboarding"), "recursos humanos/capacitación"),
+    (rx("customer care", "customer operations", "resident support", "intake", "immigration", "inmigracion"), "atención a clientes"),
+    (rx("rater", "data entry", "annotator", "annotation", "ai trainer", "video collection", "captura de datos"), "etiquetado/captura de datos"),
+    (rx("coordinator", "coordinador", "coordinadora", "event"), "coordinación administrativa"),
+]
+# Engineering that is not software (mechanical, electrical...), unless software is named.
+NON_SW_ENGINEERING = rx(
+    "mechanical", "electrical", "instrumentation", "aerodynamics", "hardware", "civil", "chemical",
+    "structural", "mechatronics", "package design", "electronics", "electronica", "mecanico", "electrico",
+)
+SOFTWARE_WORDS = rx(
+    "software", "python", "developer", "desarrollador", "desarrolladora", "programador", "backend",
+    "frontend", "full stack", "fullstack", "machine learning", "llm", "firmware",
+)
 PORTUGUESE = rx(
     "engenheiro", "engenheira", "desenvolvedor", "desenvolvedora", "vaga", "estagio",
-    "qualidade", "pessoa engenheira", "analista de qualidade", "cientista",
+    "qualidade", "pessoa", "analista de qualidade", "cientista", "desenvolvimento", "engenharia", "dados",
 )
 # Countries/regions that exclude a Mexico-based candidate when they are the
 # only place named. Anything unrecognised is kept.
@@ -191,6 +222,11 @@ def exclusion(entry: dict) -> str | None:
     pattern, label = MOBILE
     if pattern.search(title) and not MOBILE_KEEP.search(title) and not keep_skill:
         return "Puesto solo de desarrollo móvil (iOS/Android)"
+    for pattern, label in HARD_OUT:
+        if pattern.search(title) and not is_engineer:
+            return f"Puesto de {label}, no es desarrollo ni datos"
+    if NON_SW_ENGINEERING.search(title) and not SOFTWARE_WORDS.search(title):
+        return "Ingeniería ajena al software (mecánica/eléctrica/hardware)"
     for pattern, label in FUNCTION_OUT:
         if pattern.search(title) and not is_engineer and not keep_skill:
             return f"Puesto de {label}, no es desarrollo ni datos"
@@ -201,35 +237,69 @@ def exclusion(entry: dict) -> str | None:
 
 
 # ---- scoring (kept jobs) -----------------------------------------------------
-BASE_SCORE = 30
-# (pattern, points): role families and skills named in the title. First hit of
-# each group counts once, so "Python Data Engineer" is not triple-counted.
-SKILL_POINTS = [
-    (rx("python"), 25),
-    (rx("data engineer", "ingeniero de datos", "ingeniera de datos", "etl", "data pipeline", "dwh", "big data"), 18),
-    (rx("ai", "ia", "ml", "llm", "machine learning", "inteligencia artificial", "genai", "nlp"), 15),
-    (rx("backend", "back end", "back-end", "api"), 12),
-    (rx("fastapi", "django", "flask", "pandas", "polars", "ocr"), 8),
-    (rx("software engineer", "software developer", "developer", "desarrollador", "desarrolladora", "ingeniero de software", "programador"), 8),
-    (rx("rpa", "automation", "automatizacion", "automate"), 8),
-    (rx("data analyst", "analista de datos", "bi analyst", "business intelligence", "data scientist"), 8),
-    (rx("typescript", "react", "node", "nodejs", "full stack", "fullstack", "rust"), 5),
-    (rx("devops", "sre", "cloud", "kubernetes", "aws", "azure", "platform"), 5),
-    (rx("qa", "tester", "quality"), 4),
+# Real tech fits land 60-100, plausible ones 45-60 and noise below 40. A title with
+# no tech signal at all is capped at NON_TECH_CAP whatever its location or recency.
+BASE_SCORE = 15
+NON_TECH_CAP = 30
+# Title names a software/data/AI/infra role: the strong "this is tech" signal.
+TECH_STRONG = rx(
+    "software", "developer", "desarrollador", "desarrolladora", "programador", "programmer",
+    "backend", "back end", "back-end", "frontend", "front end", "front-end", "full stack", "fullstack",
+    "full-stack", "data engineer", "data engineering", "ingeniero de datos", "ingeniera de datos",
+    "ingenieria de datos", "big data", "etl", "python", "machine learning", "ml", "llm",
+    "inteligencia artificial", "genai", "nlp", "devops", "sre", "site reliability", "sdet", "platform",
+    "golang", "rust", "react", "typescript", "node", "nodejs", "ingeniero de software", "ingeniera de software",
+    "swe", "dataops", "mlops",
+)
+# Generic technical title: weaker signal, still not noise.
+TECH_WEAK = rx(
+    "engineer", "engineering", "ingeniero", "ingeniera", "data", "datos", "analytics", "qa", "quality assurance",
+    "tester", "automation", "automatizacion", "rpa", "cloud", "aws", "azure", "kubernetes", "scientist",
+    "bi", "business intelligence", "architect", "arquitecto", "arquitecta", "sysadmin", "dba", "database",
+    "technical", "tecnico", "cyber", "cybersecurity", "seguridad",
+)
+# "AI"/"IA" alone is not enough ("Creative Producer (AI-Driven)"): it needs an engineering role beside it.
+AI_WORD = rx("ai", "ia")
+AI_ROLE = rx(
+    "engineer", "engineering", "developer", "programmer", "ingeniero", "ingeniera", "desarrollador",
+    "desarrolladora", "programador", "scientist", "architect", "arquitecto", "arquitecta", "devops", "sre",
+)
+TECH_STRONG_POINTS = 38
+TECH_WEAK_POINTS = 24
+# (pattern, points): his stack named in the title. Every hit counts once, capped overall.
+STACK_POINTS = [
+    (rx("python"), 16),
+    (rx("data engineer", "ingeniero de datos", "ingeniera de datos", "etl", "data pipeline", "dwh", "big data", "spark", "databricks", "snowflake", "airflow", "dbt", "kafka"), 10),
+    (rx("ai", "ia", "ml", "llm", "rag", "agents", "agentic", "claude", "machine learning", "inteligencia artificial", "genai", "nlp", "copilot"), 10),
+    (rx("backend", "back end", "back-end", "api", "microservices", "microservicios"), 6),
+    (rx("fastapi", "django", "flask", "pandas", "polars", "ocr", "pytest"), 6),
+    (rx("kubernetes", "k8s", "docker", "aws", "sql", "postgres", "postgresql", "terraform"), 4),
+    (rx("typescript", "react", "node", "nodejs", "full stack", "fullstack", "full-stack"), 4),
+    (rx("rust"), 5),
+    (rx("rpa", "automation", "automatizacion", "automate"), 4),
+    (rx("data analyst", "analista de datos", "bi analyst", "business intelligence", "data scientist", "analytics"), 2),
+    (rx("devops", "sre", "cloud", "platform", "azure", "qa", "sdet"), 3),
 ]
+STACK_CAP = 28
 SPANISH_TITLE_WORDS = rx(
     "desarrollador", "desarrolladora", "ingeniero", "ingeniera", "analista", "datos",
     "remoto", "sr", "ssr", "especialista", "arquitecto", "programador", "inteligencia",
 )
 PENALTIES = [
-    (rx("lead", "lider", "manager", "gerente", "jefe"), -10),
-    (rx("architect", "arquitecto", "arquitecta"), -8),
+    (rx("manager", "gerente", "jefe", "lider"), -10),
+    (rx("lead"), -4),
+    (rx("architect", "arquitecto", "arquitecta"), -6),
     (rx("senior", "sr"), -3),
     (rx("intern", "internship", "trainee", "practicante", "becario"), -15),
+    # Stacks or gigs that are not his: kept (a skill word may still redeem them) but demoted.
+    (rx("golang", "go", "scala", "elixir", "game", "unity", "trading", "low latency", "low-latency", "pega", "hyland", "looker", "powercampus", "salesforce"), -8),
+    (rx("security", "pentest", "penetration", "cybersecurity", "ciberseguridad"), -6),
+    (rx("react native", "mobile", "movil"), -6),
+    (rx("contributor", "ai coding tasks", "freelance", "volunteer", "ambassador", "advisor", "founding"), -8),
 ]
 JUNIOR = rx("junior", "jr", "entry level", "associate")
-LOCATION_POINTS = (("mexico", 15), ("latam", 8), ("latin america", 8), ("worldwide", 8), ("anywhere", 8), ("americas", 6), ("global", 4))
-FIT_POINTS = {"high": 10, "medium": 0, "low": -10}
+LOCATION_POINTS = (("mexico", 6), ("latam", 6), ("latin america", 6), ("worldwide", 6), ("anywhere", 6), ("americas", 5), ("global", 3))
+FIT_POINTS = {"high": 12, "medium": 0, "low": -8}
 
 
 def parse_date(value) -> date | None:
@@ -242,10 +312,10 @@ def parse_date(value) -> date | None:
 def score(entry: dict, today: date, floor: int = DEFAULT_MIN_SALARY, current: int = CURRENT_SALARY) -> int:
     """0-100 relevance of a kept job; higher = send to /rank sooner."""
     title = fold(entry.get("title"))
-    points = BASE_SCORE
-    for pattern, value in SKILL_POINTS:
-        if pattern.search(title):
-            points += value
+    strong = bool(TECH_STRONG.search(title)) or bool(AI_WORD.search(title) and AI_ROLE.search(title))
+    is_tech = strong or bool(TECH_WEAK.search(title))
+    points = BASE_SCORE + (TECH_STRONG_POINTS if strong else TECH_WEAK_POINTS if is_tech else 0)
+    points += min(STACK_CAP, sum(value for pattern, value in STACK_POINTS if pattern.search(title)))
     for pattern, value in PENALTIES:
         if pattern.search(title):
             points += value
@@ -255,7 +325,7 @@ def score(entry: dict, today: date, floor: int = DEFAULT_MIN_SALARY, current: in
     import posting_language
 
     if SPANISH_TITLE_WORDS.search(title) or posting_language.detect_title(entry.get("title") or "") == "es":
-        points += 10
+        points += 6
     loc = fold(entry.get("location"))
     if loc:
         points += max((v for token, v in LOCATION_POINTS if token in loc), default=0)
@@ -269,6 +339,8 @@ def score(entry: dict, today: date, floor: int = DEFAULT_MIN_SALARY, current: in
     salary = entry.get("salary_mxn_month")
     if isinstance(salary, (int, float)) and not isinstance(salary, bool):
         points += 5 if salary >= floor else -10 if salary < current else 0
+    if not is_tech:
+        points = min(points, NON_TECH_CAP)
     return max(0, min(100, int(points)))
 
 

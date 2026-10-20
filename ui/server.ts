@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { bunCommandRunner, getDailyStatus, setDaily, type CommandRunner } from "./lib/daily";
-import { filterJobs, loadJobs, parseFilters, prefilteredJobs, recoverJob, skipJob } from "./lib/jobs";
+import { filterJobs, forceRankJob, loadJobs, parseFilters, prefilteredJobs, recoverJob, skipJob, splitByGate } from "./lib/jobs";
 import { runTool } from "./lib/prefilter";
 import { loadSearchSettings, parseSearchPatch, saveSearchSettings } from "./lib/search_settings";
 import {
@@ -127,8 +127,12 @@ export function createHandler(opts: ServerOptions = {}) {
         const all = loadJobs(root, new Date());
         const { ranked, unranked } = filterJobs(all, filters);
         const prefiltered = prefilteredJobs(all);
+        const gate = splitByGate(all.filter((j) => j.status === "new"), saved.minPrefilterScore);
+        const shown = splitByGate(unranked, saved.minPrefilterScore);
         const counts = {
-          pending: all.filter((j) => j.status === "new").length,
+          pending: gate.eligible.length + gate.gated.length,
+          eligible: gate.eligible.length,
+          gated: gate.gated.length,
           rankedTotal: all.filter((j) => j.status === "ranked").length,
           prefilteredOut: prefiltered.length,
         };
@@ -136,7 +140,8 @@ export function createHandler(opts: ServerOptions = {}) {
         // salary floor; CLAUDE.md's values are only the first-run defaults.
         return json({
           profile: { ...profile, freshnessDays: saved.maxDays, salaryFloorMxn: saved.minSalaryMxn },
-          filters, ranked, unranked, prefiltered, rankBatch: saved.rankBatch, counts, results: store.all(),
+          filters, ranked, unranked: shown.eligible, gated: shown.gated, prefiltered, rankBatch: saved.rankBatch,
+          minPrefilterScore: saved.minPrefilterScore, counts, results: store.all(),
         });
       }
       case "/api/tracker":
@@ -280,6 +285,10 @@ export function createHandler(opts: ServerOptions = {}) {
       case "/api/jobs/recover": {
         if (typeof body.key !== "string" || body.key.length > 2048) return json({ error: "bad_request" }, 400);
         return recoverJob(root, body.key) ? json({ ok: true }) : json({ error: "not_found" }, 404);
+      }
+      case "/api/jobs/force-rank": {
+        if (typeof body.key !== "string" || body.key.length > 2048) return json({ error: "bad_request" }, 400);
+        return forceRankJob(root, body.key) ? json({ ok: true }) : json({ error: "not_found" }, 404);
       }
       case "/api/applications/approve": {
         const jobUrl = validateJobUrl(body.url);

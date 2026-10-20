@@ -459,6 +459,8 @@ em.lead-line { font-style: italic; color: var(--brass); margin-top: .06em; }
 .prefilter-reason { color: var(--faint); }
 .plain-list li.has-action { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
 .plain-list .recover-btn { font-size: 13px; }
+.field-hint { display: block; max-width: 36ch; font-size: 12px; margin-top: 4px; }
+.gate-score { color: var(--faint); }
 .coverage { margin-top: 18px; font-size: 13px; color: var(--faint); max-width: none; }
 .coverage::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 10px; background: var(--brass); vertical-align: middle; }
 .coverage[hidden] { display: none; }

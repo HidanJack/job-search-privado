@@ -117,6 +117,7 @@ function filtersFromSettings(s) {
   return {
     maxDays: s.maxDays, minSalary: s.minSalaryMxn, includeNoSalary: s.includeUnpublishedSalary,
     includeUndated: s.includeUndated, hideEnglish: s.hideEnglish, modality: s.modalities, rankBatch: s.rankBatch,
+    minPrefilterScore: s.minPrefilterScore,
   };
 }
 function settingsPatch(f) {
@@ -125,6 +126,8 @@ function settingsPatch(f) {
   if (f.maxDays !== "" && Number.isInteger(days) && days >= 1 && days <= 90) patch.maxDays = days;
   const batch = Number(f.rankBatch);
   if (f.rankBatch !== "" && f.rankBatch !== undefined && Number.isInteger(batch) && batch >= 1 && batch <= 200) patch.rankBatch = batch;
+  const gate = Number(f.minPrefilterScore);
+  if (f.minPrefilterScore !== "" && f.minPrefilterScore !== undefined && Number.isInteger(gate) && gate >= 0 && gate <= 100) patch.minPrefilterScore = gate;
   const pay = Number(f.minSalary);
   if (f.minSalary !== "" && Number.isInteger(pay) && pay >= 0 && pay <= 1000000) patch.minSalaryMxn = pay;
   return patch;
@@ -160,6 +163,7 @@ function readFilterForm() {
     maxDays: form.maxDays.value,
     minSalary: form.minSalary.value,
     rankBatch: form.rankBatch.value,
+    minPrefilterScore: form.minPrefilterScore.value,
     includeNoSalary: form.includeNoSalary.checked,
     includeUndated: form.includeUndated.checked,
     hideEnglish: form.hideEnglish.checked,
@@ -170,7 +174,8 @@ function fillFilterForm(f) {
   const form = $("#filters");
   form.maxDays.value = f.maxDays;
   form.minSalary.value = f.minSalary;
-  form.rankBatch.value = f.rankBatch ?? 25;
+  form.rankBatch.value = f.rankBatch ?? 10;
+  form.minPrefilterScore.value = f.minPrefilterScore ?? 60;
   form.includeNoSalary.checked = f.includeNoSalary;
   form.includeUndated.checked = f.includeUndated;
   form.hideEnglish.checked = f.hideEnglish !== false; // filters saved before this option existed: on
@@ -291,7 +296,7 @@ function salaryParts(j) {
 function emptyState(pending) {
   const steps = [];
   if (pending) {
-    steps.push({ title: "Calificar pendientes", note: `${pending} ${pending === 1 ? "vacante espera" : "vacantes esperan"} su puntaje, el porqué de tu encaje, el sueldo y la modalidad. Tarda unos minutos.`, action: `Calificar (${pending})`, run: startRank, primary: true });
+    steps.push({ title: "Calificar pendientes", note: `${pending} ${pending === 1 ? "vacante cumple" : "vacantes cumplen"} el puntaje mínimo y ${pending === 1 ? "espera" : "esperan"} su calificación (se califican por tandas). Tarda unos minutos.`, action: "Calificar las mejores", run: startRank, primary: true });
     steps.push({ title: "Buscar vacantes nuevas", note: "Rastrea los portales de nuevo. Tarda unos minutos.", action: "Buscar ahora", run: startSearch });
   } else {
     steps.push({ title: "Buscar vacantes nuevas", note: "Rastrea los portales de nuevo. Tarda unos minutos.", action: "Buscar ahora", run: startSearch, primary: true });
@@ -425,10 +430,11 @@ function renderJobs(data) {
   }
   const pending = data.counts ? data.counts.pending : data.unranked.length;
   state.counts = data.counts || { pending, rankedTotal: data.ranked.length };
-  if (!data.ranked.length) box.append(emptyState(pending));
+  const eligible = data.counts && data.counts.eligible !== undefined ? data.counts.eligible : pending;
+  if (!data.ranked.length) box.append(emptyState(eligible));
   const rankBtn = $("#rank-btn");
-  rankBtn.hidden = pending === 0;
-  $("span", rankBtn).textContent = `Calificar las mejores ${Math.min(data.rankBatch || 25, pending)}`;
+  rankBtn.hidden = eligible === 0;
+  $("span", rankBtn).textContent = `Calificar las mejores ${Math.min(data.rankBatch || 10, eligible)}`;
   // Draw the graduated rulers after paint so they sweep in from zero (first load only).
   requestAnimationFrame(() => requestAnimationFrame(() => {
     for (const [ruler, value] of rulers) ruler.style.setProperty("--s", `${value}%`);
@@ -441,6 +447,7 @@ function renderJobs(data) {
     : "";
 
   renderPrefiltered(data);
+  renderGated(data);
   const ul = $("#unranked");
   ul.replaceChildren(...data.unranked.map((j) => {
     const li = el("li");
@@ -449,13 +456,20 @@ function renderJobs(data) {
     li.append(a, document.createTextNode(` (${ageLabel(j.age_days)})`));
     return li;
   }));
-  $("#unranked-summary").textContent = queueSummary(pending, data.rankBatch, data.counts && data.counts.prefilteredOut);
+  $("#unranked-summary").textContent = queueSummary(pending, data.rankBatch, data.counts && data.counts.prefilteredOut, eligible, data.minPrefilterScore);
 }
 
-// "N vacantes por calificar (las mejores X primero) · Y descartadas automáticamente"
-function queueSummary(pending, batch, discarded) {
-  const first = Math.min(batch || 25, pending);
-  const parts = [`${pending} ${pending === 1 ? "vacante por calificar" : "vacantes por calificar"}${pending > first ? ` (las mejores ${first} primero)` : ""}`];
+// "10 de 340 pendientes cumplen el puntaje mínimo (52) · Y descartadas automáticamente"
+function queueSummary(pending, batch, discarded, eligible, minScore) {
+  const ready = eligible === undefined ? pending : eligible;
+  const first = Math.min(batch || 10, ready);
+  const parts = [];
+  if (ready === pending) {
+    parts.push(`${pending} ${pending === 1 ? "vacante por calificar" : "vacantes por calificar"}${pending > first ? ` (las mejores ${first} primero)` : ""}`);
+  } else {
+    const gate = minScore === undefined ? "" : ` (${minScore})`;
+    parts.push(`${first} de ${pending} ${pending === 1 ? "pendiente cumple" : "pendientes cumplen"} el puntaje mínimo${gate}${ready > first ? `; hay ${ready} que lo cumplen y se califican por tandas` : ""}`);
+  }
   if (discarded) parts.push(`${discarded} ${discarded === 1 ? "descartada" : "descartadas"} automáticamente`);
   return parts.join(" · ");
 }
@@ -499,6 +513,34 @@ function renderPrefiltered(data) {
   }));
 }
 
+function renderGated(data) {
+  const list = data.gated || [];
+  const box = $("#gated-box");
+  box.hidden = list.length === 0;
+  $("#gated-summary").textContent = `Con poco encaje aparente (${list.length}): no se califican solas`;
+  $("#gated").replaceChildren(...list.map((j) => {
+    const li = el("li", { class: "has-action" });
+    const text = el("span");
+    const a = el("a", { text: `${j.title} — ${j.company}`, target: "_blank", rel: "noopener noreferrer" });
+    if (j.url) a.href = j.url;
+    text.append(a, el("span", { class: "gate-score", text: ` · puntaje ${j.prefilter_score}` }));
+    const btn = el("button", { type: "button", class: "ghost small recover-btn", text: "Calificar esta" });
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      try {
+        await api("/api/jobs/force-rank", { key: j.key });
+        toast("Lista: entrará en la próxima calificación");
+        refreshJobs();
+      } catch {
+        btn.disabled = false;
+        toast("No se pudo marcar la vacante");
+      }
+    });
+    li.append(text, btn);
+    return li;
+  }));
+}
+
 async function refreshJobs() {
   try {
     renderJobs(await api(`/api/jobs?${filterQuery(loadSavedFilters())}`));
@@ -521,6 +563,7 @@ function showRunPanel(title) {
   setRunStatus("en curso", "running");
   $("#run-close").hidden = true;
   $("#run-log").replaceChildren();
+  $("#run-cost").hidden = true;
   $("#run-details").open = false;
   setRunButtons(true);
 }
@@ -543,6 +586,10 @@ function followRun(id, onEnd) {
       setRunButtons(false);
       onEnd(e.run);
       return;
+    }
+    if (e.type === "cost") {
+      $("#run-cost").textContent = e.text;
+      $("#run-cost").hidden = false;
     }
     log.append(el("li", { class: e.type, text: e.text }));
     log.scrollTop = log.scrollHeight;

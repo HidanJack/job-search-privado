@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ageInDays, filterJobs, inferRoleFamily, loadJobs, normalizeJob, parseFilters, skipJob, MODALITIES } from "../lib/jobs";
 import { parseProfile } from "../lib/profile";
-import { APPLY_TOOLS, BASE_TOOLS, INDEED_MCP_TOOLS, SEARCH_TOOLS, buildApplyPrompt, buildArgv, describeStreamLine, parseUiResult, resolveModel } from "../lib/runner";
+import { costNote, APPLY_TOOLS, BASE_TOOLS, INDEED_MCP_TOOLS, SEARCH_TOOLS, buildApplyPrompt, buildArgv, describeStreamLine, parseUiResult, resolveModel } from "../lib/runner";
 import { isAllowedHost, isAllowedOrigin, safeResolve, sanitizeFeedback, validateJobUrl } from "../lib/security";
 import { markApplied, parseCsv, readTracker, trackerStats } from "../lib/tracker";
 
@@ -187,6 +187,11 @@ describe("headless runner", () => {
     const result = describeStreamLine(JSON.stringify({ type: "result", is_error: false, result: "final" }));
     expect(result[0].result).toBe("final");
     expect(describeStreamLine("not json")).toEqual([]);
+    const costed = describeStreamLine(JSON.stringify({ type: "result", is_error: false, result: "x", total_cost_usd: 1.9042 }));
+    expect(costed.at(-1)).toEqual({ type: "cost", text: "Costo de esta corrida: ~$1.90" });
+    expect(describeStreamLine(JSON.stringify({ type: "result", result: "x" })).some((i) => i.type === "cost")).toBe(false);
+    expect(costNote("1.9")).toBeNull();
+    expect(costNote(-1)).toBeNull();
   });
 });
 

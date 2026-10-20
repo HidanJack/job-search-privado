@@ -13,10 +13,13 @@ export interface SearchSettings {
   includeUndated: boolean;
   /** How many pending jobs /rank scores per run (best prefilter score first). */
   rankBatch: number;
+  /** Deterministic gate: only `new` jobs with prefilter_score >= this go to /rank on their own. */
+  minPrefilterScore: number;
 }
 
 export const MAX_SEARCH_DAYS = 90;
 export const MAX_RANK_BATCH = 200;
+export const MAX_PREFILTER_SCORE = 100;
 
 export const DEFAULT_SEARCH: SearchSettings = {
   maxDays: 7,
@@ -25,7 +28,8 @@ export const DEFAULT_SEARCH: SearchSettings = {
   hideEnglish: true,
   includeUnpublishedSalary: true,
   includeUndated: true,
-  rankBatch: 25,
+  rankBatch: 10,
+  minPrefilterScore: 60,
 };
 
 const isInt = (v: unknown, min: number, max: number): v is number =>
@@ -42,6 +46,7 @@ const VALIDATORS: { [K in keyof SearchSettings]: (v: unknown) => boolean } = {
   includeUnpublishedSalary: isBool,
   includeUndated: isBool,
   rankBatch: (v) => isInt(v, 1, MAX_RANK_BATCH),
+  minPrefilterScore: (v) => isInt(v, 0, MAX_PREFILTER_SCORE),
 };
 
 /** Strict: a non-empty object of known keys whose values are all in range. */

@@ -3,7 +3,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHandler } from "../server";
-import { filterJobs, normalizeJob, prefilteredJobs, recoverJob, skipJob, type Filters } from "../lib/jobs";
+import { filterJobs, forceRankJob, normalizeJob, passesGate, prefilteredJobs, recoverJob, skipJob, splitByGate, type Filters } from "../lib/jobs";
 import { runTool, toolArgv } from "../lib/prefilter";
 import { DEFAULT_SEARCH, parseSearchPatch, loadSearchSettings } from "../lib/search_settings";
 
@@ -30,19 +30,75 @@ const post = (h: ReturnType<typeof createHandler>, path: string, body: unknown) 
 const raw = (over: Record<string, unknown>) => ({ title: "T", company: "C", status: "new", posted_date: "2026-10-15", ...over });
 
 describe("rankBatch setting", () => {
-  test("defaults to 25 and validates 1..200 integers", () => {
-    expect(DEFAULT_SEARCH.rankBatch).toBe(25);
+  test("defaults to 10 and validates 1..200 integers", () => {
+    expect(DEFAULT_SEARCH.rankBatch).toBe(10);
     expect(parseSearchPatch({ rankBatch: 40 })).toEqual({ rankBatch: 40 });
     for (const bad of [0, 201, 1.5, "25", null, -3]) expect(parseSearchPatch({ rankBatch: bad })).toBeNull();
   });
 
-  test("API saves it and falls back to 25 when the stored value is invalid", async () => {
+  test("API saves it and falls back to 10 when the stored value is invalid", async () => {
     const r = root({ rankBatch: 9999 });
-    expect(loadSearchSettings(r).rankBatch).toBe(25);
+    expect(loadSearchSettings(r).rankBatch).toBe(10);
     const h = createHandler({ root: r });
     expect((await post(h, "/api/search-settings", { rankBatch: 60 })).status).toBe(200);
     expect((await post(h, "/api/search-settings", { rankBatch: 0 })).status).toBe(400);
     expect((await (await get(h, "/api/search-settings")).json()).search.rankBatch).toBe(60);
+  });
+});
+
+describe("minPrefilterScore gate", () => {
+  test("defaults to 60, accepts 0..100 integers only", () => {
+    expect(DEFAULT_SEARCH.minPrefilterScore).toBe(60);
+    expect(parseSearchPatch({ minPrefilterScore: 0 })).toEqual({ minPrefilterScore: 0 });
+    expect(parseSearchPatch({ minPrefilterScore: 100 })).toEqual({ minPrefilterScore: 100 });
+    for (const bad of [-1, 101, 1.5, "52", null]) expect(parseSearchPatch({ minPrefilterScore: bad })).toBeNull();
+  });
+
+  test("passesGate and splitByGate mirror rank_state candidates", () => {
+    const mk = (key: string, extra: Record<string, unknown>) => normalizeJob(key, raw(extra), TODAY);
+    const jobs = [mk("hi", { prefilter_score: 60 }), mk("edge", { prefilter_score: 52 }), mk("lo", { prefilter_score: 40 }), mk("forced", { prefilter_score: 10, force_rank: true })];
+    expect(passesGate(jobs[2], 52)).toBe(false);
+    const { eligible, gated } = splitByGate(jobs, 52);
+    expect(eligible.map((j) => j.key)).toEqual(["hi", "edge", "forced"]);
+    expect(gated.map((j) => j.key)).toEqual(["lo"]);
+  });
+
+  test("forceRankJob flags only pending jobs and keeps them new", () => {
+    const r = root(undefined, { low: raw({ prefilter_score: 5 }), done: raw({ status: "ranked" }) });
+    expect(forceRankJob(r, "done")).toBe(false);
+    expect(forceRankJob(r, "nope")).toBe(false);
+    expect(forceRankJob(r, "low")).toBe(true);
+    const e = JSON.parse(readFileSync(join(r, "job_scraper", "seen_jobs.json"), "utf8")).seen;
+    expect(e.low.status).toBe("new");
+    expect(e.low.force_rank).toBe(true);
+    expect(e.done.force_rank).toBeUndefined();
+  });
+
+  test("/api/jobs lists gated jobs apart and /api/jobs/force-rank moves one into the queue", async () => {
+    const r = root({ minPrefilterScore: 50 }, { lowA: raw({ prefilter_score: 20 }), highA: raw({ prefilter_score: 80 }) });
+    const h = createHandler({ root: r });
+    const q = "/api/jobs?maxDays=365&minSalary=0";
+    const data = await (await get(h, q)).json();
+    expect(data.minPrefilterScore).toBe(50);
+    expect(data.gated.map((j: { key: string }) => j.key)).toContain("lowA");
+    expect(data.unranked.map((j: { key: string }) => j.key)).toContain("highA");
+    expect(data.unranked.map((j: { key: string }) => j.key)).not.toContain("lowA");
+    expect(data.counts.pending).toBe(data.counts.eligible + data.counts.gated);
+    expect((await post(h, "/api/jobs/force-rank", { key: "lowA" })).status).toBe(200);
+    expect((await post(h, "/api/jobs/force-rank", { key: "ghost" })).status).toBe(404);
+    expect((await post(h, "/api/jobs/force-rank", { key: 7 })).status).toBe(400);
+    const after = await (await get(h, q)).json();
+    expect(after.gated.map((j: { key: string }) => j.key)).not.toContain("lowA");
+    expect(after.unranked.map((j: { key: string }) => j.key)).toContain("lowA");
+    expect(after.counts.gated).toBe(data.counts.gated - 1);
+  });
+
+  test("force-rank rejects cross-origin requests like the other write endpoints", async () => {
+    const h = createHandler({ root: root(undefined, { x: raw({ prefilter_score: 1 }) }) });
+    const res = await h.handle(new Request(BASE + "/api/jobs/force-rank", {
+      method: "POST", headers: { Origin: "http://evil.example", Host: "127.0.0.1:8787", "Content-Type": "application/json" }, body: JSON.stringify({ key: "x" }),
+    }));
+    expect(res.status).toBeGreaterThanOrEqual(400);
   });
 });
 

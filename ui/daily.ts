@@ -39,11 +39,13 @@ if (!rankOnly) {
   }
 }
 // 2) Indeed (MCP, LLM) and 3) /rank, with the deterministic prefilter in front
-// of /rank (it only scores the top rankBatch) and opportunity/risk after it.
+// of /rank (it only scores the top rankBatch jobs scoring at least minPrefilterScore) and opportunity/risk after it.
 for (const step of steps) {
   if (step.prompt === "/rank") {
     log("RUN prefilter");
     const ok = await runTool(root, "prefilter", log);
+    const gate = loadSearchSettings(root);
+    log(`RANK gate minPrefilterScore=${gate.minPrefilterScore} rankBatch=${gate.rankBatch}`);
     log(`DONE prefilter ok=${ok}`); // not "END": the dashboard reads the last END line as the run result
   }
   log(`START ${step.prompt}`);

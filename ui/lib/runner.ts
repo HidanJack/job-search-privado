@@ -124,8 +124,13 @@ export function parseUiResult(text: string): UiResult | null {
 
 export interface ProgressEvent {
   id: number;
-  type: "step" | "text" | "tool" | "done" | "error";
+  type: "step" | "text" | "tool" | "done" | "error" | "cost";
   text: string;
+}
+
+/** "Costo de esta corrida: ~$1.90" from the result event's total_cost_usd; null when absent or invalid. */
+export function costNote(value: unknown): string | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? `Costo de esta corrida: ~$${value.toFixed(2)}` : null;
 }
 
 /** Turns one stream-json line into zero or more short progress messages. */
@@ -150,6 +155,8 @@ export function describeStreamLine(line: string): { type: ProgressEvent["type"];
   } else if (msg?.type === "result") {
     const result = typeof msg.result === "string" ? msg.result : "";
     out.push({ type: msg.is_error ? "error" : "text", text: "Ejecución terminada.", result, isError: Boolean(msg.is_error) });
+    const cost = costNote(msg.total_cost_usd);
+    if (cost) out.push({ type: "cost", text: cost });
   }
   return out;
 }

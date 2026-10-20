@@ -67,6 +67,7 @@
         <span id="run-status" class="pill"></span>
         <button type="button" id="run-close" class="ghost small" hidden>Cerrar</button>
       </div>
+      <p id="run-cost" class="muted" hidden></p>
       <details id="run-details" class="run-details">
         <summary>Ver detalle</summary>
         <ol id="run-log" class="run-log"></ol>
@@ -109,6 +110,11 @@
             <span class="field-label">Calificar por tanda</span>
             <span class="input-wrap"><input type="number" name="rankBatch" min="1" max="200" inputmode="numeric"><span class="suffix">vacantes</span></span>
           </label>
+          <label class="field">
+            <span class="field-label">Puntaje mínimo para calificar</span>
+            <span class="input-wrap"><input type="number" name="minPrefilterScore" min="0" max="100" inputmode="numeric"><span class="suffix">de 100</span></span>
+            <span class="field-hint muted">Solo califico con IA las vacantes que, según palabras clave de tu perfil, tengan al menos este puntaje. Súbelo para gastar menos.</span>
+          </label>
         </div>
         <fieldset class="toggle-group">
           <legend class="field-label">Modalidad</legend>
@@ -143,6 +149,14 @@
           <button type="button" id="rank-btn" class="primary small" hidden><span>Calificar pendientes</span></button>
         </div>
         <ul id="unranked" class="plain-list"></ul>
+      </details>
+
+      <details id="gated-box" class="unranked" hidden>
+        <summary id="gated-summary">Con poco encaje aparente</summary>
+        <div class="unranked-head">
+          <p class="muted">No alcanzan el puntaje mínimo según palabras clave de tu perfil, así que no se califican solas (ahorran costo). Si alguna sí te interesa, pídela y entrará en la próxima calificación.</p>
+        </div>
+        <ul id="gated" class="plain-list"></ul>
       </details>
 
       <details id="prefiltered-box" class="unranked" hidden>

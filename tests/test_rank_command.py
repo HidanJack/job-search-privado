@@ -511,7 +511,7 @@ class RankBatchLimitSpec(unittest.TestCase):
         step0 = self.sections.get("Step 0: Parse Input", "")
         self.assertIn("`--limit <N>`", step0)
         self.assertIn("rankBatch", step0)
-        self.assertIn("25", step0)
+        self.assertIn("10", step0)
         self.assertIn("`--top <N>`", step0)
         self.assertIn(
             "They are independent",

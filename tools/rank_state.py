@@ -257,7 +257,8 @@ def cmd_candidates(args) -> int:
     excluded = tracker_pairs(args.tracker)
     settings = prefilter.load_search_settings(args.settings)
 
-    selected, skipped_tracker, auto_discarded = [], 0, 0
+    selected, skipped_tracker, auto_discarded, below_gate = [], 0, 0, 0
+    min_score = settings["minPrefilterScore"]
     for key, entry in seen.items():
         status = entry.get("status")
         if status == prefilter.OUT_STATUS:
@@ -279,6 +280,7 @@ def cmd_candidates(args) -> int:
             if args.focus.lower() not in haystack:
                 continue
         pre = entry.get("prefilter_score")
+        forced = status == "new" and entry.get("force_rank") is True
         if status == "new" and not entry.get("prefilter_recovered"):
             # Jobs the prefilter has not seen yet (e.g. added after its last
             # run) are judged here too, so nothing off-target reaches the LLM.
@@ -289,9 +291,13 @@ def cmd_candidates(args) -> int:
             pre = verdict["score"]
         if not isinstance(pre, (int, float)):
             pre = prefilter.score(entry, args.today, settings["minSalaryMxn"], settings["currentSalary"])
+        if status == "new" and not forced and pre < min_score:
+            below_gate += 1  # stays `new`; only the UI's "Calificar esta" sends it
+            continue
         posted = parse_posted(entry.get("posted_date"))
         selected.append(
             {
+                "_forced": forced,
                 "_age": (args.today - posted).days if posted else 9999,
                 "_prefilter": pre,
                 "key": key,
@@ -308,11 +314,15 @@ def cmd_candidates(args) -> int:
     # Best prefilter score first, so the cap below hands /rank the likeliest
     # matches instead of whatever the scrapers appended first.
     selected.sort(key=lambda r: (-r["_prefilter"], r["_age"]))
-    for row in selected:
-        del row["_age"], row["_prefilter"]
-    limit = args.limit if args.limit is not None else prefilter.load_search_settings(args.settings)["rankBatch"]
+    limit = args.limit if args.limit is not None else settings["rankBatch"]
+    # Jobs the user forced with "Calificar esta" always go, on top of the batch.
+    forced_rows = [r for r in selected if r["_forced"]]
+    rest = [r for r in selected if not r["_forced"]]
     if limit > 0:
-        selected = selected[:limit]
+        rest = rest[:limit]
+    selected = forced_rows + rest
+    for row in selected:
+        del row["_age"], row["_prefilter"], row["_forced"]
     print(
         json.dumps(
             {
@@ -320,6 +330,9 @@ def cmd_candidates(args) -> int:
                 "selected": selected,
                 "deferred": max(0, eligible - len(selected)),
                 "rank_batch": limit,
+                "min_prefilter_score": min_score,
+                "below_gate": below_gate,
+                "forced": len(forced_rows),
                 "auto_discarded_unsaved": auto_discarded,
                 "excluded_by_tracker": skipped_tracker,
                 "total_entries": len(seen),
@@ -440,6 +453,7 @@ def cmd_apply(args) -> int:
 
         if result.get("status") == "expired":
             entry["status"] = "expired"
+            entry.pop("force_rank", None)
             expired.append(
                 {"key": key, "title": entry.get("title"), "company": entry.get("company"), "url": entry.get("url")}
             )
@@ -457,6 +471,7 @@ def cmd_apply(args) -> int:
         parsed = parse_iso(result.get("deadline") or entry.get("deadline"))
         if parsed is not None and parsed < today:
             entry["status"] = "expired"
+            entry.pop("force_rank", None)
             if result.get("deadline"):
                 entry["deadline"] = result["deadline"]
             expired.append(
@@ -468,6 +483,7 @@ def cmd_apply(args) -> int:
         if entry.get("location") in ("PASS", "FAIL", "FLAG"):
             entry.pop("location", None)  # legacy verdict, never a place
         entry["status"] = "ranked"
+        entry.pop("force_rank", None)  # one-shot: ranked jobs are never re-ranked automatically
         entry["rank_score"] = score
         entry["rank_verdict"] = band(score)
         entry["rank_date"] = today.isoformat()
@@ -586,7 +602,7 @@ def main() -> int:
     cand.add_argument("--tracker", type=Path, default=TRACKER)
     cand.add_argument("--all", action="store_true", help="include every non-skipped status")
     cand.add_argument("--focus", help="substring filter over title, company and stored fit notes")
-    cand.add_argument("--limit", type=int, default=None, help="0 for no cap; default: rankBatch setting (25)")
+    cand.add_argument("--limit", type=int, default=None, help="0 for no cap; default: rankBatch setting (10)")
     cand.set_defaults(func=cmd_candidates)
 
     sweep = sub.add_parser("sweep", parents=[common], help="rule 6's expiry pass, no fetch")

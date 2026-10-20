@@ -12,10 +12,10 @@ Follow these steps **in order**.
 
 `$ARGUMENTS` may contain:
 
-- Nothing → rank the top `rankBatch` jobs (UI search setting, default **25**) with status `new` in `job_scraper/seen_jobs.json`, best deterministic prefilter score first
+- Nothing → rank the top `rankBatch` jobs (UI search setting, default **10**) with status `new` in `job_scraper/seen_jobs.json`, best deterministic prefilter score first
 - A focus area (e.g. `/rank data science`) → rank only jobs whose title or stored fit-notes match the focus
 - `--all` → re-rank every job that has not been applied to, including previously ranked ones (useful after the profile changes)
-- `--limit <N>` → maximum number of jobs to score this run (default: the `rankBatch` setting, 25; `0` = no cap)
+- `--limit <N>` → maximum number of jobs to score this run (default: the `rankBatch` setting, 10; `0` = no cap)
 - `--top <N>` → shortlist size (default 5)
 
 `--limit` bounds the expensive fetch-and-score work; `--top` only bounds how many scored jobs appear in the shortlist. They are independent: jobs beyond `--limit` are deferred, not silently discarded.

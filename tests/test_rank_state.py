@@ -44,19 +44,30 @@ class RankStateCase(unittest.TestCase):
         self.tmp = Path(self._tmp.name)
         self.state = self.tmp / "seen_jobs.json"
         self.addCleanup(self._tmp.cleanup)
+        # Gate off by default so selection tests are about selection; gate tests override.
+        self.settings = self.tmp / "settings.json"
+        self.write_settings(minPrefilterScore=0)
+
+    def write_settings(self, **search):
+        self.settings.write_text(json.dumps({"search": search}), encoding="utf-8")
 
     def write_state(self, seen):
         self.state.write_text(json.dumps({"seen": seen}), encoding="utf-8")
 
     def run_tool(self, *args, expect=0):
         proc = subprocess.run(
-            [sys.executable, str(TOOL), *args, "--state", str(self.state), "--today", TODAY],
+            [sys.executable, str(TOOL), *args, "--state", str(self.state), "--today", TODAY, "--settings", str(self.settings)],
             capture_output=True,
             text=True,
             encoding="utf-8",
         )
         self.assertEqual(proc.returncode, expect, proc.stderr)
         return json.loads(proc.stdout)
+
+    def results(self, payload):
+        path = self.tmp / "results.json"
+        path.write_text(json.dumps(payload), encoding="utf-8")
+        return str(path)
 
     def read_state(self):
         return json.loads(self.state.read_text(encoding="utf-8"))["seen"]
@@ -98,6 +109,69 @@ class Candidates(RankStateCase):
         out = self.run_tool("candidates", "--limit", "0", "--tracker", str(self.tmp / "none.csv"))
         self.assertEqual(len(out["selected"]), 15)
         self.assertEqual(out["deferred"], 0)
+
+    def gated_state(self):
+        # Scores (today 2026-09-03, stored prefilter_score honoured via recovered flag):
+        self.write_state(
+            {
+                "hi": entry(title="Hi", prefilter_score=60, prefilter_recovered=True),
+                "mid": entry(title="Mid", prefilter_score=52, prefilter_recovered=True),
+                "lo": entry(title="Lo", prefilter_score=40, prefilter_recovered=True),
+                "lo2": entry(title="Lo2", prefilter_score=30, prefilter_recovered=True),
+            }
+        )
+
+    def test_gate_returns_only_new_jobs_at_or_above_min_score_best_first(self):
+        self.gated_state()
+        self.write_settings(minPrefilterScore=52, rankBatch=10)
+        out = self.run_tool("candidates", "--tracker", str(self.tmp / "none.csv"))
+        self.assertEqual([r["key"] for r in out["selected"]], ["hi", "mid"])
+        self.assertEqual(out["below_gate"], 2)
+        self.assertEqual(out["min_prefilter_score"], 52)
+        self.assertEqual(self.read_state()["lo"]["status"], "new", "gated jobs stay new")
+
+    def test_gate_then_batch_limit(self):
+        self.gated_state()
+        self.write_settings(minPrefilterScore=40, rankBatch=1)
+        out = self.run_tool("candidates", "--tracker", str(self.tmp / "none.csv"))
+        self.assertEqual([r["key"] for r in out["selected"]], ["hi"])
+        self.assertEqual(out["eligible"], 3)
+        self.assertEqual(out["deferred"], 2)
+
+    def test_force_rank_bypasses_gate_and_batch_limit(self):
+        self.gated_state()
+        state = self.read_state()
+        state["lo2"]["force_rank"] = True
+        self.write_state(state)
+        self.write_settings(minPrefilterScore=52, rankBatch=1)
+        out = self.run_tool("candidates", "--tracker", str(self.tmp / "none.csv"))
+        self.assertEqual([r["key"] for r in out["selected"]], ["lo2", "hi"])
+        self.assertEqual(out["forced"], 1)
+
+    def test_force_rank_is_cleared_once_the_job_is_scored(self):
+        self.gated_state()
+        state = self.read_state()
+        state["lo2"]["force_rank"] = True
+        self.write_state(state)
+        result = {"key": "lo2", "status": "scored", "deadline": None,
+                  "scores": {d: 80 for d in ("technical", "experience", "behavioral", "career")},
+                  "location_verdict": "PASS", "language_gate": "PASS", "posting_language": "es"}
+        self.run_tool("apply", "--results", self.results([result]))
+        after = self.read_state()["lo2"]
+        self.assertEqual(after["status"], "ranked")
+        self.assertNotIn("force_rank", after)
+
+    def test_ranked_jobs_are_never_selected_automatically_even_with_force_flag(self):
+        self.write_state({"r": entry(status="ranked", rank_score=70, prefilter_score=99, force_rank=True)})
+        self.write_settings(minPrefilterScore=0)
+        out = self.run_tool("candidates", "--tracker", str(self.tmp / "none.csv"))
+        self.assertEqual(out["selected"], [])
+
+    def test_gate_applies_only_to_new_jobs_under_all(self):
+        self.write_state({"r": entry(status="ranked", rank_score=70, prefilter_score=1), "n": entry(prefilter_score=1, prefilter_recovered=True)})
+        self.write_settings(minPrefilterScore=52)
+        out = self.run_tool("candidates", "--all", "--tracker", str(self.tmp / "none.csv"))
+        self.assertEqual([r["key"] for r in out["selected"]], ["r"])
 
     def test_tracker_pairs_are_excluded(self):
         self.write_state({"a": entry(company="Acme", title="SOC Analyst"), "b": entry(company="Other")})
@@ -254,11 +328,6 @@ class Sweep(RankStateCase):
 
 
 class Apply(RankStateCase):
-    def results(self, payload):
-        path = self.tmp / "results.json"
-        path.write_text(json.dumps(payload), encoding="utf-8")
-        return str(path)
-
     def test_scored_keys_keep_past_deadlines_out_of_the_shortlist(self):
         for status in ("new", "ranked", "expired"):
             with self.subTest(status=status):

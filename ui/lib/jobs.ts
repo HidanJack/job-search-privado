@@ -49,6 +49,8 @@ export interface Job {
   prefilter_score: number | null;
   /** Spanish reason when status is "prefiltered_out". */
   prefilter_reason: string | null;
+  /** The user asked for this job to be ranked in the next run despite a low prefilter score. */
+  force_rank: boolean;
   /** Opportunity / risk (tools/opportunity.py), computed after /rank. */
   opportunity: number | null;
   risk: number | null;
@@ -148,6 +150,7 @@ export function normalizeJob(key: string, raw: Record<string, unknown>, today: D
     gaps: strList(raw.gaps, 3),
     prefilter_score: num(raw.prefilter_score),
     prefilter_reason: str(raw.prefilter_reason),
+    force_rank: raw.force_rank === true,
     opportunity: num(raw.opportunity),
     risk: num(raw.risk),
     final_priority: num(raw.final_priority),
@@ -230,6 +233,19 @@ export function parseFilters(params: URLSearchParams, defaults: FilterDefaults):
 
 export const PREFILTERED_OUT = "prefiltered_out";
 
+/** Same rule as `rank_state.py candidates`: a new job goes to /rank on its own only at or above the gate (or when forced). */
+export function passesGate(job: Job, minScore: number): boolean {
+  return job.force_rank || job.prefilter_score === null || job.prefilter_score >= minScore;
+}
+
+/** Splits pending jobs into those /rank will pick up and those held back by the score gate. */
+export function splitByGate(jobs: Job[], minScore: number): { eligible: Job[]; gated: Job[] } {
+  return {
+    eligible: jobs.filter((j) => passesGate(j, minScore)),
+    gated: jobs.filter((j) => !passesGate(j, minScore)),
+  };
+}
+
 /** Jobs the deterministic prefilter discarded (kept on disk, best score first). */
 export function prefilteredJobs(jobs: Job[]): Job[] {
   return jobs
@@ -252,6 +268,15 @@ export function recoverJob(root: string, key: string): boolean {
     e.status = "new";
     e.prefilter_recovered = true;
     delete e.prefilter_reason;
+    return true;
+  });
+}
+
+/** Flags one pending job so the next /rank run scores it even below the gate (cleared by `rank_state.py apply`). */
+export function forceRankJob(root: string, key: string): boolean {
+  return updateJob(root, key, (e) => {
+    if (e.status !== "new") return false;
+    e.force_rank = true;
     return true;
   });
 }

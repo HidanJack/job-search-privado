@@ -105,6 +105,67 @@ class Scoring(unittest.TestCase):
         self.assertGreater(high, low)
 
 
+class Discrimination(unittest.TestCase):
+    """Real tech fits clear the gate; non-tech noise is excluded or capped far below it."""
+    GATE = 55
+
+    def score_of(self, title, location=None, fit="medium"):
+        return prefilter.score(job(title, location=location, fit=fit), TODAY)
+
+    def test_real_fits_score_above_gate_even_without_location(self):
+        for title in ["AI ENGINEER", "Senior AI Engineer", "Spark Data Engineer - Remote work | REF#305832",
+                      "Big Data Engineer (Databricks)", "Senior Backend Engineer", "AI Engineer (Copilot)",
+                      "Lead Data Engineer", "Ingeniero de datos", "Desarrollador Python Senior"]:
+            with self.subTest(title=title):
+                self.assertGreaterEqual(self.score_of(title, "Remote (worldwide)"), self.GATE)
+                self.assertGreaterEqual(self.score_of(title, None), self.GATE)
+
+    def test_non_tech_titles_are_excluded_or_capped_low(self):
+        for title in ["Deal Desk Analyst - Mexico", "Patient Care Communications Specialist",
+                      "IC \u2013 Construction Estimator I", "French Bilingual Interpreter",
+                      "CEO & Co-founder (Robotics Automation)", "Customer Care Specialist (phone)",
+                      "Logistics Coordinator", "Accounts Payable/Accounts Receivable Specialist",
+                      "Planner Buyer", "Learning & Development Specialist", "Talent Programs Coordinator",
+                      "Mechanical Engineering Expert (MSc. or PhD)", "Electrical Instrumentation Engineer - Data Center"]:
+            with self.subTest(title=title):
+                entry = job(title, location="Remote (Mexico)")
+                verdict = prefilter.evaluate(entry, TODAY)
+                self.assertTrue(verdict["out"] or verdict["score"] < 40, verdict)
+                if verdict["out"]:
+                    self.assertTrue(verdict["reason"])
+
+    def test_non_tech_title_without_tech_signal_is_capped_at_30(self):
+        for title in ["Strategy & Operations Associate", "Solutions Strategist", "Join our Talent Community"]:
+            with self.subTest(title=title):
+                self.assertLessEqual(self.score_of(title, "Remote (Mexico)", fit="high"), 30)
+
+    def test_tech_roles_with_engineer_word_are_not_excluded(self):
+        for title in ["Founding Engineer", "Software Engineer (GitHub Contributor)",
+                      "Founding Robotic Engineer (Software, Mechatronics, AI)", "Site Reliability Engineer"]:
+            with self.subTest(title=title):
+                self.assertFalse(out(title)["out"], title)
+
+    def test_stack_match_and_family_spread_scores(self):
+        py = self.score_of("Python Backend Engineer (FastAPI, AWS)", "Remote (Mexico)")
+        plain = self.score_of("Software Engineer", "Remote (Mexico)")
+        noise = self.score_of("Event Coordinator", "Remote (Mexico)")
+        self.assertGreaterEqual(py, 80)
+        self.assertGreater(py, plain + 10)
+        self.assertGreater(plain, noise + 25)
+
+    def test_portuguese_titles_without_engenheiro_are_out(self):
+        for title in ["Pessoa Especialista em Desenvolvimento Full-stack", "Pessoa Especialista em Engenharia de Dados"]:
+            with self.subTest(title=title):
+                self.assertTrue(out(title)["out"], title)
+
+    def test_ai_word_alone_is_not_a_tech_signal(self):
+        self.assertLessEqual(self.score_of("Creative Producer (AI-Driven)", "Remote (Mexico)"), 30)
+        self.assertGreaterEqual(self.score_of("AI Engineer", "Remote (Mexico)"), 60)
+
+    def test_default_gate_is_sixty(self):
+        self.assertEqual(prefilter.DEFAULT_MIN_PREFILTER_SCORE, 60)
+
+
 class State(unittest.TestCase):
     SETTINGS = {"minSalaryMxn": 35000, "currentSalary": 21000}
 
@@ -134,10 +195,18 @@ class State(unittest.TestCase):
     def test_settings_defaults_and_validation(self):
         with TemporaryDirectory() as d:
             p = Path(d) / "s.json"
-            self.assertEqual(prefilter.load_search_settings(p)["rankBatch"], 25)
+            self.assertEqual(prefilter.load_search_settings(p)["rankBatch"], 10)
+            self.assertEqual(prefilter.load_search_settings(p)["minPrefilterScore"], 60)
             p.write_text(json.dumps({"currentSalary": 21000, "search": {"rankBatch": 40, "minSalaryMxn": "x"}}))
             s = prefilter.load_search_settings(p)
             self.assertEqual((s["rankBatch"], s["minSalaryMxn"]), (40, 35000))
+
+    def test_min_prefilter_score_accepts_zero_and_rejects_out_of_range(self):
+        with TemporaryDirectory() as d:
+            p = Path(d) / "s.json"
+            for raw, expected in ((0, 0), (80, 80), (101, 60), (-1, 60), ("9", 60), (True, 60)):
+                p.write_text(json.dumps({"search": {"minPrefilterScore": raw}}))
+                self.assertEqual(prefilter.load_search_settings(p)["minPrefilterScore"], expected, raw)
 
 
 class Cli(unittest.TestCase):
@@ -174,14 +243,14 @@ class RankIntegration(unittest.TestCase):
             capture_output=True, text=True, check=True)
         return json.loads(r.stdout)
 
-    def seed(self, d, rank_batch=2):
+    def seed(self, d, rank_batch=2, min_score=0):
         seen = {
             "sap": job("SAP consultant"), "gen": job("Software Engineer", location="Remote (worldwide)"),
             "py": job("Desarrollador Python"), "data": job("Data Engineer"),
             "out": job("Java Developer", status="prefiltered_out", prefilter_reason="x"),
         }
         (Path(d) / "seen.json").write_text(json.dumps({"seen": seen}))
-        (Path(d) / "s.json").write_text(json.dumps({"search": {"rankBatch": rank_batch}}))
+        (Path(d) / "s.json").write_text(json.dumps({"search": {"rankBatch": rank_batch, "minPrefilterScore": min_score}}))
 
     def test_cap_uses_rank_batch_setting_and_orders_by_prefilter(self):
         with TemporaryDirectory() as d:
