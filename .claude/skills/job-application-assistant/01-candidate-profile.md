@@ -62,7 +62,7 @@ a hard no, not a gap to smooth over. -->
 ### Software Developer - Intelitax / Soluciones Analíticas para Empresas S.A. de C.V. (Jan 2025 - Present)
 Ciudad de México
 - Built ETL pipelines that clean, normalize and consolidate financial data from multiple formats (CSV, Excel, TXT), processing more than 1 million records.
-- Implemented OCR extraction from Mexican bank-statement PDFs (Tesseract, OpenCV, YOLOv10 layout detection) with ~95% accuracy; 23 Mexican banks supported in the deep-learning generation.
+- Implemented OCR extraction from Mexican bank-statement PDFs (Tesseract, OpenCV, YOLOv10 layout detection) with ~95% accuracy; uses a YOLOv10 (PyTorch) object-detection model to detect bank transactions in statement tables, alongside OCR (computer vision applied to financial documents; not stated whether he trained the weights - never write "trained"); 23 Mexican banks supported in the deep-learning generation.
 - Designed an in-house reverse-engineering library that decodes two different kinds of obfuscated ("scrambled") embedded PDF fonts - Type1/CFF via a custom binary CFF parser and code-to-glyph reconstruction, Type3 via font fingerprinting (SHA-256 of FontMatrix + Widths) plus glyph-shape matching - extracting text 100% without OCR, behind one unified API.
 - Built and later rewrote in Rust (PyO3, rayon) a multi-criteria graph-based matching engine (NetworkX, Neo4j) for bank reconciliation; on a real manufacturing client case, unmatched movements dropped from 82 to 2. Diagnosed and fixed 6 logic bugs introduced while porting from Python to Rust.
 - Third-generation matcher (MATCHER_V2): architecture documented in draw.io diagrams before coding, phased reversible migration with feature flags and golden tests (3 levels), built a ~1,000-line test harness from zero on a codebase that had none.
@@ -92,8 +92,8 @@ Ciudad de México
 - **Python** (advanced): Pandas, Polars, NumPy, OpenPyXL, FastAPI, Flask, SQLAlchemy, pytest, ThreadPoolExecutor/ProcessPoolExecutor
 - **Rust** (intermediate-advanced, via PyO3 extensions): rayon, ahash
 - **SQL**, **TypeScript/JavaScript** (React, React Native/Expo), Cypher
-- OCR & documents: Tesseract, OpenCV, YOLOv10 (deepdoctection), docTR, PyMuPDF, binary parsing of embedded CFF/Type1/Type3 fonts
-- ML/AI (pre-LLM): has trained his own document-classification model (scikit-learn) since 2023 (Grupo Gabssa), in addition to LLM work with Claude since Jan 2025; has also used TensorFlow and PyTorch on another PDF-related project (details not provided; never attribute them to the Gabssa classifier)
+- OCR & documents: Tesseract, OpenCV, YOLOv10 (PyTorch; transaction detection in bank-statement tables), deepdoctection, docTR, PyMuPDF, binary parsing of embedded CFF/Type1/Type3 fonts
+- ML/AI (pre-LLM): has trained his own document-classification model (scikit-learn) since 2023 (Grupo Gabssa), in addition to LLM work with Claude since Jan 2025; uses PyTorch via YOLOv10 detection of bank transactions in statement tables at Intelitax (verified on disk: ultralytics YOLOv10, torch; whether he trained the weights is NOT stated - never write "trained" about YOLO); TensorFlow: stated by Luis, no evidence found - do not put in CVs; never attribute these to the Gabssa classifier
 - ML/AI: deep learning, embeddings (sentence-transformers), on-device LLMs (llama.rn, Ollama), InsightFace/ONNX
 - Graphs & matching: NetworkX, Neo4j, RapidFuzz, scipy (combinatorial optimization)
 

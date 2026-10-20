@@ -47,7 +47,7 @@ This repo is a job application workspace. Claude acts as a career advisor and ap
 
 ### Professional Experience
 - **Software Developer** (Jan 2025 - Present) - **Intelitax / Soluciones Analíticas para Empresas S.A. de C.V.** (Ciudad de México)
-  - ETL pipelines for financial data from CSV/Excel/TXT, 1M+ records; OCR from bank PDFs (~95% accuracy)
+  - ETL pipelines for financial data from CSV/Excel/TXT, 1M+ records; OCR from bank PDFs (~95% accuracy); uses a YOLOv10 (PyTorch) object-detection model to detect bank transactions in statement tables, alongside OCR (computer vision applied to financial documents)
   - In-house library decoding two kinds of obfuscated PDF fonts (Type1/CFF, Type3) with 100% OCR-free extraction
   - Graph-based reconciliation engine rewritten in Rust (PyO3): real case 82 -> 2 unmatched movements; led Kubernetes/EKS multi-tenant migration, found and fixed a cross-tenant authorization vulnerability and a race condition before production
 - **Information Analyst** (Aug 2023 - Aug 2024) - **Grupo Gabssa**
@@ -57,8 +57,8 @@ This repo is a job application workspace. Claude acts as a career advisor and ap
   - Python analysis scripts for technology requirements; IT infrastructure support
 
 ### Technical Skills
-- **ML (pre-LLM):** has trained his own document-classification model (scikit-learn) since 2023 (Grupo Gabssa), in addition to LLM work with Claude since Jan 2025; has also used TensorFlow and PyTorch on another PDF-related project (details not provided; never attribute them to the Gabssa classifier)
-- **Primary:** Python (Pandas, Polars, FastAPI, Flask, pytest), ETL, OCR/PDF processing, graph matching (NetworkX, Neo4j), Rust via PyO3
+- **ML (pre-LLM):** has trained his own document-classification model (scikit-learn) since 2023 (Grupo Gabssa), in addition to LLM work with Claude since Jan 2025; uses PyTorch via YOLOv10 detection of bank transactions in statement tables at Intelitax (verified on disk: ultralytics YOLOv10, torch; whether he trained the weights is NOT stated - never write "trained" about YOLO); TensorFlow: stated by Luis, no evidence found - do not put in CVs; never attribute these to the Gabssa classifier
+- **Primary:** Python (Pandas, Polars, FastAPI, Flask, pytest), ETL, OCR/PDF processing, computer vision (YOLOv10/PyTorch), graph matching (NetworkX, Neo4j), Rust via PyO3
 - **Secondary:** TypeScript/React/React Native, Docker/Podman, Kubernetes (EKS), nginx, AWS S3, Kafka, Azure, SQL (PostgreSQL; any SQL dialect, no Oracle-specific experience), Bash/shell scripting (e.g. a 560-line script that orchestrates a 6-service Podman stack: build, start/stop, health checks, logs), on-device LLMs (llama.rn, Ollama)
 - **Domain:** Mexican bank reconciliation and accounting automation, financial document AI, multi-tenant platform security
 - **Software:** Git, GitHub Actions, Claude Code (AI agents, MCP, evals, guardrails), draw.io, Selenium
