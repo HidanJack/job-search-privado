@@ -155,6 +155,37 @@ class Build(unittest.TestCase):
         self.assertTrue((self.out / "profile_config.example.json").is_file())
         self.assertTrue((self.out / ".not-upstream").is_file())
 
+    def test_onboarding_files_ship_and_staging_does_not(self):
+        for rel in ("tools/onboarding_extract.py", "tools/onboarding_proposal.py", "tools/onboarding_apply.py",
+                    ".claude/commands/onboard.md", "ui/lib/onboarding.ts", "ui/tests/onboarding.test.ts",
+                    "tests/fixtures/onboarding_proposal.json", "tests/fixtures/onboarding_template/CLAUDE.md",
+                    "ui/tests/fixtures/cv_example.docx"):
+            self.assertTrue((self.out / rel).is_file(), rel)
+        self.assertFalse((self.out / "ui" / "state").exists())
+        readme = (self.out / "README.md").read_text(encoding="utf-8")
+        self.assertIn("Configuración inicial", readme)
+        self.assertIn("/onboard", readme)
+        # the applier must not treat the shipped edition as the author's private checkout
+        self.assertFalse((self.out / "tools" / "make_clean_edition.py").exists())
+
+    def test_shipped_edition_applies_a_proposal_end_to_end(self):
+        """The built edition can onboard a user: apply a proposal into a copy of it and read the result back."""
+        import json as _json
+        import shutil as _shutil
+        import subprocess as _subprocess
+        work = self.base / "onboarded"
+        _shutil.copytree(self.out, work)
+        prop = REPO / "tests" / "fixtures" / "onboarding_proposal.json"
+        r = _subprocess.run([sys.executable, str(work / "tools" / "onboarding_apply.py"), "--root", str(work),
+                             "--proposal", str(prop)], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertTrue(_json.loads(r.stdout)["ok"])
+        claude = (work / "CLAUDE.md").read_text(encoding="utf-8")
+        self.assertIn("Job Application Assistant for Alex Example", claude)
+        self.assertNotIn("[YOUR_NAME]", claude)
+        cfg = _json.loads((work / "profile_config.json").read_text(encoding="utf-8"))
+        self.assertEqual(cfg["name"], "Alex Example")
+
     def test_zip_has_a_single_top_level_folder_and_no_marker(self):
         with zipfile.ZipFile(self.out.with_name("edition.zip")) as zf:
             tops = {n.split("/")[0] for n in zf.namelist()}

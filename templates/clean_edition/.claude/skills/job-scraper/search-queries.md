@@ -1,6 +1,6 @@
 # Search Queries for Job Scraper
 
-<!-- STARTER SET: the role families below (Python backend, data engineering, AI/LLM, any backend, plus neighbor families) are examples. /setup rewrites them for your profile; edit them freely. [YOUR_CITY] marks where your city goes. -->
+<!-- STARTER SET (the portal-CLI sweep and the Indeed step read `search.families` from profile_config.json, not this file; the first-run onboarding writes them): the role families below (Python backend, data engineering, AI/LLM, any backend, plus neighbor families) are examples. /setup rewrites them for your profile; edit them freely. [YOUR_CITY] marks where your city goes. -->
 
 ## Installed portal CLIs (primary for `/scrape`)
 
@@ -105,6 +105,11 @@ Run each query three times: `location: "[YOUR_CITY]"`, `location: "México"`
 at most 10 results per call ordered by relevance, not date, so coverage comes from
 many specific queries, not from paging. Queries are in Spanish because Indeed MX
 postings are mostly Spanish. `/job-scraper` Step 1d describes how to run and store them.
+
+**Where the strings come from:** run `python3 tools/profile_config.py queries --portal indeed`
+(add `--broad` for the neighbour families). It prints the search strings of each role family
+from `search.families` in your `profile_config.json`, which the dashboard's first-run onboarding
+fills in from your CV. The table below is only the fallback when that file has no families yet.
 
 | Role family | `search` values |
 |---|---|

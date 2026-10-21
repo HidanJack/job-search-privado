@@ -5,7 +5,7 @@ description: >
   (LinkedIn, local job boards, and any skills added with /add-portal). Deduplicates
   across runs. Triggers on: job scrape, find jobs, search jobs, new jobs, job search,
   scrape jobs, /scrape
-allowed-tools: mcp__claude_ai_Indeed__search_jobs, mcp__claude_ai_Indeed__get_job_details, Read, Write, Edit, Glob, Grep, Bash(bun --version), Bash(python tools/job_key.py:*), Bash(python3 tools/job_key.py:*), Bash(python tools/scrape_state.py:*), Bash(python3 tools/scrape_state.py:*), WebFetch, WebSearch, Agent, AskUserQuestion
+allowed-tools: mcp__claude_ai_Indeed__search_jobs, mcp__claude_ai_Indeed__get_job_details, Read, Write, Edit, Glob, Grep, Bash(bun --version), Bash(python tools/job_key.py:*), Bash(python3 tools/job_key.py:*), Bash(python tools/scrape_state.py:*), Bash(python3 tools/scrape_state.py:*), Bash(python tools/profile_config.py queries:*), Bash(python3 tools/profile_config.py queries:*), WebFetch, WebSearch, Agent, AskUserQuestion
 ---
 
 # Job Scraper
@@ -94,7 +94,13 @@ exposes `mcp__claude_ai_Indeed__search_jobs` and `mcp__claude_ai_Indeed__get_job
 error, no WebSearch stand-in; just omit Indeed from the Step 5 summary. Never fetch
 Indeed with curl, WebFetch or a CLI.
 
-When available, run the "Indeed MX (MCP)" queries from `search-queries.md`: for each
+When available, get the search strings from the user's profile configuration:
+`python3 tools/profile_config.py queries --portal indeed` prints them grouped by role
+family (`# <family>` header, then one string per line; add `--broad` when the user asked
+for a broad search, to include the neighbour families too; `--json` for a machine-readable
+list). They come from `search.families` in `profile_config.json`, so they follow the
+profile the user set up with the dashboard's onboarding. If that command fails or prints
+nothing, fall back to the "Indeed MX (MCP)" table in `search-queries.md`. For each
 query, call `search_jobs` with `country_code: "MX"` and `location: "Ciudad de México"`,
 then again with `location: "remote"`. Results are Markdown blocks with Job Title, Job Id
 (`JOBSEARCH_<n>`), Company, Location, Posted on, Job Type, Compensation and a

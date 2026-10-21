@@ -115,6 +115,11 @@ at most 10 results per call ordered by relevance, not date, so coverage comes fr
 many specific queries, not from paging. Queries are in Spanish because Indeed MX
 postings are mostly Spanish. `/job-scraper` Step 1d describes how to run and store them.
 
+**Where the strings come from:** run `python3 tools/profile_config.py queries --portal indeed`
+(add `--broad` for the neighbour families). It prints the search strings of each role family
+from `search.families` in your `profile_config.json`, which the dashboard's first-run onboarding
+fills in from your CV. The table below is only the fallback when that file has no families yet.
+
 | Role family | `search` values |
 |---|---|
 | Python backend | `desarrollador python`, `desarrollador backend python`, `programador python` |

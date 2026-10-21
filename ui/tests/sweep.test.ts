@@ -1,11 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  PORTAL_PLANS, QUERIES, buildTasks, coverageLine, isOpenToMexico, jobageArgs, readLastSweep, runSweep, writeLastSweep,
+  PORTAL_PLANS, buildTasks, coverageLine, isOpenToMexico, jobageArgs, formatPlan, languageAdvantageFamily, planSweep, queriesFromConfig,
+  readLastSweep, runSweep, writeLastSweep,
   type PortalPlan, type SweepPosting, type SweepSpawn,
 } from "../lib/sweep";
+import { DEFAULT_FAMILIES, DEFAULT_PROFILE_CONFIG, parseProfileConfig } from "../lib/profile_config";
+
+const QUERIES = queriesFromConfig(DEFAULT_PROFILE_CONFIG);
 
 const TODAY = new Date("2026-10-16T12:00:00Z");
 
@@ -52,12 +56,126 @@ describe("isOpenToMexico", () => {
   });
 });
 
+describe("config-driven queries", () => {
+  const cfg = (over: Record<string, unknown>) => parseProfileConfig(over);
+  const fam = (name: string, queries: [string, string][]) => ({ name, queries: queries.map(([text, lang]) => ({ text, lang })) });
+
+  test("without search.families the neutral default families are used", () => {
+    expect(DEFAULT_PROFILE_CONFIG.search.families).toEqual(DEFAULT_FAMILIES);
+    expect(QUERIES.en.length).toBeGreaterThan(5);
+    expect(QUERIES.es.length).toBeGreaterThan(3);
+  });
+
+  test("families are flattened per language in family order, de-duplicated", () => {
+    const q = queriesFromConfig(cfg({ search: { families: [
+      fam("A", [["python", "en"], ["desarrollador python", "es"]]),
+      fam("B", [["data engineer", "en"], ["Python", "en"], ["Datenentwickler", "de"]]),
+    ] } }));
+    expect(q).toEqual({ en: ["python", "data engineer"], es: ["desarrollador python"], de: ["Datenentwickler"] });
+  });
+
+  test("other languages get tasks too, after en and es, and are not restricted to Spanish-only variants", () => {
+    const q = queriesFromConfig(cfg({ search: { families: [fam("A", [["python", "en"], ["python entwickler", "de"], ["desarrollador", "es"]])] } }));
+    const tasks = buildTasks(PORTAL_PLANS, q);
+    const de = tasks.filter((t) => t.query === "python entwickler");
+    expect(de.length).toBeGreaterThan(0);
+    expect(de.some((t) => t.variant === "any-region")).toBe(false); // that variant is Spanish-only
+    const order = tasks.filter((t) => t.portal === "getonbrd").map((t) => t.query);
+    expect(order.indexOf("desarrollador")).toBeGreaterThan(order.indexOf("python"));
+    expect(order.indexOf("python entwickler")).toBeGreaterThan(order.indexOf("desarrollador"));
+  });
+
+  test("a declared non-English/Spanish language adds language-advantage queries", () => {
+    const q = queriesFromConfig(cfg({
+      languages: [{ language: "German", read: "B2", write: "B1", speak: "B1" }, { language: "English", read: "C1", write: "B2", speak: "B2" }],
+      search: { families: [fam("A", [["python", "en"]])] },
+    }));
+    expect(q.en).toEqual(["python", "german speaking", "dach"]);
+    expect(q.de).toEqual(["deutsch"]);
+  });
+
+  test("a language known below B1, or only English/Spanish, adds nothing", () => {
+    const base = { search: { families: [fam("A", [["python", "en"]])] } };
+    expect(queriesFromConfig(cfg({ ...base, languages: [{ language: "German", read: "A2", write: "A1", speak: null }] }))).toEqual({ en: ["python"] });
+    expect(queriesFromConfig(cfg({ ...base, languages: [{ language: "Spanish", read: "native", write: "native", speak: "native" }] }))).toEqual({ en: ["python"] });
+  });
+
+  test("language advantage de-duplicates against the families' own queries (case-insensitive)", () => {
+    const q = queriesFromConfig(cfg({
+      languages: [{ language: "German", read: "B2", write: "B2", speak: "B2" }],
+      search: { families: [fam("A", [["German speaking", "en"], ["Deutsch", "de"]])] },
+    }));
+    expect(q.en).toEqual(["German speaking", "dach"]);
+    expect(q.de).toEqual(["Deutsch"]);
+  });
+
+  test("unknown languages fall back to a generic '<name> speaking' query", () => {
+    const fam2 = languageAdvantageFamily([{ language: "Swahili", read: "B2", write: "B2", speak: "B2" }]);
+    expect(fam2?.queries).toEqual([{ text: "swahili speaking", lang: "en" }]);
+    expect(languageAdvantageFamily([])).toBeNull();
+  });
+
+  test("planSweep reads profile_config.json at the root and builds the task list without any network", () => {
+    const root = mkdtempSync(join(tmpdir(), "plan-"));
+    writeFileSync(join(root, "profile_config.json"), JSON.stringify({ search: { families: [fam("A", [["python", "en"]])] } }));
+    const prev = process.env.JOB_SEARCH_PROFILE_CONFIG;
+    delete process.env.JOB_SEARCH_PROFILE_CONFIG;
+    try {
+      const tasks = planSweep(root);
+      expect(tasks.length).toBeGreaterThan(5);
+      expect(tasks.filter((t) => t.query !== null).every((t) => t.query === "python")).toBe(true);
+    } finally {
+      if (prev !== undefined) process.env.JOB_SEARCH_PROFILE_CONFIG = prev;
+    }
+  });
+
+  test("runSweep takes its queries from the config when none are passed", async () => {
+    const calls: string[] = [];
+    const root = mkdtempSync(join(tmpdir(), "plan-"));
+    writeFileSync(join(root, "profile_config.json"), JSON.stringify({ search: { families: [fam("A", [["zig developer", "en"]])] } }));
+    const prev = process.env.JOB_SEARCH_PROFILE_CONFIG;
+    delete process.env.JOB_SEARCH_PROFILE_CONFIG;
+    try {
+      const spawn: SweepSpawn = async (argv) => { calls.push(argv.join(" ")); return ok([]); };
+      await runSweep({ root, maxDays: 7, maxPages: 1, spawn, today: TODAY, portals: ONE, save: async () => ({ added: 0, skipped: 0 }) });
+    } finally {
+      if (prev !== undefined) process.env.JOB_SEARCH_PROFILE_CONFIG = prev;
+    }
+    expect(calls.length).toBe(1);
+    expect(calls[0]).toContain("zig developer");
+  });
+});
+
+describe("sweep --dry-run", () => {
+  test("formatPlan prints one line per task and a per-portal summary", () => {
+    const tasks = buildTasks(ONE, { en: ["python"], de: ["deutsch"] });
+    const text = formatPlan(tasks);
+    expect(text).toContain("getonbrd | latam | python");
+    expect(text).toContain("getonbrd | latam | deutsch");
+    expect(text).toContain("2 tareas");
+  });
+
+  test("bun run ui/sweep.ts --dry-run --json prints the planned tasks, touches nothing and spawns no portal CLI", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "dry-"));
+    const cfg = join(dir, "profile_config.json");
+    writeFileSync(cfg, JSON.stringify({ search: { families: [{ name: "A", queries: [{ text: "zig developer", lang: "en" }] }] } }));
+    const proc = Bun.spawn([process.execPath, "run", join(import.meta.dir, "..", "sweep.ts"), "--dry-run", "--json"], {
+      env: { ...process.env, JOB_SEARCH_PROFILE_CONFIG: cfg }, stdout: "pipe", stderr: "pipe",
+    });
+    const out = await new Response(proc.stdout).text();
+    expect(await proc.exited).toBe(0);
+    const tasks = JSON.parse(out);
+    expect(tasks.length).toBe(planSweep(dir).length);
+    expect(tasks.filter((t: { query: string | null }) => t.query).every((t: { query: string }) => t.query === "zig developer")).toBe(true);
+  });
+});
+
 describe("matrix", () => {
   test("covers every family in English and Spanish on all five portals", () => {
     expect(PORTAL_PLANS.map((p) => p.portal).sort()).toEqual(["getonbrd", "himalayas", "hn-hiring", "jobicy", "remoteok"]);
     const all = [...QUERIES.en, ...QUERIES.es].join("|").toLowerCase();
-    for (const term of ["python", "backend", "desarrollador python", "desarrollador backend", "ingeniero de datos", "data engineer", "analista de datos",
-      "automatización", "rpa", "qa automation", "ai engineer", "llm", "ia", "fastapi", "django", "kubernetes", "rust", "etl", "desarrollador de software"]) {
+    for (const term of ["software engineer", "backend developer", "desarrollador backend", "ingeniero de datos", "data engineer", "analista de datos",
+      "frontend developer", "devops engineer", "desarrollador de software"]) {
       expect(all).toContain(term);
     }
   });

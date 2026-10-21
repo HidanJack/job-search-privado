@@ -21,12 +21,19 @@ Esta edición viene **sin ningún dato personal**: el perfil, las consultas de b
 
 1. Descomprime y entra a la carpeta.
 2. Abre `claude` **una vez** en esta carpeta y acepta «confiar en el espacio de trabajo» (sin eso, las ejecuciones sin pantalla del panel no respetan `.claude/settings.json`). Puedes salir después.
-3. `cp profile_config.example.json profile_config.json` y edítalo (ver «Configuración» abajo): al menos tu nombre, tus años de experiencia y tus cifras de sueldo.
-4. Llena tu perfil, de una de dos formas:
-   - con el comando **`/setup`** dentro de `claude` (te entrevista, o lee tu CV si se lo das), o
-   - editando a mano los archivos plantilla: `CLAUDE.md`, `.claude/skills/job-application-assistant/01…07-*.md`, `.claude/skills/job-scraper/search-queries.md` y `cv/main_example.tex`. Todo lo que dice `[YOUR_…]` va con datos tuyos y verificables.
-5. `cd ui && bun install && cd ..`
-6. `./iniciar.sh` abre el panel en <http://127.0.0.1:8787> (puerto distinto: `JOB_UI_PORT=8799 ./iniciar.sh`; `./detener.sh` lo apaga). Mientras falte `profile_config.json` el panel muestra un aviso de primer uso.
+3. `cd ui && bun install && cd ..`
+4. `./iniciar.sh` abre el panel en <http://127.0.0.1:8787> (puerto distinto: `JOB_UI_PORT=8799 ./iniciar.sh`; `./detener.sh` lo apaga). Mientras tu perfil siga vacío, el panel abre la **configuración inicial** (ver abajo); no tienes que editar ningún archivo.
+
+### Configuración inicial (primer uso)
+
+1. Sube tu CV (PDF, DOCX, TXT o MD; máximo 2 MB) y/o escribe con tus palabras qué sabes y qué buscas, y responde unas preguntas cortas (sueldo mínimo, ciudad, remoto/híbrido, idiomas).
+2. Claude (con **tu** suscripción, `claude -p /onboard`) redacta una propuesta: tu perfil, tus idiomas con nivel, tu stack y las **familias de búsqueda** (en inglés y en cada idioma que lees o escribes bien, más búsquedas de «ventaja de idioma» como «German speaking», «Deutsch» o «DACH» si hablas otro idioma). Solo usa lo que hay en tu texto: lo deducido va marcado como tal y lo que falta se te pregunta.
+3. Tú la revisas y editas. Al confirmar, código determinista (sin IA) escribe `profile_config.json`, `CLAUDE.md` y `01-candidate-profile.md` (antes guarda una copia de lo que hubiera en `ui/state/backups/`).
+4. El archivo que subiste se borra al terminar el análisis; el texto extraído se borra al confirmar o cancelar. Todo vive solo en `ui/state/onboarding/` (ignorado por git). El texto del CV se trata siempre como **datos**, nunca como instrucciones.
+
+Si prefieres hacerlo a mano: `cp profile_config.example.json profile_config.json` y edítalo (ver «Configuración» abajo), y llena `CLAUDE.md`, `.claude/skills/job-application-assistant/01…07-*.md` y `cv/main_example.tex` (todo lo que dice `[YOUR_…]`), o usa el comando **`/setup`** dentro de `claude`.
+
+Para leer PDF hace falta `pdftotext` (paquete `poppler-utils`, ya listado en los requisitos); si no lo tienes, sube tu CV como DOCX, TXT o MD.
 
 ## Qué hace cada botón
 
@@ -63,6 +70,8 @@ Archivo por usuario, **ignorado por git**, en la raíz. Si falta o un valor no e
 | `candidate_years`, `years_tolerance` | Años profesionales verificables y cuántos años extra puede pedir un anuncio sin contar como riesgo. |
 | `current_salary_mxn`, `salary_floor_mxn` | Sueldo mensual actual y mínimo aceptable (MXN). Anclas del puntaje de sueldo y piso por defecto del filtro. |
 | `spoken_english` | `true` si hablas inglés con soltura: los anuncios en inglés dejan de penalizarse. |
+| `languages` | Tus idiomas con nivel MCER (A1–C2 o `native`) para leer, escribir y hablar: `[{"language": "German", "read": "B2", "write": "B1", "speak": "B1"}]`. Un idioma que no sea inglés/español con B1 o más agrega búsquedas de «ventaja de idioma». |
+| `search.families` | Familias de búsqueda del barrido: `[{"name": "Python backend", "queries": [{"text": "python developer", "lang": "en"}]}]`. Cada consulta lleva su idioma. Sin esto se usa un conjunto genérico. Opcionales por familia: `indeed` (cadenas explícitas para Indeed) y `broad` (solo en búsquedas amplias). Ver el plan sin consultar nada: `bun run ui/sweep.ts --dry-run`; las cadenas de Indeed: `python3 tools/profile_config.py queries --portal indeed`. |
 | `prefilter.stack_points` | Tu stack en el título: `[{"words": ["python"], "points": 12}]` (suma, con tope `stack_cap`). |
 | `prefilter.skill_keep` | Palabras que salvan un título de las exclusiones por «otro stack». |
 | `prefilter.stack_only` | Familias que no trabajas: `[{"words": ["sap"], "label": "SAP"}]`. |

@@ -15,6 +15,11 @@ import {
 } from "./lib/runner";
 import { isAllowedHost, isAllowedOrigin, safeResolve, sanitizeFeedback, validateJobUrl } from "./lib/security";
 import { loadTracker, updateTrackerFile } from "./lib/tracker";
+import {
+  MAX_PROPOSAL_BODY, OnboardingError, clearStaging, confirmProposal, onboardingStatus, parseAnalyzeRequest, prepareAnalysis,
+  readLimited, readProposal, saveProposal,
+} from "./lib/onboarding";
+import { bunSweepSpawn } from "./lib/sweep";
 
 const ROOT = resolve(import.meta.dir, "..");
 const PUBLIC = join(import.meta.dir, "public");
@@ -77,6 +82,8 @@ export interface ServerOptions {
   sweepSave?: SweepSaver;
   /** Test hook: skip the pause between portal calls. */
   samplerPauseMs?: number;
+  /** Spawner for the onboarding Python tools (extract, validate, apply). Defaults to the real one. */
+  toolSpawn?: SweepSpawn;
 }
 
 export function createHandler(opts: ServerOptions = {}) {
@@ -85,11 +92,97 @@ export function createHandler(opts: ServerOptions = {}) {
   const store = new ResultStore(root);
   const runs = new RunManager(root, opts.spawner ?? bunSpawner, opts.claudeBin ?? "claude", store);
   const commandRunner = opts.commandRunner ?? bunCommandRunner;
+  const toolSpawn = opts.toolSpawn ?? bunSweepSpawn;
+
+  const onboardingError = (err: unknown): Response => {
+    if (err instanceof OnboardingError) {
+      return json({ error: err.code, message: err.message, ...(err.details ? { details: err.details } : {}) }, err.status);
+    }
+    throw err;
+  };
+
+  /** Smaller JSON body (confirm/cancel); an empty body is an empty object. */
+  async function smallBody(req: Request, max = MAX_BODY): Promise<Record<string, unknown>> {
+    const bytes = await readLimited(req, max);
+    if (bytes === null) throw new OnboardingError(413, "too_large", "El cuerpo de la petición es demasiado grande.");
+    if (bytes.byteLength === 0) return {};
+    if (!(req.headers.get("content-type") ?? "").startsWith("application/json")) throw new OnboardingError(400, "bad_request", "Envía JSON.");
+    try {
+      const v = JSON.parse(new TextDecoder().decode(bytes));
+      if (v && typeof v === "object" && !Array.isArray(v)) return v;
+    } catch {}
+    throw new OnboardingError(400, "bad_request", "El cuerpo debe ser un objeto JSON válido.");
+  }
+
+  async function handleOnboarding(req: Request, pathname: string): Promise<Response> {
+    const route = pathname.slice("/api/onboarding/".length);
+    try {
+      if (req.method === "GET") {
+        if (route === "status") return json(onboardingStatus(root, runs.current));
+        if (route === "proposal") {
+          const res = await readProposal(toolSpawn, root);
+          if (!res.ok) return json({ error: "invalid_proposal", message: "La propuesta guardada no es válida.", details: res.errors }, 422);
+          return json({ proposal: res.proposal, flagged: res.flagged, repairs: res.repairs });
+        }
+        return json({ error: "not_found" }, 404);
+      }
+      if (req.method !== "POST" && req.method !== "PUT") return json({ error: "method_not_allowed" }, 405);
+      if (!isAllowedOrigin(req.headers.get("origin"), port)) return json({ error: "origin_not_allowed" }, 403);
+
+      if (req.method === "PUT" && route === "proposal") {
+        const bytes = await readLimited(req, MAX_PROPOSAL_BODY);
+        if (bytes === null) throw new OnboardingError(413, "too_large", "La propuesta es demasiado grande.");
+        let body: unknown;
+        try {
+          body = JSON.parse(new TextDecoder().decode(bytes));
+        } catch {
+          throw new OnboardingError(400, "bad_request", "El cuerpo no es JSON válido.");
+        }
+        if (runs.busy() && runs.current?.kind === "onboard") throw new OnboardingError(409, "busy", "Espera a que termine el análisis.");
+        const edited = body && typeof body === "object" && !Array.isArray(body) && "proposal" in body ? (body as { proposal: unknown }).proposal : body;
+        const res = await saveProposal(toolSpawn, root, edited);
+        return json({ proposal: res.proposal, flagged: res.flagged, repairs: res.repairs });
+      }
+      if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+
+      switch (route) {
+        case "analyze": {
+          if (runs.busy()) throw new OnboardingError(409, "busy", "Hay otra tarea en curso; espera a que termine.");
+          const input = await parseAnalyzeRequest(req);
+          const steps = await prepareAnalysis(toolSpawn, root, input);
+          const run = runs.startPipeline("onboard", "Analizar tu perfil", steps);
+          if (!run) {
+            clearStaging(root);
+            throw new OnboardingError(409, "busy", "Hay otra tarea en curso; espera a que termine.");
+          }
+          return json({ id: run.id });
+        }
+        case "confirm": {
+          if (runs.busy()) throw new OnboardingError(409, "busy", "Hay otra tarea en curso; espera a que termine.");
+          const body = await smallBody(req);
+          return json(await confirmProposal(toolSpawn, root, body.current_salary_mxn));
+        }
+        case "cancel": {
+          if (runs.busy() && runs.current?.kind === "onboard") throw new OnboardingError(409, "busy", "Espera a que termine el análisis.");
+          await smallBody(req);
+          clearStaging(root);
+          return json({ ok: true });
+        }
+        default:
+          return json({ error: "not_found" }, 404);
+      }
+    } catch (err) {
+      return onboardingError(err);
+    }
+  }
 
   async function handle(req: Request): Promise<Response> {
     const url = new URL(req.url);
     // DNS-rebinding guard: only answer to our own host names.
     if (!isAllowedHost(req.headers.get("host"), port)) return json({ error: "host_not_allowed" }, 403);
+
+    // Onboarding has its own body limits (upload 2.5 MB, proposal 512 KB) and also takes PUT.
+    if (url.pathname.startsWith("/api/onboarding/")) return handleOnboarding(req, url.pathname);
 
     if (req.method === "POST") {
       if (!isAllowedOrigin(req.headers.get("origin"), port)) return json({ error: "origin_not_allowed" }, 403);

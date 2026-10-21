@@ -8,7 +8,7 @@ Checks:
   parses, with non-empty `name` and `description` keys
 - `allowed-tools` entries of the form `Bash(bun run <path> *)` point at files
   that exist (skill paths resolve relative to the repo root and to .agents/)
-- Every .claude/commands/*.md starts with a `# /<name>` title
+- Every .claude/commands/*.md starts with a `# /<name>` title (after optional frontmatter)
 - .claude/settings.json is valid JSON with a permissions.allow list
 
 Exit code 0 on success, 1 with a failure list otherwise.
@@ -71,7 +71,11 @@ def check_skill(path: Path) -> None:
 
 
 def check_command(path: Path) -> None:
-    lines = path.read_text(encoding="utf-8").lstrip().splitlines()
+    text = path.read_text(encoding="utf-8").lstrip()
+    if text.startswith("---\n"):  # optional frontmatter (allowed-tools); the title follows it
+        end = text.find("\n---", 4)
+        text = text[end + 4:].lstrip() if end != -1 else text
+    lines = text.splitlines()
     first = lines[0] if lines else ""
     if not first.startswith("# /"):
         errors.append(f"{rel(path)}: command file must start with a '# /<name>' title (found: {first[:50]!r})")

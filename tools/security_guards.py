@@ -101,6 +101,9 @@ ALLOWED_PERMISSIONS = {
     # Reads a file or stdin, writes only to an explicit --out, never fetches.
     "Bash(python tools/posting_guard.py:*)",
     "Bash(python3 tools/posting_guard.py:*)",
+    # Indeed step of /job-scraper: search strings derived from profile_config.json `search.families`.
+    "Bash(python tools/profile_config.py queries:*)",
+    "Bash(python3 tools/profile_config.py queries:*)",
 }
 
 # Rules that must stay in .claude/settings.json permissions.ask. An ask rule
@@ -270,6 +273,13 @@ ALLOWED_SKILL_TOOLS = {
     "Bash(python3 tools/job_key.py:*)",
     "Bash(python tools/scrape_state.py:*)",
     "Bash(python3 tools/scrape_state.py:*)",
+    # /job-scraper Step 1d: Indeed search strings from the user's profile_config.json.
+    "Bash(python tools/profile_config.py queries:*)",
+    "Bash(python3 tools/profile_config.py queries:*)",
+    # /onboard may only read its input and write its proposal inside the onboarding staging dir.
+    # (file writes are matched only through Edit(path) rules in Claude Code; they cover the Write tool.)
+    "Read(ui/state/onboarding/*)",
+    "Edit(ui/state/onboarding/*)",
 }
 
 # The tools a shipped .claude/agents/*.md may list. These agents read untrusted

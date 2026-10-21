@@ -12,11 +12,31 @@ test-suite so results never depend on the real profile).
 import copy
 import json
 import os
+import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 ENV_VAR = "JOB_SEARCH_PROFILE_CONFIG"
 CONFIG_PATH = ROOT / "profile_config.json"
+
+# Neutral starter families for the portal sweep when the profile has none (the
+# onboarding flow replaces them with the user's own). English + Spanish.
+DEFAULT_FAMILIES: list = [
+    {"name": "Software / backend", "queries": [
+        {"text": "software engineer", "lang": "en"}, {"text": "software developer", "lang": "en"},
+        {"text": "backend developer", "lang": "en"}, {"text": "desarrollador de software", "lang": "es"},
+        {"text": "desarrollador backend", "lang": "es"}]},
+    {"name": "Frontend / full stack", "queries": [
+        {"text": "frontend developer", "lang": "en"}, {"text": "full stack developer", "lang": "en"},
+        {"text": "desarrollador frontend", "lang": "es"}, {"text": "desarrollador full stack", "lang": "es"}]},
+    {"name": "Data", "queries": [
+        {"text": "data engineer", "lang": "en"}, {"text": "data analyst", "lang": "en"},
+        {"text": "ingeniero de datos", "lang": "es"}, {"text": "analista de datos", "lang": "es"}]},
+    {"name": "DevOps / QA", "queries": [
+        {"text": "devops engineer", "lang": "en"}, {"text": "qa engineer", "lang": "en"},
+        {"text": "ingeniero devops", "lang": "es"}, {"text": "analista QA", "lang": "es"}]},
+]
 
 DEFAULTS: dict = {
     "name": "",                       # shown in the UI header; empty = profile not filled in yet
@@ -52,6 +72,11 @@ DEFAULTS: dict = {
         "off_stack": {"words": [], "points": -8},
         "spanish_title_bonus": 6,     # points for a Spanish-language title (0 if you do not care)
     },
+    # Languages you work in, CEFR (A1-C2) or "native" per skill; used for the sweep's
+    # language-advantage queries. [] = not declared (spoken_english stays the switch).
+    "languages": [],
+    # Portal sweep and Indeed step: role families with their queries (see _families).
+    "search": {"families": DEFAULT_FAMILIES},
     "skills": {
         # Skill ids (ui/lib/skills.ts catalog) sampled for "Cuánto pagan tus habilidades".
         "selected": ["python", "kubernetes", "llm", "rag", "ai_engineer", "data_engineer", "etl", "fastapi", "qa_automation"],
@@ -96,6 +121,64 @@ def _off_stack(v):
     return None
 
 
+CEFR_LEVELS = {"A1", "A2", "B1", "B2", "C1", "C2", "native"}
+_LANG_CODE = re.compile(r"^[a-z]{2,3}$")
+
+
+def _query_text(v):
+    """A query string that is safe as a CLI argument (never a flag), or None."""
+    if not isinstance(v, str):
+        return None
+    t = " ".join(v.split())
+    return t if t and len(t) <= 80 and not t.startswith("-") else None
+
+
+def _families(v):
+    """Valid families, or None when nothing usable (caller keeps the defaults)."""
+    if not isinstance(v, list):
+        return None
+    out = []
+    for item in v:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name")
+        if not isinstance(name, str) or not name.strip() or len(name.strip()) > 80:
+            continue
+        queries = []
+        for q in item.get("queries") if isinstance(item.get("queries"), list) else []:
+            text = _query_text(q.get("text")) if isinstance(q, dict) else None
+            lang = q.get("lang") if isinstance(q, dict) else None
+            if text and isinstance(lang, str) and _LANG_CODE.match(lang.strip().lower()):
+                queries.append({"text": text, "lang": lang.strip().lower()})
+        indeed = [t for t in (_query_text(x) for x in (item.get("indeed") if isinstance(item.get("indeed"), list) else [])) if t]
+        if not queries and not indeed:
+            continue
+        fam = {"name": name.strip(), "queries": queries}
+        if indeed:
+            fam["indeed"] = indeed
+        if item.get("broad") is True:
+            fam["broad"] = True
+        out.append(fam)
+    return out or None
+
+
+def _languages(v):
+    if not isinstance(v, list):
+        return None
+    out = []
+    for item in v:
+        if not isinstance(item, dict) or not isinstance(item.get("language"), str) or not item["language"].strip():
+            continue
+        entry = {"language": item["language"].strip()}
+        for k in ("read", "write", "speak"):
+            lvl = item.get(k)
+            lvl = lvl.strip() if isinstance(lvl, str) else lvl
+            lvl = "native" if isinstance(lvl, str) and lvl.lower() == "native" else (lvl.upper() if isinstance(lvl, str) else lvl)
+            entry[k] = lvl if lvl in CEFR_LEVELS else None
+        out.append(entry)
+    return out
+
+
 def _apply(cfg: dict, raw: dict) -> None:
     if isinstance(raw.get("name"), str):
         cfg["name"] = raw["name"].strip()
@@ -122,6 +205,15 @@ def _apply(cfg: dict, raw: dict) -> None:
         off = _off_stack(pre.get("off_stack"))
         if off is not None:
             target["off_stack"] = off
+
+    langs = _languages(raw.get("languages"))
+    if langs is not None:
+        cfg["languages"] = langs
+    search = raw.get("search")
+    if isinstance(search, dict):
+        fams = _families(search.get("families"))
+        if fams:
+            cfg["search"]["families"] = fams
 
     skills = raw.get("skills")
     if isinstance(skills, dict):
@@ -154,3 +246,62 @@ def load(path=None) -> dict:
 def is_filled(cfg: dict) -> bool:
     """True once the user has put their own name in the file."""
     return bool(cfg.get("name"))
+
+
+def indeed_queries(cfg: dict, broad: bool = False) -> list:
+    """[{"family", "queries"}] of Indeed search strings from `search.families`.
+
+    A family's explicit `indeed` list wins; otherwise its Spanish queries followed by
+    its English ones (Indeed MX is mostly Spanish; other languages are not searched).
+    Families flagged `broad` are included only when `broad=True`. Case-insensitive de-dupe.
+    Explicit mode: when ANY family lists `indeed` strings, only those families are used
+    (the others exist for the portal sweep only).
+    """
+    out = []
+    families = cfg["search"]["families"]
+    explicit = any(f.get("indeed") for f in families)
+    for fam in families:
+        if fam.get("broad") and not broad:
+            continue
+        if explicit and not fam.get("indeed"):
+            continue
+        if fam.get("indeed"):
+            raw = fam["indeed"]
+        else:
+            raw = [q["text"] for lang in ("es", "en") for q in fam["queries"] if q["lang"] == lang]
+        seen, texts = set(), []
+        for t in raw:
+            if t.lower() not in seen:
+                seen.add(t.lower())
+                texts.append(t)
+        if texts:
+            out.append({"family": fam["name"], "queries": texts})
+    return out
+
+
+def main(argv=None) -> int:
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Inspect the per-user profile configuration.")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    q = sub.add_parser("queries", help="print the search strings of a portal derived from search.families")
+    q.add_argument("--portal", required=True, choices=["indeed"])
+    q.add_argument("--broad", action="store_true", help="also include the families flagged broad")
+    q.add_argument("--json", action="store_true")
+    args = ap.parse_args(argv)
+    for stream in (sys.stdout,):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure:
+            reconfigure(encoding="utf-8")
+    data = indeed_queries(load(), broad=args.broad)
+    if args.json:
+        print(json.dumps(data, ensure_ascii=False))
+    else:
+        for fam in data:
+            print(f"# {fam['family']}")
+            print("\n".join(fam["queries"]))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

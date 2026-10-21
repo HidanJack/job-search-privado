@@ -6,21 +6,20 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { dirname, join } from "node:path";
 import { ageInDays, loadJobs } from "./jobs";
 import { loadSearchSettings } from "./search_settings";
+import { loadProfileConfig, type ConfigLanguage, type ProfileConfig, type SearchFamily } from "./profile_config";
 
 // ---------------------------------------------------------------------------
 // Query matrix
 // ---------------------------------------------------------------------------
 
-export interface QuerySet {
-  en: string[];
-  es: string[];
-}
+/** Keyword lists per language code ("en", "es", "de"...), built from the profile's search families. */
+export type QuerySet = Record<string, string[]>;
 
 export interface Variant {
   name: string;
   args: string[];
-  /** Restrict this variant to one keyword language (default: both). */
-  langs?: ("en" | "es")[];
+  /** Restrict this variant to some keyword languages (default: all of them). */
+  langs?: string[];
 }
 
 export interface PortalPlan {
@@ -30,16 +29,63 @@ export interface PortalPlan {
   browse?: Variant[];
 }
 
-export const QUERIES: QuerySet = {
-  en: [
-    "python", "python developer", "backend", "backend developer", "software engineer", "data engineer", "data analyst", "etl",
-    "automation engineer", "rpa", "qa automation", "ai engineer", "llm", "fastapi", "django", "kubernetes", "rust",
-  ],
-  es: [
-    "desarrollador python", "desarrollador backend", "programador python", "ingeniero de datos", "analista de datos",
-    "automatización", "analista QA", "ingeniero de inteligencia artificial", "desarrollador de software",
-  ],
+/** Terms that advertise "I speak this language" per language (name folded), used for the language-advantage family. */
+const LANGUAGE_ADVANTAGE: Record<string, { code: string; queries: { text: string; lang: string }[] }> = {
+  german: { code: "de", queries: [{ text: "german speaking", lang: "en" }, { text: "deutsch", lang: "de" }, { text: "dach", lang: "en" }] },
+  deutsch: { code: "de", queries: [{ text: "german speaking", lang: "en" }, { text: "deutsch", lang: "de" }, { text: "dach", lang: "en" }] },
+  aleman: { code: "de", queries: [{ text: "german speaking", lang: "en" }, { text: "deutsch", lang: "de" }, { text: "dach", lang: "en" }] },
+  french: { code: "fr", queries: [{ text: "french speaking", lang: "en" }, { text: "français", lang: "fr" }] },
+  frances: { code: "fr", queries: [{ text: "french speaking", lang: "en" }, { text: "français", lang: "fr" }] },
+  portuguese: { code: "pt", queries: [{ text: "portuguese speaking", lang: "en" }, { text: "português", lang: "pt" }] },
+  portugues: { code: "pt", queries: [{ text: "portuguese speaking", lang: "en" }, { text: "português", lang: "pt" }] },
+  italian: { code: "it", queries: [{ text: "italian speaking", lang: "en" }, { text: "italiano", lang: "it" }] },
+  italiano: { code: "it", queries: [{ text: "italian speaking", lang: "en" }, { text: "italiano", lang: "it" }] },
+  dutch: { code: "nl", queries: [{ text: "dutch speaking", lang: "en" }, { text: "nederlands", lang: "nl" }] },
 };
+const LEVEL_RANK: Record<string, number> = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6, native: 6 };
+const BASE_LANGS = new Set(["english", "ingles", "spanish", "espanol"]);
+
+/** English/Spanish query-language names that never need an "advantage" search. */
+const foldName = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+/**
+ * Searches for a language the user works in besides English/Spanish (read or write at B1+),
+ * e.g. "german speaking", "deutsch", "dach". Null when there is nothing to add.
+ */
+export function languageAdvantageFamily(languages: ConfigLanguage[]): SearchFamily | null {
+  const queries: { text: string; lang: string }[] = [];
+  for (const l of languages) {
+    const name = foldName(l.language);
+    if (!name || BASE_LANGS.has(name)) continue;
+    const best = Math.max(LEVEL_RANK[l.read ?? ""] ?? 0, LEVEL_RANK[l.write ?? ""] ?? 0);
+    if (best < LEVEL_RANK.B1) continue;
+    queries.push(...(LANGUAGE_ADVANTAGE[name]?.queries ?? [{ text: `${name} speaking`, lang: "en" }]));
+  }
+  return queries.length ? { name: "Language advantage", queries } : null;
+}
+
+/** Flatten the families (plus the language-advantage family) into per-language keyword lists; en, es, then the rest. */
+export function queriesFromConfig(cfg: Pick<ProfileConfig, "languages" | "search">): QuerySet {
+  const families = [...cfg.search.families];
+  const advantage = languageAdvantageFamily(cfg.languages);
+  if (advantage) families.push(advantage);
+  const byLang = new Map<string, string[]>();
+  const seen = new Set<string>();
+  for (const fam of families) {
+    for (const q of fam.queries) {
+      const key = `${q.lang}\u0000${q.text.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (!byLang.has(q.lang)) byLang.set(q.lang, []);
+      byLang.get(q.lang)!.push(q.text);
+    }
+  }
+  const out: QuerySet = {};
+  for (const lang of ["en", "es", ...[...byLang.keys()].filter((l) => l !== "en" && l !== "es")]) {
+    if (byLang.has(lang)) out[lang] = byLang.get(lang)!;
+  }
+  return out;
+}
 
 // "any-region" variants (Spanish keywords, no region flag) surface Spanish-language
 // companies; their rows go through the same location filter as everything else, so
@@ -96,7 +142,7 @@ export interface SweepTask {
 export function buildTasks(plans: PortalPlan[], queries: QuerySet): SweepTask[] {
   const lists = plans.map((plan) => {
     const list: SweepTask[] = [];
-    for (const lang of ["en", "es"] as const) {
+    for (const lang of Object.keys(queries)) {
       for (const query of queries[lang]) {
         for (const v of plan.variants) {
           if (v.langs && !v.langs.includes(lang)) continue;
@@ -110,6 +156,22 @@ export function buildTasks(plans: PortalPlan[], queries: QuerySet): SweepTask[] 
   const out: SweepTask[] = [];
   for (let i = 0; lists.some((l) => i < l.length); i++) for (const l of lists) if (i < l.length) out.push(l[i]);
   return out;
+}
+
+/** The task list a sweep would run for this repo's profile_config.json (no network). */
+export function planSweep(root: string, portals: PortalPlan[] = PORTAL_PLANS): SweepTask[] {
+  return buildTasks(portals, queriesFromConfig(loadProfileConfig(root)));
+}
+
+/** Human-readable plan for `ui/sweep.ts --dry-run`: a summary, then `portal | variant | query` per task. */
+export function formatPlan(tasks: SweepTask[]): string {
+  const perPortal = new Map<string, number>();
+  for (const t of tasks) perPortal.set(t.portal, (perPortal.get(t.portal) ?? 0) + 1);
+  const lines = [
+    `Plan del barrido: ${tasks.length} tareas (${[...perPortal].map(([p, n]) => `${p} ${n}`).join(", ")}). No se hizo ninguna consulta.`,
+    ...tasks.map((t) => `${t.portal} | ${t.variant} | ${t.query ?? "(sin palabra clave)"}`),
+  ];
+  return lines.join("\n");
 }
 
 export const MAX_SWEEP_DAYS = 90;
@@ -299,7 +361,7 @@ export async function runSweep(opts: SweepOptions): Promise<SweepStats> {
   const timeoutMs = opts.timeoutMs ?? 45_000;
   const today = opts.today ?? new Date();
   const log = opts.log ?? (() => {});
-  const tasks = buildTasks(opts.portals ?? PORTAL_PLANS, opts.queries ?? QUERIES);
+  const tasks = buildTasks(opts.portals ?? PORTAL_PLANS, opts.queries ?? queriesFromConfig(loadProfileConfig(opts.root)));
 
   const stats: SweepStats = {
     tasks: tasks.length, calls: 0, failures: 0, rawResults: 0, duplicates: 0, filteredLocation: 0, filteredAge: 0,

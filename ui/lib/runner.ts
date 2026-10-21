@@ -31,7 +31,27 @@ export const SEARCH_TOOLS = [
   ...BASE_TOOLS,
   "Bash(python tools/scrape_state.py:*)",
   "Bash(python3 tools/scrape_state.py:*)",
+  "Bash(python tools/profile_config.py queries:*)",
+  "Bash(python3 tools/profile_config.py queries:*)",
 ];
+
+/**
+ * /onboard reads untrusted CV text and may only touch its own staging directory.
+ * Run with `dontAsk` (anything not listed is denied, nothing is prompted) and with
+ * every other tool explicitly denied, so even a hijacked prompt has no shell, web,
+ * sub-agent or edit-anywhere tool to use.
+ */
+export const ONBOARD_DIR_REL = "ui/state/onboarding";
+// Claude Code matches file-write permissions only through Edit(path) rules (they cover the Write tool too);
+// a Write(path) rule is ignored.
+export const ONBOARD_TOOLS = [`Read(${ONBOARD_DIR_REL}/*)`, `Edit(${ONBOARD_DIR_REL}/*)`];
+export const ONBOARD_DENY = [
+  // "Edit" is deliberately not denied: in Claude Code an Edit rule covers the Write tool too.
+  "Bash", "WebFetch", "WebSearch", "Agent", "Skill", "Glob", "Grep",
+  "Read(profile_config.json)", "Read(job_search_tracker.csv)", "Read(job_scraper/**)", "Read(ui/state/*.json)",
+  "Read(cv/**)", "Read(cover_letters/**)", "Read(documents/**)", "Read(.env*)",
+];
+export const ONBOARD_PERMISSION_MODE = "dontAsk";
 export const APPLY_TOOLS = [
   ...BASE_TOOLS,
   "Bash(cd cv && lualatex:*)",
@@ -45,7 +65,7 @@ export const APPLY_TOOLS = [
   "Bash(rm -f cover_letters/cover_:*)",
 ];
 
-export type RunKind = "search" | "rank" | "apply" | "market";
+export type RunKind = "search" | "rank" | "apply" | "market" | "onboard";
 
 export const DEFAULT_MODEL = "sonnet";
 const MODEL_ALIASES = ["sonnet", "opus", "haiku"];
@@ -63,11 +83,19 @@ export function resolveModel(value: string | undefined): string {
   return DEFAULT_MODEL;
 }
 
+export interface ArgvOptions {
+  /** Default "acceptEdits". */
+  permissionMode?: string;
+  /** Tools denied outright (--disallowedTools). */
+  deny?: string[];
+}
+
 export function buildArgv(
   claudeBin: string,
   prompt: string,
   tools: string[],
   model: string = resolveModel(process.env.JOB_UI_MODEL),
+  options: ArgvOptions = {},
 ): string[] {
   // The prompt is one argv element and always starts with "/", so it can
   // never be read as a flag. --allowedTools is variadic and must come last.
@@ -75,7 +103,8 @@ export function buildArgv(
     claudeBin, "-p", prompt,
     "--model", resolveModel(model),
     "--output-format", "stream-json", "--verbose",
-    "--permission-mode", "acceptEdits",
+    "--permission-mode", options.permissionMode ?? "acceptEdits",
+    ...(options.deny?.length ? ["--disallowedTools", ...options.deny] : []),
     "--allowedTools", ...tools,
   ];
 }
@@ -186,7 +215,7 @@ export interface Run {
 
 export type PipelineStep =
   | { title: string; optional?: boolean; task: (log: (text: string) => void) => Promise<boolean> }
-  | { title: string; optional?: boolean; prompt: string; tools: string[] };
+  | { title: string; optional?: boolean; prompt: string; tools: string[]; permissionMode?: string; deny?: string[] };
 
 type Listener = (e: ProgressEvent) => void;
 
@@ -279,7 +308,10 @@ export class RunManager {
             if ("task" in step) {
               ok = await step.task((text) => this.emit(run, "text", text));
             } else {
-              const proc = this.spawner(buildArgv(this.claudeBin, step.prompt, step.tools), this.root);
+              const proc = this.spawner(
+                buildArgv(this.claudeBin, step.prompt, step.tools, undefined, { permissionMode: step.permissionMode, deny: step.deny }),
+                this.root,
+              );
               const pumped = await this.pump(run, proc);
               ok = pumped.ok && (await proc.exited) === 0;
             }

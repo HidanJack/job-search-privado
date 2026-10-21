@@ -223,7 +223,7 @@ describe("aggregate", () => {
 
   test("selection from profile_config: sampled skills, combo partners and primary skill", () => {
     const sel = skillSelection({
-      name: "x", current_salary_mxn: 1, salary_floor_mxn: 1,
+      name: "x", current_salary_mxn: 1, salary_floor_mxn: 1, languages: [], search: { families: [] },
       skills: { selected: ["rust", "kubernetes", "nope"], combo_partners: ["kubernetes", "ghost"], primary: "rust" },
     });
     expect(sel.skills.map((x) => x.id)).toEqual(["rust", "kubernetes"]);

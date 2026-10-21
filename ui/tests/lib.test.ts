@@ -175,9 +175,12 @@ describe("headless runner", () => {
     }
   });
 
-  test("search run may store results only through scrape_state.py", () => {
+  test("search run may store results only through scrape_state.py and read its queries via profile_config.py queries", () => {
     const bash = SEARCH_TOOLS.filter((t) => t.startsWith("Bash"));
-    expect(bash).toEqual(["Bash(python tools/scrape_state.py:*)", "Bash(python3 tools/scrape_state.py:*)"]);
+    expect(bash).toEqual([
+      "Bash(python tools/scrape_state.py:*)", "Bash(python3 tools/scrape_state.py:*)",
+      "Bash(python tools/profile_config.py queries:*)", "Bash(python3 tools/profile_config.py queries:*)",
+    ]);
     expect(SEARCH_TOOLS).not.toContain("Bash");
   });
 

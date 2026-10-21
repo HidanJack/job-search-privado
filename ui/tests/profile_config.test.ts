@@ -45,4 +45,30 @@ describe("profile_config", () => {
     a.skills.selected.push("zzz");
     expect(loadProfileConfig(root()).skills.selected).not.toContain("zzz");
   });
+
+  test("languages: valid entries kept, invalid levels become null, junk dropped", () => {
+    const c = loadProfileConfig(root({ languages: [
+      { language: "English", read: "b2", write: "B2", speak: "fluent" }, { language: "" }, "x",
+      { language: "Spanish", read: "native", write: "native", speak: "native" },
+    ] }));
+    expect(c.languages).toEqual([
+      { language: "English", read: "B2", write: "B2", speak: null },
+      { language: "Spanish", read: "native", write: "native", speak: "native" },
+    ]);
+    expect(DEFAULT_PROFILE_CONFIG.languages).toEqual([]);
+  });
+
+  test("search.families: valid ones replace the defaults, unusable ones fall back", () => {
+    const good = { name: "Backend", queries: [{ text: "python  backend", lang: "EN" }, { text: "--latam", lang: "en" }, { text: "x", lang: "english" }] };
+    const c = loadProfileConfig(root({ search: { families: [good, { name: "", queries: [] }, "junk"] } }));
+    expect(c.search.families).toEqual([{ name: "Backend", queries: [{ text: "python backend", lang: "en" }] }]);
+    for (const bad of ["x", [], [{ name: "A", queries: [] }]]) {
+      expect(loadProfileConfig(root({ search: { families: bad } })).search.families).toEqual(DEFAULT_PROFILE_CONFIG.search.families);
+    }
+  });
+
+  test("search.families keeps optional indeed/broad fields", () => {
+    const c = loadProfileConfig(root({ search: { families: [{ name: "W", queries: [], indeed: ["desarrollador web"], broad: true }] } }));
+    expect(c.search.families).toEqual([{ name: "W", queries: [], indeed: ["desarrollador web"], broad: true }]);
+  });
 });

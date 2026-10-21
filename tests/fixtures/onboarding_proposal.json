@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "identity": {
+    "name": "Alex Example",
+    "email": "alex@example.com",
+    "phone": null,
+    "location": "Guadalajara, Mexico",
+    "links": ["https://github.com/alex-example"]
+  },
+  "summary": "Backend developer focused on Python services and data pipelines.",
+  "years_experience": {
+    "value": 5.5,
+    "basis": "Acme Corp (2019-03 to 2022-06) plus Globex (2022-07 to present, counted to 2025-01)."
+  },
+  "experience": [
+    {
+      "company": "Globex",
+      "title": "Senior Backend Developer",
+      "start": "2022-07",
+      "end": "Present",
+      "highlights": ["Built ETL pipelines in Python and PostgreSQL.", "Reduced nightly job time from 6h to 2h."]
+    },
+    {
+      "company": "Acme Corp",
+      "title": "Software Developer",
+      "start": "2019-03",
+      "end": "2022-06",
+      "highlights": ["Maintained Django REST services."]
+    }
+  ],
+  "education": [
+    {"degree": "BSc Computer Science", "institution": "Universidad Example", "status": "completed", "start": "2014", "end": "2018"}
+  ],
+  "skills": [
+    {"name": "Python", "level": "expert", "evidence": "Globex and Acme roles", "inferred": false},
+    {"name": "PostgreSQL", "level": null, "evidence": "ETL pipelines at Globex", "inferred": false},
+    {"name": "Docker", "level": null, "evidence": "Deployment mentioned in Globex role", "inferred": true}
+  ],
+  "languages": [
+    {"language": "Spanish", "read": "native", "write": "native", "speak": "native", "inferred": false},
+    {"language": "English", "read": "C1", "write": "B2", "speak": "B2", "inferred": false},
+    {"language": "German", "read": "B2", "write": "B1", "speak": "B1", "inferred": false}
+  ],
+  "targets": {"roles": ["Backend Developer", "Data Engineer"], "remote": "remote", "location": "Mexico", "salary_floor_mxn": 60000},
+  "search_families": [
+    {
+      "name": "Python backend",
+      "queries": [
+        {"text": "python backend developer", "lang": "en"},
+        {"text": "desarrollador python backend", "lang": "es"},
+        {"text": "Python Backend Entwickler", "lang": "de"}
+      ],
+      "inferred": false
+    },
+    {
+      "name": "Data engineering",
+      "queries": [
+        {"text": "data engineer python", "lang": "en"},
+        {"text": "ingeniero de datos", "lang": "es"}
+      ],
+      "inferred": true
+    },
+    {
+      "name": "Language advantage",
+      "queries": [
+        {"text": "german speaking developer remote", "lang": "en"},
+        {"text": "Deutsch", "lang": "de"},
+        {"text": "DACH remote python", "lang": "en"}
+      ],
+      "inferred": true
+    }
+  ],
+  "stack": {"strong": ["python", "postgresql", "django"], "secondary": ["docker", "aws"], "avoid": ["sap", "php"]},
+  "questions": [{"id": "current_salary", "text": "What is your current monthly salary in MXN?", "why": "Not stated in the CV."}],
+  "warnings": []
+}

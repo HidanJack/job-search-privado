@@ -168,6 +168,23 @@ class SkillAndCommandCheckTests(LinterRepoFixture):
         self.assertEqual(result.returncode, 1)
         self.assertIn("must start with a '# /<name>' title", result.stdout)
 
+    def test_command_with_frontmatter_then_slash_title_passes(self):
+        command = self.root / ".claude" / "commands" / "onboard.md"
+        command.write_text("---\nallowed-tools: Read\n---\n\n# /onboard - title after frontmatter\n", encoding="utf-8")
+
+        result = run_linter(self.root)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_command_with_frontmatter_but_wrong_title_fails(self):
+        command = self.root / ".claude" / "commands" / "onboard.md"
+        command.write_text("---\nallowed-tools: Read\n---\n\n# onboard - no slash\n", encoding="utf-8")
+
+        result = run_linter(self.root)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("must start with a '# /<name>' title", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
