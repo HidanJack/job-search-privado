@@ -164,3 +164,75 @@ class Backfill(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+DE = ("Wir suchen einen erfahrenen Entwickler für unser Team in Berlin. Sie haben mehrjährige Erfahrung mit Python "
+      "und arbeiten gerne mit anderen zusammen. Wir bieten Ihnen ein spannendes Umfeld und flexible Arbeitszeiten, "
+      "und Sie sind Teil von einem Unternehmen, das nicht nur wächst, sondern auch Verantwortung übernimmt.")
+PT = ("Estamos à procura de um desenvolvedor com experiência em Python para a nossa equipe. Você vai trabalhar com "
+      "dados e também com outras áreas da empresa, e não precisa de muita experiência. Oferecemos uma vaga com "
+      "benefícios, e os nossos colaboradores são muito bem tratados pela empresa.")
+FR = ("Nous recherchons un ingénieur logiciel pour rejoindre notre équipe à Paris. Vous avez de l'expérience avec "
+      "Python et vous aimez travailler dans une équipe. Nous offrons un poste avec des avantages, et vous serez "
+      "responsable de la qualité du code pour nos clients.")
+IT = ("Cerchiamo uno sviluppatore con esperienza in Python per il nostro team a Milano. Il candidato ideale è "
+      "una persona che lavora bene in gruppo e che ha già lavorato con le API. Offriamo un ambiente dinamico e "
+      "siamo alla ricerca di colleghi che condividano i nostri valori, anche da remoto.")
+NL = ("Wij zoeken een ervaren ontwikkelaar voor ons team in Amsterdam. Je hebt ervaring met Python en je werkt graag "
+      "samen met collega's. Wij bieden een uitdagende functie bij een bedrijf dat niet stilstaat, en je krijgt "
+      "veel vrijheid voor je eigen ideeën. Deze vacature is voor iemand die het verschil wil maken.")
+
+
+class DetectMoreLanguages(unittest.TestCase):
+    def test_body_paragraphs(self):
+        for text, code in ((ES, "es"), (EN, "en"), (DE, "de"), (PT, "pt"), (FR, "fr"), (IT, "it"), (NL, "nl")):
+            self.assertEqual(pl.detect_language(text), code, code)
+
+    def test_titles(self):
+        cases = {
+            "Softwareentwickler (m/w/d) Python": "de",
+            "Backend Entwickler für unser Team": "de",
+            "Desenvolvedor Python para a equipe de dados": "pt",
+            "Ingénieur logiciel pour notre équipe": "fr",
+            "Sviluppatore backend per il nostro team": "it",
+            "Ontwikkelaar voor ons team": "nl",
+            "Desarrollador de software para el equipo": "es",
+            "Engineer for the team and the data": "en",
+        }
+        for title, code in cases.items():
+            self.assertEqual(pl.detect_title(title), code, title)
+
+    def test_titles_too_short_or_neutral_are_none(self):
+        for title in ("Software Engineer", "Python", "Data Engineer (Remote)", "Backend Engineer - Berlin", "São Paulo", ""):
+            self.assertIsNone(pl.detect_title(title), title)
+
+    def test_mixed_when_two_languages_are_substantial(self):
+        self.assertEqual(pl.detect_language(DE + " " + EN), "mixed")
+        self.assertEqual(pl.detect_language(FR + " " + ES), "mixed")
+
+    def test_too_short_is_none_and_detect_says_unknown(self):
+        self.assertIsNone(pl.detect_language("Wir suchen"))
+        self.assertEqual(pl.detect("Wir suchen"), "unknown")
+        self.assertEqual(pl.detect(DE), "de")
+        self.assertEqual(pl.detect("Entwickler (m/w/d)", kind="title"), "de")
+
+    def test_english_and_spanish_are_not_pulled_away(self):
+        # an English posting with common words that exist in other languages stays English
+        text = EN + " We pay per hour, do your best, and the OS is Linux. Die casting is not our business."
+        self.assertEqual(pl.detect_language(text), "en")
+        self.assertEqual(pl.detect_language(ES + " Trabajamos a veces en Berlín con Deutsche Bank."), "es")
+
+    def test_exclusive_sets_never_contain_common_english_words(self):
+        common = {"do", "per", "so", "me", "he", "an", "no", "to", "was", "in", "is", "as", "on", "at", "up", "if",
+                  "os", "met", "plus", "van", "see", "all", "one", "man", "name", "are", "for", "but", "not"}
+        for code, words in pl.EXCLUSIVE.items():
+            bad = (common - {"van"}) & set(words)
+            self.assertFalse(bad, (code, bad))
+
+    def test_cli_detect_title_flag(self):
+        import io
+        from contextlib import redirect_stdout
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            pl.cmd_detect(type("A", (), {"file": None, "text": "Entwickler (m/w/d)", "title": True})())
+        self.assertEqual(buf.getvalue().strip(), "de")

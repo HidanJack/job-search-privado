@@ -19,9 +19,12 @@ export interface SearchFamily {
   /** Neighbour family: its Indeed strings run only on a "broad" search. */
   broad?: boolean;
 }
-export type Cefr = "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | "native";
+import { languageCode, type Cefr } from "./language_levels";
+export type { Cefr };
 export interface ConfigLanguage {
   language: string;
+  /** ISO 639-1 code derived from the name ("Alemán" -> "de"); absent for names the tools do not know. */
+  code?: string;
   read: Cefr | null;
   write: Cefr | null;
   speak: Cefr | null;
@@ -115,7 +118,8 @@ function parseLanguages(v: unknown): ConfigLanguage[] | null {
       const norm = t.toLowerCase() === "native" ? "native" : t.toUpperCase();
       return CEFR.has(norm) ? (norm as Cefr) : null;
     };
-    out.push({ language: l.language.trim(), read: level(l.read), write: level(l.write), speak: level(l.speak) });
+    const code = languageCode(l.language);
+    out.push({ language: l.language.trim(), ...(code ? { code } : {}), read: level(l.read), write: level(l.write), speak: level(l.speak) });
   }
   return out;
 }

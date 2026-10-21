@@ -857,5 +857,69 @@ class PostingLanguage(RankStateCase):
         self.assertNotIn("posting_language", stored)
 
 
+    def test_german_posting_is_flagged_when_german_is_not_spoken(self):
+        stored, _ = self.apply(posting_language="de", language_gate="PASS", gaps=["g"])
+        self.assertEqual(stored["posting_language"], "de")
+        self.assertEqual(stored["language_gate"], "FLAG")
+        self.assertIn("alemán", stored["language_note"])
+        self.assertIn("Alemán hablado", stored["gaps"])
+
+
+class LanguageGateMatrix(unittest.TestCase):
+    """enforce_language_rule for different candidates: posting language x level -> gate."""
+
+    PROFILES = {
+        "a2": {"languages": [{"language": "Spanish", "read": "native", "write": "native", "speak": "native"},
+                               {"language": "English", "read": "B2", "write": "B2", "speak": "A2"}]},
+        "friend": {"languages": [{"language": "English", "read": "C1", "write": "C1", "speak": "C1"},
+                                 {"language": "German", "read": "B2", "write": "B2", "speak": "B2"}]},
+        "german_only": {"languages": [{"language": "German", "read": "C2", "write": "C2", "speak": "C2"}]},
+    }
+
+    @staticmethod
+    def rs():
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+        import rank_state
+        return rank_state
+
+    def gate(self, profile, lang, gate="PASS", gaps=None):
+        rs = self.rs()
+        entry = {"posting_language": lang, "language_gate": gate, "gaps": list(gaps or [])}
+        rs.enforce_language_rule(entry, levels=rs.language_levels.user_levels(self.PROFILES[profile]))
+        return entry
+
+    def test_matrix(self):
+        want = {
+            ("a2", "es"): "PASS", ("a2", "en"): "FLAG", ("a2", "de"): "FLAG", ("a2", "mixed"): "PASS",
+            ("friend", "es"): "PASS", ("friend", "en"): "PASS", ("friend", "de"): "PASS", ("friend", "fr"): "FLAG",
+            ("friend", "mixed"): "PASS",
+            ("german_only", "es"): "PASS", ("german_only", "de"): "PASS", ("german_only", "en"): "FLAG",
+        }
+        for (profile, lang), gate in want.items():
+            self.assertEqual(self.gate(profile, lang)["language_gate"], gate, (profile, lang))
+
+    def test_friend_gets_no_english_gap_but_a2_does(self):
+        self.assertEqual(self.gate("friend", "en")["gaps"], [])
+        self.assertEqual(self.gate("a2", "en")["gaps"], ["Inglés hablado"])
+
+    def test_note_names_language_and_level(self):
+        e = self.gate("german_only", "en")
+        self.assertIn("inglés", e["language_note"])
+        self.assertIn("no tienes inglés hablado", e["language_note"])
+        self.assertEqual(self.gate("a2", "en")["language_note"],
+                         "La vacante está escrita en inglés: probablemente se requiere inglés hablado.")
+
+    def test_a_fail_is_never_softened_and_an_existing_gap_is_not_duplicated(self):
+        self.assertEqual(self.gate("a2", "de", gate="FAIL")["language_gate"], "FAIL")
+        e = self.gate("friend", "fr", gaps=["Spoken French required"])
+        self.assertEqual(e["gaps"], ["Spoken French required"])
+
+    def test_known_languages_are_accepted_as_posting_language(self):
+        rs = self.rs()
+        for code in ("es", "en", "de", "pt", "fr", "it", "nl", "mixed"):
+            self.assertIn(code, rs.POSTING_LANGUAGES)
+        self.assertNotIn("klingon", rs.POSTING_LANGUAGES)
+
+
 if __name__ == "__main__":
     unittest.main()

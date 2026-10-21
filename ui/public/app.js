@@ -116,12 +116,12 @@ function loadSavedFilters() {
 function filtersFromSettings(s) {
   return {
     maxDays: s.maxDays, minSalary: s.minSalaryMxn, includeNoSalary: s.includeUnpublishedSalary,
-    includeUndated: s.includeUndated, hideEnglish: s.hideEnglish, modality: s.modalities, rankBatch: s.rankBatch,
+    includeUndated: s.includeUndated, hideUnspoken: s.hideUnspoken, modality: s.modalities, rankBatch: s.rankBatch,
     minPrefilterScore: s.minPrefilterScore,
   };
 }
 function settingsPatch(f) {
-  const patch = { includeUnpublishedSalary: f.includeNoSalary, includeUndated: f.includeUndated, hideEnglish: f.hideEnglish, modalities: f.modality };
+  const patch = { includeUnpublishedSalary: f.includeNoSalary, includeUndated: f.includeUndated, hideUnspoken: f.hideUnspoken, modalities: f.modality };
   const days = Number(f.maxDays);
   if (f.maxDays !== "" && Number.isInteger(days) && days >= 1 && days <= 90) patch.maxDays = days;
   const batch = Number(f.rankBatch);
@@ -166,7 +166,7 @@ function readFilterForm() {
     minPrefilterScore: form.minPrefilterScore.value,
     includeNoSalary: form.includeNoSalary.checked,
     includeUndated: form.includeUndated.checked,
-    hideEnglish: form.hideEnglish.checked,
+    hideUnspoken: form.hideUnspoken.checked,
     modality: [...form.querySelectorAll("input[name=modality]:checked")].map((i) => i.value),
   };
 }
@@ -178,7 +178,7 @@ function fillFilterForm(f) {
   form.minPrefilterScore.value = f.minPrefilterScore ?? 55;
   form.includeNoSalary.checked = f.includeNoSalary;
   form.includeUndated.checked = f.includeUndated;
-  form.hideEnglish.checked = f.hideEnglish !== false; // filters saved before this option existed: on
+  form.hideUnspoken.checked = f.hideUnspoken !== false; // filters saved before this option existed: on
   for (const i of form.querySelectorAll("input[name=modality]")) i.checked = f.modality.includes(i.value);
 }
 function filterQuery(f) {
@@ -188,7 +188,7 @@ function filterQuery(f) {
     if (f.minSalary !== "") p.set("minSalary", f.minSalary);
     p.set("includeNoSalary", f.includeNoSalary ? "1" : "0");
     p.set("includeUndated", f.includeUndated ? "1" : "0");
-    p.set("hideEnglish", f.hideEnglish === false ? "0" : "1");
+    p.set("hideUnspoken", f.hideUnspoken === false ? "0" : "1");
     p.set("modality", f.modality.join(","));
   }
   return p.toString();
@@ -403,7 +403,7 @@ function renderJobs(data) {
       el("span", { class: "chip", text: j.portal ? portalLabel(j.portal) : "portal desconocido" }),
     );
     if (j.role_family) meta.append(el("span", { class: "chip family", text: j.role_family }));
-    if (j.spoken_english) meta.append(el("span", { class: "chip warn", text: "Inglés hablado", title: j.language_note || "" }));
+    if (j.spoken_language) meta.append(el("span", { class: "chip warn", text: `${capitalize(LANG_NAMES[j.spoken_language] || j.spoken_language)} hablado`, title: j.language_note || "" }));
     fillIndicators($(".indicators", card), j);
     const salary = $(".salary", card);
     const pay = salaryParts(j);
@@ -880,11 +880,19 @@ const LANES = [
   { id: "local", label: "Tus vacantes no remotas", test: (j) => j.modality !== "remote" },
   { id: "remote", label: "Tus vacantes remotas", test: (j) => j.modality === "remote" },
 ];
-const langLabel = { en: "publicada en inglés", es: "publicada en español", mixed: "publicada en español e inglés" };
+// Spanish names of the posting languages (ISO 639-1 codes, same list as tools/language_levels.py).
+const LANG_NAMES = {
+  es: "español", en: "inglés", de: "alemán", fr: "francés", it: "italiano", pt: "portugués", nl: "neerlandés",
+  sv: "sueco", da: "danés", no: "noruego", fi: "finés", pl: "polaco", cs: "checo", ro: "rumano",
+  ru: "ruso", uk: "ucraniano", el: "griego", tr: "turco", he: "hebreo", ar: "árabe", hi: "hindi", zh: "chino",
+  ja: "japonés", ko: "coreano",
+};
+const capitalize = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+const langLabel = (code) => (code === "mixed" ? "publicada en español e inglés" : `publicada en ${LANG_NAMES[code] || code}`);
 
 function jobTip(j) {
   const mod = j.modality === "remote" ? "Remoto" : MODALITY_LABEL[j.modality] || "Sin especificar";
-  return { title: `${j.company}`, lines: [j.title, `${moneyFull(j.salary)} MXN/mes`, `${mod}${j.language ? " · " + langLabel[j.language] : ""}`] };
+  return { title: `${j.company}`, lines: [j.title, `${moneyFull(j.salary)} MXN/mes`, `${mod}${j.language ? " · " + langLabel(j.language) : ""}`] };
 }
 function entryTip(e) {
   const range = e.min !== null ? `${moneyFull(e.min)} a ${moneyFull(e.max)}` : null;
@@ -911,7 +919,7 @@ function renderMarketLegend(settings) {
   item([svgEl("rect", { x: 1, y: 3, width: 26, height: 10, rx: 3, class: "mk-weak", fill: "url(#mk-hatch)" })], "Fuente débil");
   item([svgEl("circle", { cx: 14, cy: 8, r: 6, class: "mk-dot mk-local" })], "Vacante local");
   item([svgEl("path", { d: "M14 1.5 20.5 8 14 14.5 7.5 8Z", class: "mk-dot mk-remote" })], "Vacante remota");
-  item([svgEl("circle", { cx: 14, cy: 8, r: 5.5, class: "mk-dot mk-local hollow" })], "Hueco: en inglés");
+  item([svgEl("circle", { cx: 14, cy: 8, r: 5.5, class: "mk-dot mk-local hollow" })], "Hueco: publicada en otro idioma que el español");
   if (settings.currentSalary > 0) item([svgEl("line", { x1: 2, x2: 26, y1: 8, y2: 8, class: "mk-line today" })], "Tú hoy");
   if (settings.targetSalary > 0) item([svgEl("line", { x1: 2, x2: 26, y1: 8, y2: 8, class: "mk-line goal" })], "Tu objetivo");
 }
@@ -1036,7 +1044,7 @@ function renderMarketChart(data) {
     for (const p of l.placed) {
       const cy = l.top + MK.LANE_PAD + MK.DOT_R + p.lvl * (MK.DOT_R * 2 + 4);
       const remote = p.j.modality === "remote";
-      const hollow = p.j.language === "en";
+      const hollow = !!p.j.language && p.j.language !== "es" && p.j.language !== "mixed"; // not in Spanish
       const cls = `mk-dot ${remote ? "mk-remote" : "mk-local"}${hollow ? " hollow" : ""}`;
       const id = `j:${p.j.key}`;
       const tipData = jobTip(p.j);
@@ -1093,7 +1101,7 @@ function renderMarketTables(data) {
   jt.replaceChildren(el("tr", {}, ...["Empresa", "Vacante", "Sueldo (MXN/mes)", "Modalidad", "Idioma"].map((t) => el("th", { text: t }))));
   for (const j of data.jobs) {
     jt.append(el("tr", {}, el("td", { text: j.company }), el("td", { text: j.title }), el("td", { text: moneyFull(j.salary) }),
-      el("td", { text: MODALITY_LABEL[j.modality] || "" }), el("td", { text: j.language ? { es: "Español", en: "Inglés", mixed: "Mixto" }[j.language] : "—" })));
+      el("td", { text: MODALITY_LABEL[j.modality] || "" }), el("td", { text: j.language ? (j.language === "mixed" ? "Mixto" : capitalize(LANG_NAMES[j.language] || j.language)) : "—" })));
   }
   if (!data.jobs.length) jt.append(el("tr", {}, el("td", { colspan: "5", class: "muted", text: "No hay vacantes calificadas con sueldo publicado." })));
 }

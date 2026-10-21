@@ -1,5 +1,5 @@
 ---
-framework_version: 1.6.0
+framework_version: 1.7.0
 ---
 
 # CV Templates and Tailoring Guide
@@ -124,6 +124,23 @@ Two related patterns are fine and should be kept:
 ### Section headings must match the CV's language (important)
 
 Section headings such as `\section{Core Competencies}`, `Professional Experience`, `Education`, `Languages`, `Publications`, `Honors and Awards`, `References` (and any others your template defines), plus the `Available upon request.` line under References, are all **literal English text baked into the template** - they do not translate themselves. Whenever the CV language (see `CV language` in the candidate profile) is not English, translate every one of these too, whatever they are, not just the body prose - a CV with a fully localized profile statement and bullets sitting under untouched English section headers reads as sloppy and inconsistent, and it's an easy thing to forget precisely because the prose translation is the obvious, visible part of the job. Worked example for Spanish: `Competencias Clave`, `Experiencia Profesional`, `Educaci\'on`, `Idiomas`, `Publicaciones`, `Distinciones y Premios`, `Referencias`, `Disponibles a solicitud.` The same rule applies for any other target language - check this explicitly during the verification pass.
+
+Headings table for the other supported CV languages (LaTeX source; UTF-8 characters work with lualatex, or use the escapes shown). Use it verbatim instead of improvising, and translate any extra section your template defines in the same register:
+
+| English template | German (de) | Portuguese (pt) | French (fr) | Italian (it) |
+|---|---|---|---|---|
+| Core Competencies | Kernkompetenzen | Competências Principais | Compétences Clés | Competenze Chiave |
+| Professional Experience | Berufserfahrung | Experiência Profissional | Expérience Professionnelle | Esperienza Professionale |
+| Education | Ausbildung | Formação Acadêmica | Formation | Istruzione e Formazione |
+| Skills / Technical Skills | Kenntnisse | Competências Técnicas | Compétences Techniques | Competenze Tecniche |
+| Languages | Sprachen | Idiomas | Langues | Lingue |
+| Publications | Veröffentlichungen | Publicações | Publications | Pubblicazioni |
+| Honors and Awards | Auszeichnungen | Prêmios e Distinções | Distinctions et Prix | Riconoscimenti e Premi |
+| Certifications | Zertifikate | Certificações | Certifications | Certificazioni |
+| References | Referenzen | Referências | Références | Referenze |
+| Available upon request. | Auf Anfrage erhältlich. | Disponíveis mediante solicitação. | Disponibles sur demande. | Disponibili su richiesta. |
+
+Write the CV in the posting's language only when the candidate writes it at B2 or better (`write` level in `profile_config.json`'s `languages`); otherwise English when English writing is B2+, else Spanish (see `/apply` Step 3).
 
 ## Section-by-Section Tailoring
 

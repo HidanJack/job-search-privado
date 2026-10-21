@@ -27,7 +27,7 @@ This repo is a job application workspace. Claude acts as a career advisor and ap
   undeclared language is a hard deal-breaker if a posting requires it; a declared language at a
   lower level than a posting wants is flagged for your own judgment, not auto-rejected. See
   04-job-evaluation.md's Language Gate. -->
-- **CV language:** [YOUR_CV_LANGUAGE] <!-- `match posting` = each CV in the posting's language when it is declared above (Spanish posting -> Spanish CV, international remote -> English); or one fixed language for every CV. /setup asks -->
+- **CV language:** [YOUR_CV_LANGUAGE] <!-- `match posting` = each CV in the posting's language when you WRITE it at B2 or better (Spanish posting -> Spanish CV, English posting -> English CV, German posting -> German CV if you write German at B2+), otherwise English if you write it at B2+, else Spanish; or one fixed language for every CV. /setup asks -->
 - **Freshness window:** 4 days <!-- /rank gives postings at most this old a priority bonus (10-ats-and-screening.md, "Apply early") -->
 - **FX to MXN:** USD=18.5 <!-- rates /rank uses for salary_mxn_month; add more as CODE=rate, comma-separated -->
 - **Salary floor:** [YOUR_SALARY_FLOOR] MXN/month <!-- used for the application-form salary field, never printed in a CV or letter -->

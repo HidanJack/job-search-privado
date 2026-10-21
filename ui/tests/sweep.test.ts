@@ -115,6 +115,25 @@ describe("config-driven queries", () => {
     expect(languageAdvantageFamily([])).toBeNull();
   });
 
+  test("any language the user works in gets its own advantage queries, whatever name it is written in", () => {
+    for (const name of ["Alemán", "German", "Deutsch"]) {
+      const f = languageAdvantageFamily([{ language: name, read: "B2", write: "B2", speak: "B2" }]);
+      expect(f?.queries.map((q) => q.text)).toEqual(["german speaking", "deutsch", "dach"]);
+    }
+    const jp = languageAdvantageFamily([{ language: "Japonés", read: "B1", write: "B1", speak: "B1" }]);
+    expect(jp?.queries).toEqual([{ text: "japanese speaking", lang: "en" }]);
+    const mix = languageAdvantageFamily([
+      { language: "Inglés", read: "C1", write: "C1", speak: "C1" }, { language: "Alemán", read: "B2", write: "B2", speak: "B2" },
+      { language: "Neerlandés", read: "B1", write: "B1", speak: "B1" },
+    ]);
+    expect(mix?.queries.map((q) => q.text)).toEqual(["german speaking", "deutsch", "dach", "dutch speaking", "nederlands"]);
+  });
+
+  test("A Spanish native with English B2 gets no advantage family and an unchanged query set", () => {
+    const a2 = [{ language: "Spanish", read: "native", write: "native", speak: "native" }, { language: "English", read: "B2", write: "B2", speak: "A2" }] as const;
+    expect(languageAdvantageFamily([...a2] as never)).toBeNull();
+  });
+
   test("planSweep reads profile_config.json at the root and builds the task list without any network", () => {
     const root = mkdtempSync(join(tmpdir(), "plan-"));
     writeFileSync(join(root, "profile_config.json"), JSON.stringify({ search: { families: [fam("A", [["python", "en"]])] } }));

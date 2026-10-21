@@ -1,5 +1,5 @@
 ---
-framework_version: 1.2.0
+framework_version: 1.3.0
 ---
 
 # ATS, AI Screening and Market Conventions
@@ -40,7 +40,7 @@ What actually filters an application in 2025-2026, turned into rules the workflo
 
 - **Length follows experience.** With 3+ years, 1-2 pages; never more than 2. Huntr (128k+ CVs): 1 page 3.06% response, 2 pages 3.24%, 3+ lower. `PARTIAL`. The stock template's 2-page hard limit stands.
 - **No photo, age, marital status or CURP**, for international/US employers and as the tech default in Mexico. US law protects age (40+), sex, etc., and many employers discard CVs with photos to avoid legal risk `VERIFIED` (EEOC). Mexico's LFT Art. 133-I forbids refusing to hire on age, marital status, gender, etc. `VERIFIED`; Edomex banned requesting photos for state and municipal jobs in 2024 `VERIFIED` (Expansión). On Mexican portals the photo field is optional; omit it for tech.
-- **CV language = posting language.** Spanish posting: Spanish CV and letter. Remote-international or foreign employer: English. A posting in a language the candidate has not declared is a Language Gate failure (`04-job-evaluation.md`), not a translation job.
+- **CV language = posting language, when the candidate writes it at B2+.** Spanish posting: Spanish CV and letter; English posting: English; German posting: German (if German writing is B2+). Otherwise fall back to English when English writing is B2+, else Spanish. A posting that requires a language the candidate has not declared is a Language Gate failure (`04-job-evaluation.md`), not a translation job.
 - **Expected salary never goes in the CV.** In OCC Mundial's 2026 study 67% of recruiters use the salary field as a filter, 92% prioritise experience over the degree title, 53% look at residence. `VERIFIED` (OCC study via Publimetro, 2026-09-30). Fill the portal's salary field with a researched range; keep it out of the documents.
 - **Cédula profesional only when the posting asks for it.**
 - **Tailoring is a real edge**: only 36% of candidates adapt their CV (OCC 2026) `VERIFIED`; tailored CVs convert 5.8% vs 3.73% (Huntr, 1.7M applications) `PARTIAL`.

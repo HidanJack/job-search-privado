@@ -1,5 +1,5 @@
 ---
-framework_version: 1.1.1
+framework_version: 1.2.0
 ---
 
 # Cover Letter Templates and Tailoring Guide
@@ -157,7 +157,7 @@ Escape these wherever they appear in body text:
 - Tilde: `\textasciitilde{}`, caret: `\textasciicircum{}`, backslash: `\textbackslash{}`
 
 ### Non-English Cover Letters
-- Same template structure, just write content in the posting's language
+- Same template structure, just write content in the posting's language when the candidate writes it at B2+; otherwise use the CV's fallback language (English when English writing is B2+, else Spanish), as for the CV
 - Adjust date format to local convention
 - Adjust closing to local convention (e.g. "Saludos cordiales," or "Atentamente," for Spanish, "Med venlig hilsen," for Danish), and the salutation likewise ("Estimado equipo de selección de [Empresa]:" - Spanish uses a colon after the salutation)
 - No photo, age, marital status, CURP or expected salary in the letter (`10-ats-and-screening.md` section 4)

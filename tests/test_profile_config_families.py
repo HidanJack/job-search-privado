@@ -60,12 +60,29 @@ class Languages(unittest.TestCase):
     def test_valid_languages(self):
         langs = [{"language": "English", "read": "B2", "write": "B2", "speak": "B1"},
                  {"language": "Spanish", "read": "native", "write": "native", "speak": "native"}]
-        self.assertEqual(load({"languages": langs})["languages"], langs)
+        want = [dict(l, code=c) for l, c in zip(langs, ("en", "es"))]
+        self.assertEqual(load({"languages": langs})["languages"], want)
+
+    def test_code_is_derived_from_the_name_and_unknown_names_have_none(self):
+        got = load({"languages": [{"language": "Alemán", "read": "B2", "write": "B2", "speak": "B2"},
+                                  {"language": "Klingon", "read": "C1", "write": None, "speak": None}]})["languages"]
+        self.assertEqual(got[0]["code"], "de")
+        self.assertNotIn("code", got[1])
+
+    def test_spoken_english_is_derived_from_languages_when_absent(self):
+        lang = lambda speak: {"languages": [{"language": "English", "read": "C1", "write": "C1", "speak": speak}]}
+        self.assertTrue(load(lang("B2"))["spoken_english"])
+        self.assertFalse(load(lang("A2"))["spoken_english"])
+        self.assertFalse(load({})["spoken_english"])  # nothing declared: the legacy default stays
+
+    def test_explicit_spoken_english_flag_is_still_honoured(self):
+        cfg = load({"spoken_english": True, "languages": [{"language": "English", "read": "B2", "write": "B2", "speak": "A2"}]})
+        self.assertTrue(cfg["spoken_english"])
 
     def test_invalid_entries_dropped(self):
         got = load({"languages": [{"language": "English", "read": "fluent", "write": "B2", "speak": None}, "x",
                                   {"language": "", "read": "B1"}]})["languages"]
-        self.assertEqual(got, [{"language": "English", "read": None, "write": "B2", "speak": None}])
+        self.assertEqual(got, [{"language": "English", "code": "en", "read": None, "write": "B2", "speak": None}])
 
 
 class IndeedQueries(unittest.TestCase):

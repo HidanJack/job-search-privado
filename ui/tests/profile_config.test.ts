@@ -52,10 +52,18 @@ describe("profile_config", () => {
       { language: "Spanish", read: "native", write: "native", speak: "native" },
     ] }));
     expect(c.languages).toEqual([
-      { language: "English", read: "B2", write: "B2", speak: null },
-      { language: "Spanish", read: "native", write: "native", speak: "native" },
+      { language: "English", code: "en", read: "B2", write: "B2", speak: null },
+      { language: "Spanish", code: "es", read: "native", write: "native", speak: "native" },
     ]);
     expect(DEFAULT_PROFILE_CONFIG.languages).toEqual([]);
+  });
+
+  test("languages: the code is derived from the name; unknown names have none", () => {
+    const c = loadProfileConfig(root({ languages: [
+      { language: "Alemán", read: "B2", write: "B2", speak: "B2" }, { language: "Klingon", read: "C1", write: null, speak: null },
+    ] }));
+    expect(c.languages[0].code).toBe("de");
+    expect("code" in c.languages[1]).toBe(false);
   });
 
   test("search.families: valid ones replace the defaults, unusable ones fall back", () => {

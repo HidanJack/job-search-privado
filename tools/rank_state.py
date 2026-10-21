@@ -55,6 +55,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import opportunity  # noqa: E402  (Oportunidad/Riesgo, computed when scores are written)
 import prefilter  # noqa: E402  (deterministic ordering and rankBatch setting)
+import language_levels  # noqa: E402  (CEFR levels and the language gate)
+import profile_config  # noqa: E402  (the candidate's declared languages)
 
 ROOT = Path(__file__).resolve().parent.parent
 STATE = ROOT / "job_scraper" / "seen_jobs.json"
@@ -78,12 +80,15 @@ FRESH_BONUS = 5
 STALE_PENALTY = 5
 
 MODALITIES = ("remote", "hybrid", "onsite", "unknown")
-POSTING_LANGUAGES = ("es", "en", "mixed")
-ENGLISH_POSTING_NOTE = "La vacante está escrita en inglés: probablemente se requiere inglés hablado."
-SPOKEN_ENGLISH_GAP = "Inglés hablado"
+# Any language the tools know by ISO code, plus "mixed" (bilingual posting).
+POSTING_LANGUAGES = (*language_levels.known_codes(), "mixed")
+ENGLISH_POSTING_NOTE = language_levels.ENGLISH_POSTING_NOTE
+SPOKEN_ENGLISH_GAP = language_levels.gap_label("en")
 # Gap wording from earlier runs (English) and the current Spanish one. Matching
 # both keeps an existing entry from getting a second spoken-English gap.
-SPOKEN_ENGLISH_GAP_MARKERS = ("spoken english", "inglés hablado")
+SPOKEN_ENGLISH_GAP_MARKERS = language_levels.gap_markers("en")
+# The candidate's levels (profile_config.json "languages"); tests may patch this.
+LEVELS = language_levels.user_levels(profile_config.load())
 SALARY_PERIODS = {
     "hour": 40 * 52 / 12,
     "day": 5 * 52 / 12,
@@ -413,21 +418,28 @@ def band(score: int) -> str:
     return "Poor Fit"
 
 
-def enforce_english_rule(entry: dict, gate: bool = True, gaps: bool = True) -> None:
-    """Strict rule: a posting written entirely in English implies spoken English.
+def enforce_language_rule(entry: dict, gate: bool = True, gaps: bool = True, levels: dict | None = None) -> None:
+    """Strict rule: a posting written in language L implies spoken L is needed.
 
-    A missed flag is raised (a FAIL is never softened) and the spoken-English
-    gap is added once. Shared with tools/posting_language.py's backfill.
+    When the candidate's spoken level in L is below B2 (language_levels.language_gate),
+    a missed flag is raised (a FAIL is never softened) and the spoken-language gap is
+    added once. "mixed" and unknown postings raise nothing. Shared with
+    tools/posting_language.py's backfill.
     """
-    if entry.get("posting_language") != "en":
+    code = entry.get("posting_language")
+    verdict, note = language_levels.language_gate(code, LEVELS if levels is None else levels)
+    if verdict == "PASS":
         return
     if gate and entry.get("language_gate") == "PASS":
         entry["language_gate"] = "FLAG"
-        entry["language_note"] = ENGLISH_POSTING_NOTE
+        entry["language_note"] = note
     if gaps and not any(
-        marker in str(g).lower() for g in entry.get("gaps", []) for marker in SPOKEN_ENGLISH_GAP_MARKERS
+        marker in str(g).lower() for g in entry.get("gaps", []) for marker in language_levels.gap_markers(code)
     ):
-        entry["gaps"] = ([SPOKEN_ENGLISH_GAP] + list(entry.get("gaps", [])))[:3]
+        entry["gaps"] = ([language_levels.gap_label(code)] + list(entry.get("gaps", [])))[:3]
+
+
+enforce_english_rule = enforce_language_rule  # historical name
 
 
 def cmd_apply(args) -> int:
@@ -498,8 +510,8 @@ def cmd_apply(args) -> int:
             entry["posting_language"] = posting_language
         # The agent never guesses a language from text it did not send; entries
         # scored without `posting_language` are filled by tools/posting_language.py
-        # (`backfill`), which reuses enforce_english_rule below.
-        enforce_english_rule(entry, gaps=False)
+        # (`backfill`), which reuses enforce_language_rule below.
+        enforce_language_rule(entry, gaps=False)
         # Absence is not a correction: a fetch that degraded to a listing page
         # returns no deadline, and blanking a stored one would erase a real
         # date and make the entry immortal to rule 6's sweep.
@@ -509,7 +521,7 @@ def cmd_apply(args) -> int:
             value = result.get(field)
             if isinstance(value, list):
                 entry[field] = [str(b) for b in value][:3]
-        enforce_english_rule(entry, gate=False)
+        enforce_language_rule(entry, gate=False)
         # Same verbatim, replace-never-accumulate rule as strengths/gaps.
         reasons = result.get("fit_reasons")
         if isinstance(reasons, list):

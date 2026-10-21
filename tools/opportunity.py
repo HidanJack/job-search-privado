@@ -14,15 +14,19 @@ FORMULAS (all weights live in OPPORTUNITY_WEIGHTS / RISK_POINTS below)
                profile_config.json; 100 at 1.6x the floor; unknown = 40 (neutral-low)
     freshness  100 -> 80 over the first 4 days, then decays to 20 at 14 days
                and 0 at 30 (applying early matters); unknown age = 50
-    language   Spanish posting 100, mixed 70, English 20, unknown 50
-               (all 100 when profile_config.json says spoken_english is true)
+    language   by YOUR spoken level in the posting's language (languages in
+               profile_config.json): native 100, C1/C2 90, B2 70, B1 45, A2 20,
+               below A2 or undeclared 10; mixed (bilingual) 70, unknown 50.
+               Language advantage: +10 (cap 100) when the posting asks for a
+               language you speak at B2+ that is not its own (see language_levels)
     modality   remote 100, hybrid 70, onsite 40, unknown 60
     source     portal quality; averaged with an applicants score when the
                entry stores `applicants` (fewer = better)
 
   Riesgo (0-100) = sum of additive points, capped at 100:
-    spoken English  English posting (assumed spoken English) or a stated
-                    spoken-English gap; more when C1/C2/fluent is asked
+    spoken language a posting written in L (assumed spoken L) or a stated
+                    spoken-L gap; scaled by your level (A2 = full points, B1
+                    half, undeclared more, B2+ none); more when C1/C2/fluent is asked
     gaps            years required above your verifiable years plus a
                     tolerance (both from profile_config.json), each
                     non-language gap from the fit analysis, "senior" in the
@@ -45,17 +49,29 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import language_levels  # noqa: E402  (CEFR levels, language gate helpers)
 import prefilter  # noqa: E402  (settings loader and paths shared with the prefilter)
 import profile_config  # noqa: E402  (per-user numbers, gitignored profile_config.json)
 
 _PROFILE = profile_config.load()
+LEVELS = language_levels.user_levels(_PROFILE)      # {code: {read, write, speak}}; tests patch this
 CANDIDATE_YEARS = _PROFILE["candidate_years"]    # verifiable professional years (CVs state these)
 YEARS_TOLERANCE = _PROFILE["years_tolerance"]    # asks up to CANDIDATE_YEARS + tolerance cost no risk
-SPOKEN_ENGLISH = _PROFILE["spoken_english"]      # True: English postings are not a handicap
+SPOKEN_ENGLISH = language_levels.speaks(LEVELS, "en", language_levels.SPEAK_COMFORTABLE)  # legacy view of LEVELS
 
 OPPORTUNITY_WEIGHTS = {
     "fit": 0.40, "salary": 0.20, "freshness": 0.15, "language": 0.10, "modality": 0.08, "source": 0.07,
 }
+# Language component of the opportunity, by the candidate's SPOKEN level in the posting's language.
+LANGUAGE_SCORES = {"native": 100, "C2": 90, "C1": 90, "B2": 70, "B1": 45, "A2": 20}
+LANGUAGE_UNDECLARED = 10      # below A2 or the language is not in the profile
+LANGUAGE_MIXED = 70           # bilingual posting: reading is enough
+LANGUAGE_UNKNOWN = 50
+LANGUAGE_ADVANTAGE_BONUS = 10  # on the language component, capped at 100
+# Risk points of a spoken-language gap = base points x this factor for the candidate's level
+# (A2 is the reference the base numbers were calibrated on; B2 and above is no gap).
+GAP_SCALE = {"none": 1.25, "A1": 1.15, "A2": 1.0, "B1": 0.5}
+ADVANTAGE_FIELDS = ("title", "tags", "snippet", "description", "summary")
 RISK_DISCOUNT = 0.5
 RISK_POINTS = {
     "english_posting": 40,       # English posting => spoken English assumed
@@ -84,7 +100,7 @@ SOURCE_QUALITY = {
 DEFAULT_SOURCE_QUALITY = 50
 
 ENGLISH_ADVANCED = re.compile(r"\b(c1|c2|fluent|fluido|nativo|native|advanced|avanzado)\b", re.I)
-ENGLISH_GAP = re.compile(r"ingl[eé]s hablado|spoken english|ingl[eé]s (fluido|conversacional)|english[^.]{0,40}(interview|conversation|calls?)", re.I)
+# Spoken-language gap wording for any language lives in language_levels.stated_gap_language.
 DEGREE = re.compile(r"t[ií]tulo|titulad|licenciatura|ingenier[ií]a|degree|bachelor|c[eé]dula", re.I)
 YEARS = re.compile(r"(\d{1,2})\s*\+?\s*(?:a[nñ]os|years|yrs)", re.I)
 UNPAID = re.compile(r"\b(unpaid|no remunerad|sin sueldo|voluntari|solo comisi|commission[- ]only|a comisi)", re.I)
@@ -153,16 +169,39 @@ def source_component(entry: dict) -> float:
     return (base + few) / 2
 
 
+def language_component(entry: dict) -> float:
+    code = entry.get("posting_language")
+    if code == "mixed":
+        score = LANGUAGE_MIXED
+    elif isinstance(code, str) and code in language_levels.known_codes():
+        level = (LEVELS.get(code) or {}).get("speak")
+        score = LANGUAGE_SCORES.get(level, LANGUAGE_UNDECLARED)
+    else:
+        score = LANGUAGE_UNKNOWN
+    if advantage_codes(entry):
+        score = min(100, score + LANGUAGE_ADVANTAGE_BONUS)
+    return float(score)
+
+
+def advantage_codes(entry: dict) -> list:
+    """Languages the posting asks for that the candidate speaks at B2+ (not the posting's own)."""
+    parts = []
+    for field in ADVANTAGE_FIELDS:
+        value = entry.get(field)
+        if isinstance(value, list):
+            parts.extend(str(v) for v in value)
+        elif isinstance(value, str):
+            parts.append(value)
+    return language_levels.language_advantage(" . ".join(parts), LEVELS, entry.get("posting_language"))
+
+
 def opportunity_components(entry: dict, today: date, floor: int, current: int) -> dict:
-    lang = {"es": 100, "mixed": 70, "en": 20}.get(entry.get("posting_language"), 50)
-    if SPOKEN_ENGLISH:
-        lang = 100 if entry.get("posting_language") in ("es", "mixed", "en") else 50
     modality = {"remote": 100, "hybrid": 70, "onsite": 40}.get(entry.get("modality"), 60)
     return {
         "fit": float(_num(entry.get("rank_score")) or 0),
         "salary": salary_component(_num(entry.get("salary_mxn_month")), floor, current),
         "freshness": freshness_component(_age(entry, today)),
-        "language": float(lang),
+        "language": language_component(entry),
         "modality": float(modality),
         "source": source_component(entry),
     }
@@ -186,7 +225,12 @@ def opportunity_driver(entry: dict, comps: dict, today: date, floor: int) -> str
         age = _age(entry, today)
         return "Publicada hoy: postula ya" if age == 0 else f"Publicada hace {age} {'día' if age == 1 else 'días'}: postula pronto"
     if key == "language":
-        return "Anuncio en español"
+        code = entry.get("posting_language")
+        if advantage_codes(entry):
+            return "Ventaja de idioma: " + " y ".join(language_levels.language_name(c) for c in advantage_codes(entry))
+        if code in (None, "es", "mixed") or code not in language_levels.known_codes():
+            return "Anuncio en español"
+        return f"Anuncio en {language_levels.language_name(code)}, un idioma que dominas"
     if key == "modality":
         return {"remote": "Trabajo remoto", "hybrid": "Modalidad híbrida"}.get(entry.get("modality"), "Modalidad compatible")
     return "Portal confiable"
@@ -200,19 +244,32 @@ def risk_items(entry: dict, today: date, current: int) -> list[tuple[int, str]]:
     blob = " ".join(texts)
     gaps = [str(g) for g in entry.get("gaps") or []] if isinstance(entry.get("gaps"), list) else []
 
-    english_gap = not SPOKEN_ENGLISH and (entry.get("posting_language") == "en" or any(ENGLISH_GAP.search(g) for g in gaps))
-    if english_gap:
-        advanced = ENGLISH_ADVANCED.search(" ".join(g for g in gaps if ENGLISH_GAP.search(g)) + " " + str(entry.get("language_note") or ""))
-        pts = p["english_posting"] if entry.get("posting_language") == "en" else p["english_stated"]
-        if advanced:
+    posting = entry.get("posting_language")
+    wanted = {}  # code -> True when the posting's own language, False when only a gap states it
+    if posting in language_levels.known_codes():
+        wanted[posting] = True
+    for g in gaps:
+        stated = language_levels.stated_gap_language(g)
+        if stated:
+            wanted.setdefault(stated, False)
+    for code, from_posting in wanted.items():
+        level = LEVELS.get(code, {}).get("speak")
+        scale = 0.0 if language_levels.speaks(LEVELS, code, language_levels.SPEAK_COMFORTABLE) else GAP_SCALE.get(level or "none", GAP_SCALE["none"])
+        stated_text = " ".join(g for g in gaps if language_levels.stated_gap_language(g) == code)
+        advanced = ENGLISH_ADVANCED.search(stated_text + " " + str(entry.get("language_note") or ""))
+        base = p["english_posting"] if from_posting else p["english_stated"]
+        pts = int(round(base * scale))
+        name = language_levels.language_name(code)
+        if advanced and language_levels.level_rank(level) < language_levels.level_rank("C1"):
             pts += p["english_advanced"]
-            level = advanced.group(0).upper() if advanced.group(0).lower() in ("c1", "c2") else advanced.group(0).lower()
-            label = f"piden inglés hablado {level}" if level in ("C1", "C2") else f"piden inglés hablado ({level})"
-        elif entry.get("posting_language") == "en":
-            label = "anuncio en inglés: se asume inglés hablado"
+            tag = advanced.group(0).upper() if advanced.group(0).lower() in ("c1", "c2") else advanced.group(0).lower()
+            label = f"piden {name} hablado {tag}" if tag in ("C1", "C2") else f"piden {name} hablado ({tag})"
+        elif from_posting:
+            label = f"anuncio en {name}: se asume {name} hablado"
         else:
-            label = "piden inglés hablado"
-        items.append((pts, label))
+            label = f"piden {name} hablado"
+        if pts:
+            items.append((pts, label))
 
     years = [int(m.group(1)) for g in gaps + [str(r) for r in entry.get("fit_reasons") or []] for m in YEARS.finditer(g)]
     top = max(years, default=0)
@@ -220,10 +277,10 @@ def risk_items(entry: dict, today: date, current: int) -> list[tuple[int, str]]:
     years_risk = top > limit
     if years_risk:
         items.append((min(p["years_max"], int(round((top - limit) * p["years_each"]))), f"piden {top}+ años y tienes ~{CANDIDATE_YEARS} verificables"))
-    degree_gaps = [g for g in gaps if DEGREE.search(g) and not ENGLISH_GAP.search(g)]
+    degree_gaps = [g for g in gaps if DEGREE.search(g) and not language_levels.stated_gap_language(g)]
     if degree_gaps:
         items.append((p["degree_gap"], "piden título o licenciatura"))
-    other_gaps = [g for g in gaps if not ENGLISH_GAP.search(g) and g not in degree_gaps and not YEARS.search(g)]
+    other_gaps = [g for g in gaps if not language_levels.stated_gap_language(g) and g not in degree_gaps and not YEARS.search(g)]
     if other_gaps:
         items.append((min(p["gap_max"], p["gap_each"] * len(other_gaps)), f"{len(other_gaps)} {'requisito' if len(other_gaps) == 1 else 'requisitos'} que no cubres"))
     if re.search(r"\b(senior|sr|lead|principal)\b", str(entry.get("title") or ""), re.I) and not years_risk:
@@ -263,13 +320,17 @@ def compute(entry: dict, today: date, floor: int = prefilter.DEFAULT_MIN_SALARY,
     risk = min(100, sum(pts for pts, _ in items))
     final = int(round(opportunity * (1 - RISK_DISCOUNT * risk / 100)))
     biggest = max(items, key=lambda i: i[0])[1] if items else "sin alertas importantes"
-    return {
+    out = {
         "opportunity": opportunity,
         "risk": risk,
         "final_priority": final,
         "opportunity_driver": opportunity_driver(entry, comps, today, floor),
         "risk_driver": biggest[0].upper() + biggest[1:],
     }
+    note = language_levels.advantage_note(advantage_codes(entry))
+    if note:
+        out["language_advantage"] = note
+    return out
 
 
 def settings_args(path: Path) -> tuple[int, int]:
@@ -278,6 +339,7 @@ def settings_args(path: Path) -> tuple[int, int]:
 
 
 def apply_scores(entry: dict, today: date, floor: int, current: int) -> None:
+    entry.pop("language_advantage", None)  # recomputed below; absence means "none"
     entry.update(compute(entry, today, floor, current))
     entry["score_date"] = today.isoformat()
 

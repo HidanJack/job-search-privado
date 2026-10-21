@@ -400,7 +400,7 @@ The deterministic tools (prefilter, opportunity/risk scoring, the dashboard head
 - `name` - the user's name (shown in the dashboard header)
 - `candidate_years` and `years_tolerance` - verifiable professional years, and how many extra years a posting may ask before it counts as a risk
 - `current_salary_mxn` and `salary_floor_mxn` - monthly MXN, from the salary-floor answer
-- `spoken_english` - `true` only when the user speaks English comfortably
+- `languages` - the user's languages from the profile answers, one entry per language with `read`/`write`/`speak` as CEFR (A1-C2) or `native` (the tools derive the ISO `code`); the language gate, the opportunity/risk language terms, the prefilter's "cannot read it" rule and the UI's "hide languages I do not speak" filter all read it. `spoken_english` is the legacy switch: it is derived from the English `speak` level and only read when no languages are declared
 - `prefilter.stack_points`, `prefilter.skill_keep`, `prefilter.stack_only` and `skills.selected` - the user's own stack keywords and skills (the example file holds a neutral starter set)
 Keep every other key as it is in the example. Never commit this file: it is in `.gitignore`.
 

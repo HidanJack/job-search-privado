@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { isUnspoken, KNOWN_CODES, spokenGapLanguage, userLevels, type LanguageLevel } from "./language_levels";
 
 // /scrape can resolve `job_scraper/` relative to its own skill directory, so
 // the state file may live in either place (see .gitignore). The repo-root copy
@@ -12,8 +13,9 @@ export const STATE_PATHS = [
 export type Modality = "remote" | "hybrid" | "onsite" | "unknown";
 export const MODALITIES: Modality[] = ["remote", "hybrid", "onsite", "unknown"];
 
-export type PostingLanguage = "es" | "en" | "mixed";
-export const POSTING_LANGUAGES: PostingLanguage[] = ["es", "en", "mixed"];
+/** ISO 639-1 code of the language a posting is written in ("es", "en", "de"...), or "mixed" (bilingual). */
+export type PostingLanguage = string;
+export const POSTING_LANGUAGES: PostingLanguage[] = [...KNOWN_CODES, "mixed"];
 
 export interface Job {
   key: string;
@@ -34,6 +36,8 @@ export interface Job {
   language_note: string | null;
   posting_language: PostingLanguage | null;
   spoken_english: boolean;
+  /** Code of the language the job probably needs spoken and the candidate lacks (any language); null when none. */
+  spoken_language: string | null;
   role_family: string | null;
   deadline: string | null;
   modality: Modality;
@@ -66,7 +70,8 @@ export interface Filters {
   minSalaryMxn: number;
   includeNoSalary: boolean;
   includeUndated: boolean;
-  hideEnglish: boolean;
+  /** Hide postings written in a language the candidate does not speak (spoken level below B1). */
+  hideUnspoken: boolean;
   modalities: Modality[];
 }
 
@@ -81,6 +86,14 @@ const SPOKEN_ENGLISH = /spoken english|inglés (hablado|conversacional)|english[
 export function needsSpokenEnglish(gate: string | null, note: string | null, lang: PostingLanguage | null): boolean {
   if (gate !== "FLAG" && gate !== "FAIL") return false;
   return lang === "en" || (note !== null && SPOKEN_ENGLISH.test(note));
+}
+
+/** The spoken language a FLAG/FAIL gate points at: the posting's language, else the one a note names. */
+export function spokenLanguageGap(gate: string | null, note: string | null, lang: PostingLanguage | null): string | null {
+  if (gate !== "FLAG" && gate !== "FAIL") return null;
+  if (needsSpokenEnglish(gate, note, lang)) return "en";
+  if (lang && lang !== "es" && lang !== "mixed") return lang;
+  return note ? spokenGapLanguage(note) : null;
 }
 
 // Title-only keyword match. Deliberately conservative: unknown titles get no family.
@@ -139,6 +152,7 @@ export function normalizeJob(key: string, raw: Record<string, unknown>, today: D
     language_note: note,
     posting_language: lang,
     spoken_english: needsSpokenEnglish(gate, note, lang),
+    spoken_language: spokenLanguageGap(gate, note, lang),
     role_family: inferRoleFamily(title),
     deadline: str(raw.deadline),
     modality,
@@ -187,12 +201,14 @@ function passesAge(j: Job, f: Filters): boolean {
   return j.age_days === null ? f.includeUndated : j.age_days <= f.maxDays;
 }
 
-export function filterJobs(jobs: Job[], f: Filters): { ranked: Job[]; unranked: Job[] } {
+/** `languages` is profile_config.json's list; without it the legacy default applies (Spanish native, English speak A2). */
+export function filterJobs(jobs: Job[], f: Filters, languages?: LanguageLevel[]): { ranked: Job[]; unranked: Job[] } {
+  const levels = userLevels(languages);
   const ranked = jobs
     .filter((j) => j.status === "ranked" && !vetoed(j))
     .filter((j) => passesAge(j, f))
-    // Absence of the field is not evidence of English: only an explicit "en" hides.
-    .filter((j) => !(f.hideEnglish && j.posting_language === "en"))
+    // Absence of the field is not evidence of a language: only an explicit one hides.
+    .filter((j) => !(f.hideUnspoken && isUnspoken(j.posting_language, levels)))
     .filter((j) => (j.salary_mxn_month === null ? f.includeNoSalary : j.salary_mxn_month >= f.minSalaryMxn))
     .filter((j) => f.modalities.includes(j.modality))
     .sort(
@@ -213,6 +229,8 @@ export interface FilterDefaults {
   minSalaryMxn: number;
   includeNoSalary?: boolean;
   includeUndated?: boolean;
+  hideUnspoken?: boolean;
+  /** Old name of `hideUnspoken`; read as an alias. */
   hideEnglish?: boolean;
   modalities?: Modality[];
 }
@@ -229,7 +247,10 @@ export function parseFilters(params: URLSearchParams, defaults: FilterDefaults):
     minSalaryMxn: int("minSalary", defaults.minSalaryMxn, 10_000_000),
     includeNoSalary: flag("includeNoSalary", defaults.includeNoSalary ?? true),
     includeUndated: flag("includeUndated", defaults.includeUndated ?? true),
-    hideEnglish: flag("hideEnglish", defaults.hideEnglish ?? true),
+    // `hideEnglish` is the old name: still read from the URL and the defaults, `hideUnspoken` wins.
+    hideUnspoken: params.has("hideUnspoken")
+      ? params.get("hideUnspoken") === "1"
+      : flag("hideEnglish", defaults.hideUnspoken ?? defaults.hideEnglish ?? true),
     modalities: params.has("modality") ? requested : [...(defaults.modalities ?? MODALITIES)],
   };
 }

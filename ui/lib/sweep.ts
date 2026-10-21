@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { dirname, join } from "node:path";
 import { ageInDays, loadJobs } from "./jobs";
 import { loadSearchSettings } from "./search_settings";
+import { englishName, languageCode } from "./language_levels";
 import { loadProfileConfig, type ConfigLanguage, type ProfileConfig, type SearchFamily } from "./profile_config";
 
 // ---------------------------------------------------------------------------
@@ -29,37 +30,35 @@ export interface PortalPlan {
   browse?: Variant[];
 }
 
-/** Terms that advertise "I speak this language" per language (name folded), used for the language-advantage family. */
-const LANGUAGE_ADVANTAGE: Record<string, { code: string; queries: { text: string; lang: string }[] }> = {
-  german: { code: "de", queries: [{ text: "german speaking", lang: "en" }, { text: "deutsch", lang: "de" }, { text: "dach", lang: "en" }] },
-  deutsch: { code: "de", queries: [{ text: "german speaking", lang: "en" }, { text: "deutsch", lang: "de" }, { text: "dach", lang: "en" }] },
-  aleman: { code: "de", queries: [{ text: "german speaking", lang: "en" }, { text: "deutsch", lang: "de" }, { text: "dach", lang: "en" }] },
-  french: { code: "fr", queries: [{ text: "french speaking", lang: "en" }, { text: "français", lang: "fr" }] },
-  frances: { code: "fr", queries: [{ text: "french speaking", lang: "en" }, { text: "français", lang: "fr" }] },
-  portuguese: { code: "pt", queries: [{ text: "portuguese speaking", lang: "en" }, { text: "português", lang: "pt" }] },
-  portugues: { code: "pt", queries: [{ text: "portuguese speaking", lang: "en" }, { text: "português", lang: "pt" }] },
-  italian: { code: "it", queries: [{ text: "italian speaking", lang: "en" }, { text: "italiano", lang: "it" }] },
-  italiano: { code: "it", queries: [{ text: "italian speaking", lang: "en" }, { text: "italiano", lang: "it" }] },
-  dutch: { code: "nl", queries: [{ text: "dutch speaking", lang: "en" }, { text: "nederlands", lang: "nl" }] },
+/** Native-language terms that advertise "I speak this language" (by ISO code), besides "<english name> speaking". */
+const LANGUAGE_ADVANTAGE: Record<string, { text: string; lang: string }[]> = {
+  de: [{ text: "deutsch", lang: "de" }, { text: "dach", lang: "en" }],
+  fr: [{ text: "français", lang: "fr" }],
+  pt: [{ text: "português", lang: "pt" }],
+  it: [{ text: "italiano", lang: "it" }],
+  nl: [{ text: "nederlands", lang: "nl" }],
 };
 const LEVEL_RANK: Record<string, number> = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6, native: 6 };
-const BASE_LANGS = new Set(["english", "ingles", "spanish", "espanol"]);
+/** Spanish and English are the base languages of every search: they never need an "advantage" query. */
+const BASE_CODES = new Set(["en", "es"]);
 
-/** English/Spanish query-language names that never need an "advantage" search. */
 const foldName = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
 /**
  * Searches for a language the user works in besides English/Spanish (read or write at B1+),
- * e.g. "german speaking", "deutsch", "dach". Null when there is nothing to add.
+ * e.g. "german speaking", "deutsch", "dach". Works for any language the profile declares, written
+ * in Spanish, English or the language itself. Null when there is nothing to add.
  */
 export function languageAdvantageFamily(languages: ConfigLanguage[]): SearchFamily | null {
   const queries: { text: string; lang: string }[] = [];
   for (const l of languages) {
     const name = foldName(l.language);
-    if (!name || BASE_LANGS.has(name)) continue;
+    const code = l.code ?? languageCode(l.language);
+    if (!name || (code && BASE_CODES.has(code))) continue;
     const best = Math.max(LEVEL_RANK[l.read ?? ""] ?? 0, LEVEL_RANK[l.write ?? ""] ?? 0);
     if (best < LEVEL_RANK.B1) continue;
-    queries.push(...(LANGUAGE_ADVANTAGE[name]?.queries ?? [{ text: `${name} speaking`, lang: "en" }]));
+    const english = code ? englishName(code) : null;
+    queries.push({ text: `${english ?? name} speaking`, lang: "en" }, ...((code && LANGUAGE_ADVANTAGE[code]) || []));
   }
   return queries.length ? { name: "Language advantage", queries } : null;
 }

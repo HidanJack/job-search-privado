@@ -254,20 +254,63 @@ describe("English-posting filter, pills and role family", () => {
     mk("legacy", {}), // ranked before the field existed
   ];
 
-  test("hideEnglish defaults to on and hides only explicit 'en'", () => {
+  const A2_SPEAKER = [
+    { language: "Spanish", read: "native", write: "native", speak: "native" },
+    { language: "English", read: "B2", write: "B2", speak: "A2" },
+  ] as const;
+  const FRIEND = [
+    { language: "English", read: "C1", write: "C1", speak: "C1" },
+    { language: "German", read: "B2", write: "B2", speak: "B2" },
+  ] as const;
+  const keys = (f: ReturnType<typeof parseFilters>, langs: readonly unknown[]) =>
+    filterJobs(jobs, f, langs as never).ranked.map((j) => j.key).sort();
+
+  test("hideUnspoken defaults to on and, for the A2 speaker, hides only explicit English", () => {
     const f = parseFilters(new URLSearchParams(), defaults);
-    expect(f.hideEnglish).toBe(true);
+    expect(f.hideUnspoken).toBe(true);
+    expect(keys(f, A2_SPEAKER)).toEqual(["legacy", "mixed", "spanish"]);
+  });
+
+  test("hideUnspoken=0 shows English postings again", () => {
+    const f = parseFilters(new URLSearchParams("hideUnspoken=0"), defaults);
+    expect(f.hideUnspoken).toBe(false);
+    expect(keys(f, A2_SPEAKER)).toContain("english");
+  });
+
+  test("the old hideEnglish URL parameter and default still work as an alias", () => {
+    expect(parseFilters(new URLSearchParams("hideEnglish=0"), defaults).hideUnspoken).toBe(false);
+    expect(parseFilters(new URLSearchParams("hideEnglish=1"), { ...defaults, hideUnspoken: false }).hideUnspoken).toBe(true);
+    expect(parseFilters(new URLSearchParams(), { ...defaults, hideEnglish: false }).hideUnspoken).toBe(false);
+    expect(parseFilters(new URLSearchParams("hideUnspoken=1&hideEnglish=0"), defaults).hideUnspoken).toBe(true);
+  });
+
+  test("a friend who speaks English and German hides neither, but hides French", () => {
+    const f = parseFilters(new URLSearchParams(), defaults);
+    const more = [...jobs, mk("german", { posting_language: "de" }), mk("french", { posting_language: "fr" })];
+    const got = filterJobs(more, f, FRIEND as never).ranked.map((j) => j.key).sort();
+    expect(got).toEqual(["english", "german", "legacy", "mixed", "spanish"]);
+    const a2 = filterJobs(more, f, A2_SPEAKER as never).ranked.map((j) => j.key).sort();
+    expect(a2).toEqual(["legacy", "mixed", "spanish"]);
+  });
+
+  test("no languages passed: legacy default hides English only", () => {
+    const f = parseFilters(new URLSearchParams(), defaults);
     expect(filterJobs(jobs, f).ranked.map((j) => j.key).sort()).toEqual(["legacy", "mixed", "spanish"]);
   });
 
-  test("hideEnglish=0 shows English postings again", () => {
-    const f = parseFilters(new URLSearchParams("hideEnglish=0"), defaults);
-    expect(f.hideEnglish).toBe(false);
-    expect(filterJobs(jobs, f).ranked.map((j) => j.key)).toContain("english");
+  test("spoken-language chip: any language, not only English", () => {
+    const de = mk("de", { posting_language: "de", language_gate: "FLAG", language_note: "La vacante está escrita en alemán" });
+    expect(de.spoken_language).toBe("de");
+    expect(de.spoken_english).toBe(false);
+    expect(jobs[0].spoken_language).toBe("en");
+    expect(jobs[0].spoken_english).toBe(true);
+    expect(mk("g", { posting_language: "es", language_gate: "FLAG", language_note: "Alemán hablado C1" }).spoken_language).toBe("de");
+    expect(mk("ok", { posting_language: "de", language_gate: "PASS" }).spoken_language).toBeNull();
   });
 
   test("posting_language is validated; unknown values become null", () => {
-    expect(mk("a", { posting_language: "fr" }).posting_language).toBeNull();
+    expect(mk("a", { posting_language: "klingon" }).posting_language).toBeNull();
+    expect(mk("c", { posting_language: "fr" }).posting_language).toBe("fr");
     expect(mk("b", { posting_language: "en" }).posting_language).toBe("en");
   });
 

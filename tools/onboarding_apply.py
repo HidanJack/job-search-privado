@@ -33,6 +33,7 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import language_levels  # noqa: E402  (language names -> ISO codes)
 import onboarding_proposal  # noqa: E402
 import profile_config  # noqa: E402
 
@@ -248,8 +249,11 @@ def derive_config(p: dict, root: Path, existing: dict, current_salary):
     langs = {_fold(l["language"]): l for l in p["languages"]}
     en = langs.get("english") or langs.get("ingles")
     cfg["spoken_english"] = bool(en and LEVEL_ORDER.get(en.get("speak") or "", 0) >= LEVEL_ORDER["B2"])
-    cfg["languages"] = [{"language": l["language"], "read": l["read"], "write": l["write"], "speak": l["speak"]}
-                        for l in p["languages"]]
+    cfg["languages"] = []
+    for l in p["languages"]:
+        code = language_levels.language_code(l["language"])  # normalized next to the name the user wrote
+        cfg["languages"].append({"language": l["language"], **({"code": code} if code else {}),
+                                 "read": l["read"], "write": l["write"], "speak": l["speak"]})
     cfg["search"] = {**(existing.get("search") if isinstance(existing.get("search"), dict) else {}),
                      "families": [{"name": f["name"], "queries": f["queries"]} for f in p["search_families"] if f["queries"]]}
     if not cfg["search"]["families"]:

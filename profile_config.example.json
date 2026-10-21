@@ -4,8 +4,22 @@
   "years_tolerance": 2,
   "current_salary_mxn": 20000,
   "salary_floor_mxn": 30000,
-  "spoken_english": false,
-  "languages": [],
+  "languages": [
+    {
+      "language": "Spanish",
+      "code": "es",
+      "read": "native",
+      "write": "native",
+      "speak": "native"
+    },
+    {
+      "language": "English",
+      "code": "en",
+      "read": "B2",
+      "write": "B1",
+      "speak": "A2"
+    }
+  ],
   "search": {
     "families": [
       {

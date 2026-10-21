@@ -182,13 +182,108 @@ class ProfileDriven(unittest.TestCase):
 
         eng = ranked(posting_language="en")
         base = opp.compute(eng, TODAY)
-        with mock.patch.object(opp, "SPOKEN_ENGLISH", True):
+        with mock.patch.object(opp, "LEVELS", opp.language_levels.user_levels({"spoken_english": True})):
             free = opp.compute(eng, TODAY)
         self.assertLess(free["risk"], base["risk"])
         self.assertGreater(free["opportunity"], base["opportunity"])
 
     def test_defaults_come_from_profile_config(self):
         self.assertEqual(opp.CANDIDATE_YEARS, opp.profile_config.load()["candidate_years"])
+
+
+A2_SPEAKER = {"languages": [{"language": "Spanish", "read": "native", "write": "native", "speak": "native"},
+                      {"language": "English", "read": "B2", "write": "B2", "speak": "A2"}]}
+FRIEND = {"languages": [{"language": "English", "read": "C1", "write": "C1", "speak": "C1"},
+                        {"language": "German", "read": "B2", "write": "B2", "speak": "B2"}]}
+
+
+def lang_component(levels_cfg, **over):
+    from unittest import mock
+    with mock.patch.object(opp, "LEVELS", opp.language_levels.user_levels(levels_cfg)):
+        return opp.opportunity_components(ranked(**over), TODAY, 30000, 20000)["language"]
+
+
+def risk_with(levels_cfg, **over):
+    from unittest import mock
+    with mock.patch.object(opp, "LEVELS", opp.language_levels.user_levels(levels_cfg)):
+        return opp.compute(ranked(**over), TODAY)
+
+
+class LanguageGeneralization(unittest.TestCase):
+    def test_a2_numbers_are_unchanged(self):
+        self.assertEqual(lang_component(A2_SPEAKER, posting_language="es"), 100)
+        self.assertEqual(lang_component(A2_SPEAKER, posting_language="mixed"), 70)
+        self.assertEqual(lang_component(A2_SPEAKER, posting_language="en"), 20)
+        self.assertEqual(lang_component(A2_SPEAKER, posting_language=None), 50)
+        # the same with no languages declared at all (fixture profile: spoken_english false)
+        self.assertEqual(opp.opportunity_components(ranked(posting_language="en"), TODAY, 30000, 20000)["language"], 20)
+
+    def test_score_table_by_spoken_level(self):
+        def cfg(level):
+            return {"languages": [{"language": "German", "read": level, "write": level, "speak": level}]}
+        want = {"native": 100, "C2": 90, "C1": 90, "B2": 70, "B1": 45, "A2": 20}
+        for level, score in want.items():
+            self.assertEqual(lang_component(cfg(level), posting_language="de"), score, level)
+        self.assertEqual(lang_component({"languages": []}, posting_language="de"), 10)
+
+    def test_friend_components(self):
+        self.assertEqual(lang_component(FRIEND, posting_language="en"), 90)
+        self.assertEqual(lang_component(FRIEND, posting_language="de"), 70)
+        self.assertEqual(lang_component(FRIEND, posting_language="es"), 100)
+        self.assertEqual(lang_component(FRIEND, posting_language="fr"), 10)
+
+    def test_risk_scales_with_the_gap(self):
+        def cfg(level):
+            return {"languages": [{"language": "German", "read": "B2", "write": "B2", "speak": level}]}
+        pts = {lvl: risk_with(cfg(lvl), posting_language="de", salary_mxn_month=45000)["risk"] for lvl in ("A2", "B1", "B2")}
+        self.assertEqual(pts["A2"], opp.RISK_POINTS["english_posting"])
+        self.assertEqual(pts["B1"], round(opp.RISK_POINTS["english_posting"] * opp.GAP_SCALE["B1"]))
+        self.assertEqual(pts["B2"], 0)
+        self.assertGreater(risk_with({"languages": []}, posting_language="de")["risk"], pts["A2"])
+
+    def test_german_posting_label_names_the_language(self):
+        from unittest import mock
+        with mock.patch.object(opp, "LEVELS", opp.language_levels.user_levels(A2_SPEAKER)):
+            items = opp.risk_items(ranked(posting_language="de"), TODAY, 20000)
+        self.assertTrue(any("alemán" in label for _, label in items), items)
+
+    def test_friend_has_no_language_risk_in_english_or_german(self):
+        for lang in ("en", "de"):
+            self.assertEqual(risk_with(FRIEND, posting_language=lang, salary_mxn_month=45000)["risk"], 0, lang)
+
+    def test_stated_german_gap_for_a2_vs_friend(self):
+        gap = ["Alemán hablado C1"]
+        a2 = risk_with(A2_SPEAKER, gaps=gap, salary_mxn_month=45000)["risk"]
+        friend = risk_with(FRIEND, gaps=gap, salary_mxn_month=45000)["risk"]
+        self.assertEqual(a2, round(opp.RISK_POINTS["english_stated"] * opp.GAP_SCALE["none"]) + opp.RISK_POINTS["english_advanced"])
+        self.assertEqual(friend, opp.RISK_POINTS["english_advanced"])  # B2 speaker, C1 asked
+
+    def test_language_advantage_bonus_and_note(self):
+        plain = risk_with(FRIEND, posting_language="en", title="Backend Engineer")
+        adv = risk_with(FRIEND, posting_language="en", title="Backend Engineer (German speaking)")
+        self.assertEqual(adv["language_advantage"], "Ventaja de idioma: piden alemán y tú lo hablas.")
+        self.assertNotIn("language_advantage", plain)
+        self.assertGreater(adv["opportunity"], plain["opportunity"])
+        from unittest import mock
+        with mock.patch.object(opp, "LEVELS", opp.language_levels.user_levels(FRIEND)):
+            a = opp.opportunity_components(ranked(posting_language="en", title="German speaking Engineer"), TODAY, 30000, 20000)["language"]
+        self.assertEqual(a, 100)  # 90 for English C1 + 10 bonus, capped at 100
+
+    def test_advantage_reads_tags_snippet_and_description(self):
+        for field, value in (("tags", ["python", "DACH"]), ("snippet", "Fluent German a plus"), ("description", "bilingual English/German")):
+            r = risk_with(FRIEND, posting_language="en", **{field: value})
+            self.assertIn("language_advantage", r, field)
+
+    def test_a2_gets_no_advantage(self):
+        r = risk_with(A2_SPEAKER, posting_language="en", title="Backend Engineer (German speaking)")
+        self.assertNotIn("language_advantage", r)
+
+    def test_apply_scores_drops_a_stale_advantage_note(self):
+        from unittest import mock
+        entry = ranked(posting_language="en", language_advantage="vieja")
+        with mock.patch.object(opp, "LEVELS", opp.language_levels.user_levels(A2_SPEAKER)):
+            opp.apply_scores(entry, TODAY, 30000, 20000)
+        self.assertNotIn("language_advantage", entry)
 
 
 if __name__ == "__main__":

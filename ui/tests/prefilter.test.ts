@@ -10,7 +10,7 @@ import { DEFAULT_SEARCH, parseSearchPatch, loadSearchSettings } from "../lib/sea
 const BASE = "http://127.0.0.1:8787";
 const ORIGIN = { Origin: BASE, Host: "127.0.0.1:8787", "Content-Type": "application/json" };
 const TODAY = new Date(2026, 9, 16);
-const FILTERS: Filters = { maxDays: 365, minSalaryMxn: 0, includeNoSalary: true, includeUndated: true, hideEnglish: false, modalities: ["remote", "hybrid", "onsite", "unknown"] };
+const FILTERS: Filters = { maxDays: 365, minSalaryMxn: 0, includeNoSalary: true, includeUndated: true, hideUnspoken: false, modalities: ["remote", "hybrid", "onsite", "unknown"] };
 
 function root(search?: Record<string, unknown>, seen: Record<string, unknown> = {}): string {
   const dir = mkdtempSync(join(tmpdir(), "job-ui-pf-"));

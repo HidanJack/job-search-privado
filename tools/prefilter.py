@@ -8,8 +8,10 @@ when present) against the user's skills and role families (profile_config.json),
 
   * marks clearly off-target jobs `prefiltered_out` with a short Spanish
     reason (SAP/Murex/Java-only/.NET-only/mobile-only/sales/marketing/HR/
-    accounting titles, Staff/Principal/Director/Head seniority, Portuguese
-    postings, postings restricted to another country). They are never deleted
+    accounting titles, Staff/Principal/Director/Head seniority, titles in a
+    language the user cannot read (no `read` level >= A2 in the profile's
+    `languages`; Portuguese, German, French... for a Spanish/English reader),
+    postings restricted to another country). They are never deleted
     and never sent to /rank; `recover` puts one back in the pending pool.
   * stores `prefilter_score` (0-100) on the rest (the handcrafted heuristic, blended 50/50
     with tools/learned_score.py when ui/state/learned_model.json exists and is active,
@@ -35,9 +37,12 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import language_levels  # noqa: E402  (which languages the user reads; language advantage)
 import profile_config  # noqa: E402  (per-user numbers and stack keywords, gitignored profile_config.json)
 
 PROFILE = profile_config.load()
+LEVELS = language_levels.user_levels(PROFILE)  # {code: {read, write, speak}}; tests patch this
+LANGUAGE_ADVANTAGE_BONUS = 8  # points when the title/tags ask for a language the user speaks at B2+
 _PRE = PROFILE["prefilter"]
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -199,6 +204,36 @@ def location_restriction(location) -> str | None:
     return None
 
 
+def title_language(entry: dict) -> str | None:
+    """Language code of the posting's title, from words alone (None when unclear).
+
+    The hand-kept Portuguese words still count: they predate the detector and
+    catch short titles ("Pessoa Especialista em Dados") it would call unknown.
+    """
+    title = fold(entry.get("title"))
+    if PORTUGUESE.search(title):
+        return "pt"
+    import posting_language  # imported here: posting_language -> rank_state -> prefilter would be a cycle
+
+    return posting_language.detect_title(entry.get("title") or "")
+
+
+def unreadable_language(entry: dict) -> str | None:
+    """The title's language when the user cannot read it (no read level >= A2), else None."""
+    code = title_language(entry)
+    if code and code not in language_levels.readable_codes(LEVELS):
+        return code
+    return None
+
+
+def advantage_text(entry: dict) -> str:
+    parts = []
+    for field in ("title", "tags", "snippet", "description", "summary"):
+        value = entry.get(field)
+        parts.extend(str(v) for v in value) if isinstance(value, list) else parts.append(str(value or ""))
+    return " . ".join(parts)
+
+
 def exclusion(entry: dict) -> str | None:
     """Spanish reason the job is clearly off-target, or None to keep it."""
     title = fold(entry.get("title"))
@@ -209,8 +244,9 @@ def exclusion(entry: dict) -> str | None:
     if m:
         label = SENIORITY_LABEL.get(m.group(0), m.group(0).title())
         return f"Nivel {label}: muy por encima de tu experiencia"
-    if PORTUGUESE.search(title):
-        return "Anuncio en portugués"
+    unreadable = unreadable_language(entry)
+    if unreadable:
+        return f"Anuncio en {language_levels.language_name(unreadable)}"
     for pattern, label in STACK_ONLY:
         if pattern.search(title) and not keep_skill:
             return f"Puesto centrado en {label}, fuera de tu stack"
@@ -314,6 +350,8 @@ def score(entry: dict, today: date, floor: int = DEFAULT_MIN_SALARY, current: in
 
     if SPANISH_TITLE_WORDS.search(title) or posting_language.detect_title(entry.get("title") or "") == "es":
         points += _PRE["spanish_title_bonus"]
+    if language_levels.language_advantage(advantage_text(entry), LEVELS, title_language(entry)):
+        points += LANGUAGE_ADVANTAGE_BONUS
     loc = fold(entry.get("location"))
     if loc:
         points += max((v for token, v in LOCATION_POINTS if token in loc), default=0)

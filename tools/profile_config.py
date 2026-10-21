@@ -16,6 +16,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import language_levels  # noqa: E402  (CEFR parsing and language codes shared with the language gate)
+
 ROOT = Path(__file__).resolve().parent.parent
 ENV_VAR = "JOB_SEARCH_PROFILE_CONFIG"
 CONFIG_PATH = ROOT / "profile_config.json"
@@ -44,7 +47,7 @@ DEFAULTS: dict = {
     "years_tolerance": 2,             # asks up to candidate_years + tolerance cost no risk
     "current_salary_mxn": 20000,      # monthly MXN; at/below it a job scores 0 on salary
     "salary_floor_mxn": 30000,        # monthly MXN you would accept (default search floor)
-    "spoken_english": False,          # True = English postings are not penalised
+    "spoken_english": False,          # legacy switch; derived from `languages` when those are declared
     "prefilter": {
         # Title words that rescue a job from the "other stack" exclusions below.
         "skill_keep": ["python", "data", "ai", "ml", "llm", "typescript", "react", "node", "automation"],
@@ -72,8 +75,10 @@ DEFAULTS: dict = {
         "off_stack": {"words": [], "points": -8},
         "spanish_title_bonus": 6,     # points for a Spanish-language title (0 if you do not care)
     },
-    # Languages you work in, CEFR (A1-C2) or "native" per skill; used for the sweep's
-    # language-advantage queries. [] = not declared (spoken_english stays the switch).
+    # Languages you work in: {"language", "code" (ISO 639-1, derived), "read", "write", "speak"} with CEFR
+    # (A1-C2) or "native" per skill. Drives the language gate, the opportunity/risk language terms, the
+    # prefilter's "cannot read it" rule and the sweep's language-advantage queries. [] = not declared:
+    # Spanish native + English B2/B2 with speak B2 (spoken_english true) or A2 (false) are assumed.
     "languages": [],
     # Portal sweep and Indeed step: role families with their queries (see _families).
     "search": {"families": DEFAULT_FAMILIES},
@@ -170,6 +175,9 @@ def _languages(v):
         if not isinstance(item, dict) or not isinstance(item.get("language"), str) or not item["language"].strip():
             continue
         entry = {"language": item["language"].strip()}
+        code = language_levels.language_code(entry["language"])
+        if code:
+            entry["code"] = code
         for k in ("read", "write", "speak"):
             lvl = item.get(k)
             lvl = lvl.strip() if isinstance(lvl, str) else lvl
@@ -209,6 +217,9 @@ def _apply(cfg: dict, raw: dict) -> None:
     langs = _languages(raw.get("languages"))
     if langs is not None:
         cfg["languages"] = langs
+        if langs and not isinstance(raw.get("spoken_english"), bool):
+            # the legacy flag follows the declared English speaking level
+            cfg["spoken_english"] = language_levels.speaks(language_levels.user_levels(cfg), "en", language_levels.SPEAK_COMFORTABLE)
     search = raw.get("search")
     if isinstance(search, dict):
         fams = _families(search.get("families"))
@@ -241,6 +252,11 @@ def load(path=None) -> dict:
     if isinstance(raw, dict):
         _apply(cfg, raw)
     return cfg
+
+
+def levels(cfg=None) -> dict:
+    """{code: {"read","write","speak"}} of the loaded (or given) profile; see language_levels."""
+    return language_levels.user_levels(load() if cfg is None else cfg)
 
 
 def is_filled(cfg: dict) -> bool:

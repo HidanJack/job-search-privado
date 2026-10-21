@@ -69,8 +69,8 @@ Archivo por usuario, **ignorado por git**, en la raíz. Si falta o un valor no e
 | `name` | Nombre en el encabezado del panel. Vacío = «primer uso». |
 | `candidate_years`, `years_tolerance` | Años profesionales verificables y cuántos años extra puede pedir un anuncio sin contar como riesgo. |
 | `current_salary_mxn`, `salary_floor_mxn` | Sueldo mensual actual y mínimo aceptable (MXN). Anclas del puntaje de sueldo y piso por defecto del filtro. |
-| `spoken_english` | `true` si hablas inglés con soltura: los anuncios en inglés dejan de penalizarse. |
-| `languages` | Tus idiomas con nivel MCER (A1–C2 o `native`) para leer, escribir y hablar: `[{"language": "German", "read": "B2", "write": "B1", "speak": "B1"}]`. Un idioma que no sea inglés/español con B1 o más agrega búsquedas de «ventaja de idioma». |
+| `languages` | Tus idiomas con nivel MCER (A1–C2 o `native`) para leer, escribir y hablar: `[{"language": "German", "read": "B2", "write": "B1", "speak": "B1"}]` (el código ISO se deduce del nombre; el español se da por nativo si no lo pones). Ver «Idiomas» abajo. |
+| `spoken_english` | Interruptor heredado: solo se lee si `languages` está vacío (`true` = inglés hablado B2, `false` = A2); si declaras idiomas se deduce de tu nivel hablado de inglés. |
 | `search.families` | Familias de búsqueda del barrido: `[{"name": "Python backend", "queries": [{"text": "python developer", "lang": "en"}]}]`. Cada consulta lleva su idioma. Sin esto se usa un conjunto genérico. Opcionales por familia: `indeed` (cadenas explícitas para Indeed) y `broad` (solo en búsquedas amplias). Ver el plan sin consultar nada: `bun run ui/sweep.ts --dry-run`; las cadenas de Indeed: `python3 tools/profile_config.py queries --portal indeed`. |
 | `prefilter.stack_points` | Tu stack en el título: `[{"words": ["python"], "points": 12}]` (suma, con tope `stack_cap`). |
 | `prefilter.skill_keep` | Palabras que salvan un título de las exclusiones por «otro stack». |
@@ -97,3 +97,15 @@ python3 -m unittest discover -s tests
 ```
 
 Más detalle en `SETUP.md`, `ui/README.md` y `CONTRIBUTING.md`.
+
+## Idiomas
+
+Tus idiomas son datos de primera clase: funcionan igual con cualquier combinación (español, inglés, alemán, portugués, francés, italiano, neerlandés…).
+
+- **Filtro de idioma al calificar**: un anuncio escrito en el idioma L se supone que pide L hablado. Si hablas L a nivel B2 o más (o nativo) no pasa nada; con B1 queda una alerta suave; con menos de B1 o sin ese idioma queda una alerta con una nota que nombra el idioma y tu nivel («La vacante está escrita en alemán… tu nivel hablado es A2»). Un anuncio bilingüe solo exige poder leer.
+- **Oportunidad y riesgo**: el puntaje de idioma sigue tu nivel hablado en el idioma del anuncio (nativo 100, C1/C2 90, B2 70, B1 45, A2 20, sin nivel 10) y el riesgo crece con la distancia a B2. Si el anuncio pide un idioma que tú hablas a B2 o más y no es el suyo («German speaking», «DACH», «bilingual English/German»), suma una ventaja y una nota corta.
+- **Prefiltro**: se descartan los títulos en un idioma que no puedes leer (sin nivel de lectura A2 o mejor), con el motivo «Anuncio en <idioma>»; los que piden un idioma que hablas suben un poco de puntaje.
+- **Panel**: «Ocultar vacantes en idiomas que no hablo» esconde los anuncios en idiomas donde tu nivel hablado es menor a B1.
+- **CV y carta**: van en el idioma del anuncio solo si lo escribes a nivel B2 o más; si no, en inglés (si lo escribes a B2+), y si no, en español.
+
+La detección del idioma del anuncio no usa IA: cuenta palabras funcionales por idioma (`tools/posting_language.py`, `python3 tools/posting_language.py detect --text "…"`). Los títulos muy cortos y neutros («Software Engineer») no se pueden clasificar y no se descartan.

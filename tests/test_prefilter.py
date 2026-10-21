@@ -185,6 +185,68 @@ class Discrimination(unittest.TestCase):
         self.assertGreaterEqual(self.score_of("Lead Backend Engineer"), base - 2)
 
 
+FRIEND = {"languages": [{"language": "English", "read": "C1", "write": "C1", "speak": "C1"},
+                        {"language": "German", "read": "B2", "write": "B2", "speak": "B2"}]}
+
+
+class LanguageRule(unittest.TestCase):
+    """Titles in a language the candidate cannot even read are dropped, from the profile's languages."""
+
+    def levels(self, cfg):
+        from unittest import mock
+        return mock.patch.object(prefilter, "LEVELS", prefilter.language_levels.user_levels(cfg))
+
+    def test_a2_drops_portuguese_german_french_italian_dutch(self):
+        titles = {
+            "Pessoa Especialista em Desenvolvimento Full-stack": "portugués",
+            "Desenvolvedor Python Pleno": "portugués",
+            "Softwareentwickler Python (m/w/d)": "alemán",
+            "Backend Entwickler für unser Team": "alemán",
+            "Ingénieur logiciel pour notre équipe": "francés",
+            "Sviluppatore backend per il nostro team": "italiano",
+            "Ontwikkelaar voor ons team": "neerlandés",
+        }
+        with self.levels({"spoken_english": False}):
+            for title, language in titles.items():
+                r = out(title)
+                self.assertTrue(r["out"], title)
+                self.assertEqual(r["reason"], f"Anuncio en {language}", title)
+
+    def test_a2_keeps_spanish_and_english_titles(self):
+        with self.levels({"spoken_english": False}):
+            for title in ("Desarrollador Python para el equipo de datos", "Python Developer for the data team",
+                          "Analista de Datos Senior", "Backend Engineer - Berlin", "Data Engineer (Remote)"):
+                self.assertFalse(out(title)["out"], title)
+
+    def test_german_reader_keeps_german_titles_but_not_french(self):
+        with self.levels(FRIEND):
+            self.assertFalse(out("Softwareentwickler Python (m/w/d)")["out"])
+            self.assertEqual(out("Ingénieur logiciel pour notre équipe")["reason"], "Anuncio en francés")
+
+    def test_reading_threshold_is_a2(self):
+        a1 = {"languages": [{"language": "German", "read": "A1", "write": None, "speak": None}]}
+        a2 = {"languages": [{"language": "German", "read": "A2", "write": None, "speak": None}]}
+        with self.levels(a1):
+            self.assertTrue(out("Softwareentwickler Python (m/w/d)")["out"])
+        with self.levels(a2):
+            self.assertFalse(out("Softwareentwickler Python (m/w/d)")["out"])
+
+    def test_language_advantage_adds_a_small_bonus(self):
+        title = "Python Backend Engineer (German speaking)"
+        with self.levels({"spoken_english": False}):
+            base = out(title)["score"]
+        with self.levels(FRIEND):
+            adv = out(title)["score"]
+        self.assertEqual(adv - base, prefilter.LANGUAGE_ADVANTAGE_BONUS)
+        self.assertEqual(prefilter.LANGUAGE_ADVANTAGE_BONUS, 8)
+
+    def test_advantage_also_reads_tags(self):
+        with self.levels(FRIEND):
+            plain = out("Python Backend Engineer")["score"]
+            tagged = prefilter.evaluate(job("Python Backend Engineer", tags=["python", "DACH"]), TODAY)["score"]
+        self.assertEqual(tagged - plain, prefilter.LANGUAGE_ADVANTAGE_BONUS)
+
+
 class State(unittest.TestCase):
     SETTINGS = {"minSalaryMxn": 30000, "currentSalary": 20000}
 

@@ -89,10 +89,11 @@ class ExampleFile(unittest.TestCase):
         self.assertEqual(cfg["candidate_years"], doc["candidate_years"])
         self.assertFalse(pc.is_filled(cfg), "the example must read as 'not filled in yet'")
 
-    def test_example_ships_the_default_families_and_no_languages(self):
+    def test_example_ships_the_default_families_and_neutral_languages(self):
         cfg = pc.load(REPO / "profile_config.example.json")
         self.assertEqual(cfg["search"]["families"], pc.DEFAULT_FAMILIES)
-        self.assertEqual(cfg["languages"], [])
+        self.assertEqual([(l["code"], l["speak"]) for l in cfg["languages"]], [("es", "native"), ("en", "A2")])
+        self.assertIs(cfg["spoken_english"], False)  # derived from the English speak level
 
     def test_real_profile_config_is_gitignored(self):
         r = subprocess.run(["git", "check-ignore", "-q", "profile_config.json"], cwd=REPO)

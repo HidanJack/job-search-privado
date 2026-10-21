@@ -9,6 +9,7 @@ import {
 } from "./lib/sweep";
 import { computeReadings, loadMarket, loadSettings, marketJobs, parseSettings, saveSettings } from "./lib/market";
 import { loadProfile } from "./lib/profile";
+import { loadProfileConfig } from "./lib/profile_config";
 import { WEAK_REFERENCE, bunCliSpawner, buildSummary, loadAggregate, sampleAll, type CliSpawner } from "./lib/skills";
 import {
   APPLY_TOOLS, BASE_TOOLS, ResultStore, SEARCH_TOOLS, RunManager, buildApplyPrompt, bunSpawner, indeedPrompt, type Spawner,
@@ -216,11 +217,11 @@ export function createHandler(opts: ServerOptions = {}) {
           minSalaryMxn: saved.minSalaryMxn,
           includeNoSalary: saved.includeUnpublishedSalary,
           includeUndated: saved.includeUndated,
-          hideEnglish: saved.hideEnglish,
+          hideUnspoken: saved.hideUnspoken,
           modalities: saved.modalities,
         });
         const all = loadJobs(root, new Date());
-        const { ranked, unranked } = filterJobs(all, filters);
+        const { ranked, unranked } = filterJobs(all, filters, loadProfileConfig(root).languages);
         const prefiltered = prefilteredJobs(all);
         const gate = splitByGate(all.filter((j) => j.status === "new"), saved.minPrefilterScore);
         const shown = splitByGate(unranked, saved.minPrefilterScore);

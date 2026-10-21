@@ -15,6 +15,18 @@ per-file diff commands.
 
 ### Added
 
+- **Languages as first-class data** - `tools/language_levels.py` (CEFR ranking, language name -> ISO code,
+  the candidate's levels from `profile_config.json` `languages`, the language gate and the language
+  advantage) replaces the Spanish/English-only assumptions: a posting in language L needs spoken L
+  (B2+ passes, B1 soft flag, below/undeclared flags with a note that names the language and the level);
+  `tools/posting_language.py` detects es/en/de/pt/fr/it/nl; opportunity/risk scale by the spoken level in
+  the posting's language and give a language-advantage bonus; the prefilter drops titles in a language
+  the user cannot read; the dashboard's "Ocultar vacantes en idiomas que no hablo" replaces
+  `hideEnglish` (still read as an alias); CV/letter language follows the posting only when written at
+  B2+ (`04-job-evaluation.md` 1.3.1 -> 1.4.0, `05-cv-templates.md` 1.6.0 -> 1.7.0 with a de/pt/fr/it
+  headings table, `06-cover-letter-templates.md` 1.1.1 -> 1.2.0, `10-ats-and-screening.md` 1.2.0 -> 1.3.0).
+  Onboarding stores the ISO `code` next to each language name. `spoken_english` stays readable and is
+  derived from the English speaking level.
 - **Neighbor role families and a strict English-posting rule** - `CLAUDE.md` Target Roles lists five
   secondary families (web/frontend, Python automation/RPA, data analyst/BI, QA automation,
   accounting-tax software support); `04-job-evaluation.md` (1.2.7 -> 1.3.0) scores them without an

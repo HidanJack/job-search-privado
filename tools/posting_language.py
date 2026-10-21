@@ -1,32 +1,41 @@
 #!/usr/bin/env python3
 """Detect the language a job posting is written in and backfill seen_jobs.json.
 
-`/rank` records `posting_language` ("es" | "en" | "mixed") for each scored
-posting, and rank_state.py turns "en" into a language_gate FLAG plus a
-spoken-English gap. Entries ranked before that rule have no
-`posting_language`, so the UI's `hideEnglish` filter hides none of them. This
-tool fills the gap without re-scoring anything.
+`/rank` records `posting_language` (an ISO 639-1 code such as "es", "en",
+"de", "pt", "fr", "it", "nl", or "mixed") for each scored posting, and
+rank_state.py turns it into the language gate (language_levels.py): a posting
+in a language the candidate does not speak becomes a FLAG with a spoken-language
+gap. Entries ranked before that rule have no `posting_language`, so the UI's
+"hide languages I do not speak" filter hides none of them. This tool fills the
+gap without re-scoring anything.
 
-Detection is a stopword count, not a model call. The text is lowercased and
-stripped of HTML; the hits of the Spanish and English stopword sets are
-counted and compared:
+Detection is a function-word count, not a model call. The text is lowercased
+and stripped of HTML; the hits of each language's word list are counted:
 
   * fewer than MIN_HITS hits in total          -> None (too little signal)
   * one language holds >= DOMINANT_SHARE (80%) -> that language
   * otherwise                                  -> "mixed"
 
-Words that are valid in both languages ("a", "no", "me", "he", "son"...) are
-left out of both sets so they cannot tip the balance.
+Spanish and English use the original two lists (words valid in both, such as
+"a", "no", "me", "he", "son", are left out of both). Every other language
+(de, pt, fr, it, nl) has a list of words that exist in neither Spanish nor
+English, plus job-title vocabulary (counted double, so a short title such as
+"Softwareentwickler" still decides) and distinctive characters/markers
+("ß", "ã", "(m/w/d)", one hit each). A non-es/en language takes over only with at least
+3 exclusive hits in a body (2 in a title), so Spanish and English texts keep
+their historical result. `detect()` is the same with "unknown" instead of None.
 
 Subcommands:
-  detect   --text TEXT | --file PATH       print the detected language
+  detect   --text TEXT | --file PATH [--title]
+                                           print the detected language code
+                                           (mixed / none for no signal)
   backfill [--state PATH] [--dry-run]      fill `posting_language` on ranked
                                            entries that lack it
 
 backfill fetches each posting with its portal CLI (`detail <url> --format
 json`), falls back to the title when no description is available, and writes
-ONLY `posting_language` plus what rank_state.enforce_english_rule derives from
-"en" (language_gate/language_note/gaps). A failed fetch leaves the entry
+ONLY `posting_language` plus what rank_state.enforce_language_rule derives from
+it (language_gate/language_note/gaps). A failed fetch leaves the entry
 untouched and is reported. Portal "indeed" cannot be fetched from Python (its
 detail is an MCP tool), so backfill leaves those entries alone and lists them under "none";
 /rank records their posting_language when it reads the detail.
@@ -72,7 +81,71 @@ ENGLISH = ENGLISH - _SHARED
 
 TAG = re.compile(r"<[^>]+>")
 WORD = re.compile(r"[a-záéíóúüñ]+")
+WORD_U = re.compile(r"[^\W\d_]+")
 PORTAL_CLI = ".agents/skills/{portal}/cli/src/cli.ts"
+
+MIN_OTHER_BODY = 3  # exclusive hits a non-es/en language needs in a body
+MIN_OTHER_TITLE = 2  # ... and in a title (job words count double)
+
+# Words shared by the languages below with Spanish / English: counted for neither side
+# when that language is the candidate (so "de que para" does not make Portuguese look
+# half Spanish, and the borrowed "team" does not make German look half English).
+BORROWED_EN = frozenset("team in an is was of we will as a on or can".split())
+
+# Function words that exist in neither Spanish nor English, plus job vocabulary (JOB, double weight).
+_STOP = {
+    "de": """der die das den dem des ein eine einen einem einer eines und oder nicht mit für fur von vom zu zum zur
+        auf bei aus über uber wir sie ihr ihre ihren ist sind wird werden haben hat sich auch wie als wenn dass
+        sowie unser unsere unserem unseren sondern aber noch nur""".split(),
+    "pt": """um uma uns umas dos das em com não nao também tambem você voce vocês voces nós ele ela eles elas
+        seu sua seus suas nosso nossa nossos nossas mais pela pelo pelas pelos ao aos muito é pessoa dados qualidade
+        trabalho equipe anos conhecimento conhecimentos""".split(),
+    "fr": """le des une sont pour dans avec vous nous notre nos votre vos ce cette ces qui et du au aux ne pas sur
+        aussi être""".split(),
+    "it": """il gli di che sono della dello dei delle degli nella nel nei alla alle anche più piu nostro nostra
+        nostri nostre uno è questo questa essere ogni nelle sul sulla buona buono laurea capacità responsabilità conoscenza
+        lavoro azienda requisiti competenze offriamo""".split(),
+    "nl": """het een van op voor zijn wij jij ons onze ook bij naar niet dat deze wordt worden heeft hebben als uw
+        werken kennis""".split(),
+}
+_JOB = {
+    "de": """entwickler entwicklerin softwareentwickler ingenieur ingenieurin mitarbeiter mitarbeiterin stelle berater
+        beraterin leiter leiterin erfahrung kenntnisse aufgaben anforderungen bewerbung unternehmen stellenangebot
+        praktikant werkstudent""".split(),
+    "pt": """desenvolvedor desenvolvedora engenheiro engenheira vaga vagas estágio estagio estagiário
+        desenvolvimento engenharia experiência requisitos""".split(),
+    "fr": """ingénieur développeur développeuse poste emploi expérience équipe entreprise compétences stage
+        alternance recherchons""".split(),
+    "it": """sviluppatore sviluppatrice ingegnere esperienza lavoro azienda ricerchiamo stage tirocinio
+        competenze""".split(),
+    "nl": """ontwikkelaar medewerker vacature ervaring vaardigheden bedrijf functie vereisten zoeken""".split(),
+}
+# Words each language shares with Spanish (and the shared English ones are BORROWED_EN).
+_SHARED_ES = {
+    "de": frozenset("es".split()),
+    "pt": frozenset("de que para por como se o sobre entre".split()),
+    "fr": frozenset("de la les un en que se".split()),
+    "it": frozenset("con un una lo la o se del al".split()),
+    "nl": frozenset("de en".split()),
+}
+# markers worth two hits: gender suffixes of German job titles, distinctive letters
+# (m/w/d), (w/m/d), (m/w/x): the German gender tag, one hit only: English-language postings from German
+# companies carry it too, so it never decides a title alone. "(m/f/d)" is English and says nothing.
+_MARKERS = {"de": re.compile(r"\b(?:m/w/[dx]|w/m/[dx]|m/w)\b")}
+_LETTERS = {"de": "ß", "pt": "ãõ"}
+
+
+def _build() -> dict:
+    words = {c: set(_STOP[c]) | set(_JOB[c]) for c in _STOP}
+    exclusive = {}
+    for code, ws in words.items():
+        others = set().union(*(w for c, w in words.items() if c != code))
+        exclusive[code] = frozenset(w for w in ws if w not in SPANISH and w not in ENGLISH and w not in others)
+    return exclusive
+
+
+EXCLUSIVE = _build()
+JOB_WORDS = {c: frozenset(_JOB[c]) & EXCLUSIVE[c] for c in _JOB}
 
 
 def normalize(text: str) -> str:
@@ -84,9 +157,36 @@ def _counts(text: str) -> tuple[int, int]:
     return sum(w in SPANISH for w in words), sum(w in ENGLISH for w in words)
 
 
+def _other_hits(text: str) -> dict:
+    """Weighted hits per non-es/en language (job words and markers count double)."""
+    norm = normalize(text)
+    tokens = WORD_U.findall(norm)
+    out = {}
+    for code, excl in EXCLUSIVE.items():
+        hits = sum(2 if w in JOB_WORDS[code] else 1 for w in tokens if w in excl)
+        marker = _MARKERS.get(code)
+        if marker:
+            hits += len(marker.findall(norm))
+        hits += sum(norm.count(ch) for ch in _LETTERS.get(code, ""))
+        out[code] = hits
+    return out
+
+
 def detect_language(text: str, min_hits: int = MIN_HITS) -> str | None:
-    """Return "es", "en", "mixed", or None when the text is too short to tell."""
+    """Return a language code, "mixed", or None when the text is too short to tell."""
     es, en = _counts(text)
+    other = _other_hits(text)
+    best = max(other, key=lambda c: other[c])
+    need = MIN_OTHER_TITLE if min_hits <= TITLE_MIN_HITS else MIN_OTHER_BODY
+    if other[best] >= need:
+        words = WORD.findall(normalize(text))
+        es_x = sum(w in SPANISH and w not in _SHARED_ES[best] for w in words)
+        en_x = sum(w in ENGLISH and w not in BORROWED_EN for w in words)
+        shares = {best: other[best], "es": es_x, "en": en_x}
+        shares.update({c: n for c, n in other.items() if c != best})
+        total = sum(shares.values())
+        top = max(shares, key=lambda c: shares[c])
+        return top if shares[top] / total >= DOMINANT_SHARE else "mixed"
     total = es + en
     if total < min_hits:
         return None
@@ -97,10 +197,16 @@ def detect_language(text: str, min_hits: int = MIN_HITS) -> str | None:
     return "mixed"
 
 
+def detect(text: str, kind: str = "body") -> str:
+    """Like detect_language / detect_title, but "unknown" instead of None."""
+    result = detect_title(text) if kind == "title" else detect_language(text)
+    return result or "unknown"
+
+
 def detect_title(title: str) -> str | None:
     """Titles only count when clearly one language; never "mixed"."""
     result = detect_language(title, min_hits=TITLE_MIN_HITS)
-    return result if result in ("es", "en") else None
+    return None if result == "mixed" else result
 
 
 def fetch_detail(entry: dict, run=subprocess.run) -> dict:
@@ -144,7 +250,7 @@ def language_for(entry: dict, fetch=fetch_detail) -> tuple[str | None, str]:
 
 def backfill(state: Path, dry_run: bool = False, fetch=fetch_detail) -> dict:
     doc, seen = rank_state.load_state(state)
-    summary = {"es": [], "en": [], "mixed": [], "none": [], "failed": []}
+    summary = {"none": [], "failed": []}
     for key, entry in seen.items():
         if entry.get("status") != "ranked" or entry.get("posting_language"):
             continue
@@ -160,9 +266,9 @@ def backfill(state: Path, dry_run: bool = False, fetch=fetch_detail) -> dict:
             summary["none"].append(key)
             continue
         entry["posting_language"] = language
-        rank_state.enforce_english_rule(entry)
-        summary[language].append(key)
-    if not dry_run and (summary["es"] or summary["en"] or summary["mixed"]):
+        rank_state.enforce_language_rule(entry)
+        summary.setdefault(language, []).append(key)
+    if not dry_run and any(v for k, v in summary.items() if k not in ("none", "failed")):
         rank_state.save_state(state, doc)
     return summary
 
@@ -172,7 +278,8 @@ def cmd_detect(args) -> int:
         text = Path(args.file).read_text(encoding="utf-8")
     else:
         text = args.text or ""
-    print(detect_language(text) or "none")
+    result = detect_title(text) if getattr(args, "title", False) else detect_language(text)
+    print(result or "none")
     return 0
 
 
@@ -196,6 +303,7 @@ def main() -> int:
     group = det.add_mutually_exclusive_group(required=True)
     group.add_argument("--text")
     group.add_argument("--file")
+    det.add_argument("--title", action="store_true", help="treat the text as a job title (short, never mixed)")
     det.set_defaults(func=cmd_detect)
     bf = sub.add_parser("backfill", help="fill posting_language on ranked entries lacking it")
     bf.add_argument("--state", type=Path, default=STATE)

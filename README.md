@@ -271,12 +271,24 @@ The deterministic tools and the dashboard read their personal numbers from a git
 | `name` | UI header | Shown as "Libro de vacantes de <name>"; empty = first-run notice |
 | `candidate_years`, `years_tolerance` | `tools/opportunity.py` | Verifiable years; asks up to years + tolerance carry no risk |
 | `current_salary_mxn`, `salary_floor_mxn` | prefilter, opportunity, UI default floor | Monthly MXN anchors of the salary score; default search floor |
-| `spoken_english` | `tools/opportunity.py` | `true` removes the English-posting penalty |
+| `languages` | `tools/language_levels.py` (rank, opportunity, prefilter), UI filter, sweep | One entry per language: `{"language": "German", "code": "de", "read": "B2", "write": "B1", "speak": "B1"}`, levels A1-C2 or `native` (`code` is derived from the name). Spanish is assumed native when not listed. See "Languages" below |
+| `spoken_english` | legacy | Only read when `languages` is empty (English speak B2 when `true`, A2 when `false`); otherwise derived from the English `speak` level |
 | `prefilter.stack_points` / `stack_cap` | `tools/prefilter.py` | `[{"words": [...], "points": n}]`, summed up to the cap |
 | `prefilter.skill_keep`, `stack_only`, `off_stack`, `spanish_title_bonus` | `tools/prefilter.py` | Words that rescue a title, families you do not work on, demoted stacks, Spanish-title bonus |
 | `skills.selected`, `combo_partners`, `primary` | `ui/lib/skills.ts` | Skill ids sampled for the market tab and the "primary + partner" combination |
 
 Words in `prefilter` are regex fragments over accent-folded lowercase titles.
+
+#### Languages
+
+Your `languages` list drives everything language-related, for any language and not only Spanish and English:
+
+- **Language gate (`/rank`)**: a posting written in language L is assumed to need spoken L. Your spoken level in L at B2 or above (or native) passes; B1 is a soft flag; below B1 or an undeclared language is a flag whose note names the language and your level. A bilingual posting (`mixed`) only needs reading.
+- **Opportunity and risk**: the language score follows your spoken level in the posting's language (native 100, C1/C2 90, B2 70, B1 45, A2 20, none 10) and the risk of a spoken-language gap scales with how far you are from B2. A posting that asks for a language you speak at B2+ that is not its own ("German speaking", "DACH", "bilingual English/German") adds a bonus and a short `language_advantage` note.
+- **Prefilter**: titles in a language you cannot read at all (no `read` level of A2 or better) are dropped with the reason "Anuncio en <idioma>"; titles that ask for a language you speak get a small score bonus.
+- **Dashboard**: "Ocultar vacantes en idiomas que no hablo" hides postings in languages where your spoken level is below B1 (the old `hideEnglish` setting is still read as an alias).
+- **Sweep**: every language besides Spanish and English that you read or write at B1+ adds its own search terms.
+- **CV and letter**: written in the posting's language only when you write it at B2+; otherwise English (if you write it at B2+), else Spanish.
 
 ### Updating your search queries
 

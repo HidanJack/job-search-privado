@@ -131,7 +131,8 @@ class ProfileConfig(Base):
         self.assertNotIn("current_salary_mxn", cfg)  # only when provided
         self.assertIs(cfg["spoken_english"], True)  # English speak B2
         self.assertEqual([l["language"] for l in cfg["languages"]], ["Spanish", "English", "German"])
-        self.assertEqual(cfg["languages"][2], {"language": "German", "read": "B2", "write": "B1", "speak": "B1"})
+        self.assertEqual(cfg["languages"][2], {"language": "German", "code": "de", "read": "B2", "write": "B1", "speak": "B1"})
+        self.assertEqual([l["code"] for l in cfg["languages"]], ["es", "en", "de"])
         fams = cfg["search"]["families"]
         self.assertEqual([f["name"] for f in fams], ["Python backend", "Data engineering", "Language advantage"])
         self.assertEqual(fams[0]["queries"][2], {"text": "Python Backend Entwickler", "lang": "de"})
@@ -171,6 +172,17 @@ class ProfileConfig(Base):
         words = [w for e in self.config()["prefilter"]["stack_points"] for w in e["words"]]
         self.assertIn(r"c\+\+", words)
         self.assertIn("ingenieria\\ de\\ datos", words)
+
+    def test_language_names_are_normalized_to_codes_next_to_the_original_name(self):
+        p = fx()
+        p["languages"] = [
+            {"language": "Alemán", "read": "B2", "write": "B2", "speak": "B2", "inferred": False},
+            {"language": "Portuguese", "read": "B1", "write": None, "speak": None, "inferred": False},
+            {"language": "Klingon", "read": "C1", "write": None, "speak": None, "inferred": False},
+        ]
+        self.run_apply(p)
+        got = {l["language"]: l.get("code") for l in self.config()["languages"]}
+        self.assertEqual(got, {"Alemán": "de", "Portuguese": "pt", "Klingon": None})
 
     def test_spoken_english_false_when_speaking_below_b2_or_undeclared(self):
         p = fx()
