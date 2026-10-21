@@ -35,6 +35,17 @@ Si prefieres hacerlo a mano: `cp profile_config.example.json profile_config.json
 
 Para leer PDF hace falta `pdftotext` (paquete `poppler-utils`, ya listado en los requisitos); si no lo tienes, sube tu CV como DOCX, TXT o MD.
 
+### Descubrir caminos (`/discover`)
+
+Para encontrar roles que **no** estás buscando todavía pero que encajan con lo que ya hiciste:
+
+1. El panel arma, sin IA, un resumen de tu perfil, tus proyectos (el «banco de evidencia») y las vacantes que mejor calificaron (`ui/state/discovery/input.txt`).
+2. Claude (`claude -p /discover`, con **tu** suscripción, solo con permiso para leer ese archivo y escribir `proposals.json`) propone de 5 a 8 caminos. Cada razón cita evidencia de tu perfil; código determinista descarta lo que no aparezca ahí, avisa de las brechas y quita lo que ya buscas.
+3. Sin IA, el panel consulta los portales (una página por consulta, máximo 3 consultas por camino) y cuenta cuántas vacantes reales hay ahora mismo. Ojo: es una coincidencia por palabras clave en el título, no una medida de encaje.
+4. Tú eliges: **Agregar a mis búsquedas** crea una familia «Descubierto: …» en `profile_config.json` (con copia en `ui/state/backups/`) y el siguiente barrido la usa sola. Nada se agrega sin tu clic.
+
+Por consola: `bun run ui/discover.ts probe` repite solo la comprobación de mercado. Todo vive en `ui/state/discovery/` (ignorado por git).
+
 ## Qué hace cada botón
 
 - **Buscar ahora**: consulta los portales (GetOnBoard, Himalayas, Jobicy, RemoteOK, HN Hiring, LinkedIn…) con sus CLIs, y usa Claude para Indeed si tienes el conector; luego descarta lo claramente fuera de perfil (prefiltro sin LLM) y califica las vacantes pendientes.
@@ -44,7 +55,7 @@ Para leer PDF hace falta `pdftotext` (paquete `poppler-utils`, ya listado en los
 - **Búsqueda diaria automática**: interruptor del temporizador (ver abajo).
 - Pestañas **Seguimiento** (tu tabla de postulaciones) y **Mercado** (cuánto pagan tus habilidades; «Actualizar datos de mercado» consulta los portales y no usa Claude).
 
-Otros comandos de `claude`: `/setup`, `/rank`, `/apply <url>`, `/interview`, `/outcome`, `/referral`, `/expand`, `/html-report`, `/add-portal`, `/add-template`, `/reset`.
+Otros comandos de `claude`: `/setup`, `/discover`, `/rank`, `/apply <url>`, `/interview`, `/outcome`, `/referral`, `/expand`, `/html-report`, `/add-portal`, `/add-template`, `/reset`.
 
 ## Búsqueda diaria
 

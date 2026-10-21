@@ -168,6 +168,27 @@ class Build(unittest.TestCase):
         # the applier must not treat the shipped edition as the author's private checkout
         self.assertFalse((self.out / "tools" / "make_clean_edition.py").exists())
 
+    def test_discovery_files_ship_and_staging_does_not(self):
+        for rel in ("tools/discovery_input.py", "tools/discovery_proposal.py", ".claude/commands/discover.md",
+                    "ui/lib/discovery.ts", "ui/discover.ts", "ui/tests/discovery.test.ts",
+                    "tests/test_discovery_input.py", "tests/test_discovery_proposal.py", "tests/test_discover_command.py"):
+            self.assertTrue((self.out / rel).is_file(), rel)
+        self.assertFalse((self.out / "ui" / "state").exists())
+        readme = (self.out / "README.md").read_text(encoding="utf-8")
+        self.assertIn("Descubrir caminos", readme)
+        self.assertIn("/discover", readme)
+
+    def test_shipped_edition_builds_a_discovery_input_for_a_blank_profile(self):
+        import json as _json
+        import shutil as _shutil
+        import subprocess as _subprocess
+        work = self.base / "discovering"
+        _shutil.copytree(self.out, work)
+        r = _subprocess.run([sys.executable, str(work / "tools" / "discovery_input.py"), "--root", str(work)], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertTrue(_json.loads(r.stdout)["ok"])
+        self.assertTrue((work / "ui" / "state" / "discovery" / "input.txt").is_file())
+
     def test_shipped_edition_applies_a_proposal_end_to_end(self):
         """The built edition can onboard a user: apply a proposal into a copy of it and read the result back."""
         import json as _json

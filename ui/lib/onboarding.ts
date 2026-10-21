@@ -193,7 +193,7 @@ export async function parseAnalyzeRequest(req: Request): Promise<AnalyzeInput> {
 // Python tools
 // ---------------------------------------------------------------------------
 
-async function py(spawn: SweepSpawn, script: string, args: string[], cwd: string, timeoutMs = 60_000): Promise<{ code: number; json: any }> {
+export async function py(spawn: SweepSpawn, script: string, args: string[], cwd: string, timeoutMs = 60_000): Promise<{ code: number; json: any }> {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {

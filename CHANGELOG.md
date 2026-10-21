@@ -15,6 +15,14 @@ per-file diff commands.
 
 ### Added
 
+- **Career path discovery (`/discover`)** - proposes role types the candidate is not searching yet, each
+  justified with evidence quoted from his own profile. `tools/discovery_input.py` builds the nonce-delimited
+  input (profile, evidence bank, best ranked jobs; no contact data or salary figures; job text cleaned by the
+  posting guard), the headless `/discover` run is sandboxed to `ui/state/discovery/`,
+  `tools/discovery_proposal.py` validates the result (evidence must appear in the profile, safe queries,
+  dedupe against existing families, confidence caps), `ui/lib/discovery.ts` checks the real market on the
+  keyword portals (one page, max 3 queries per path) and `/api/discovery/*` serves it. Adding a path writes a
+  `discovered` family to `profile_config.json` (backup first) that the sweep picks up on its own.
 - **Languages as first-class data** - `tools/language_levels.py` (CEFR ranking, language name -> ISO code,
   the candidate's levels from `profile_config.json` `languages`, the language gate and the language
   advantage) replaces the Spanish/English-only assumptions: a posting in language L needs spoken L

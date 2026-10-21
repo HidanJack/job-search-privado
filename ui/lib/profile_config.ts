@@ -18,6 +18,9 @@ export interface SearchFamily {
   indeed?: string[];
   /** Neighbour family: its Indeed strings run only on a "broad" search. */
   broad?: boolean;
+  /** Added from the "Descubrir" tab; `source_path_id` is the proposal path it came from. */
+  discovered?: boolean;
+  source_path_id?: string;
 }
 import { languageCode, type Cefr } from "./language_levels";
 export type { Cefr };
@@ -100,7 +103,11 @@ function parseFamilies(v: unknown): SearchFamily[] | null {
     }
     const indeed = (Array.isArray(f.indeed) ? f.indeed : []).map(queryText).filter((t): t is string => t !== null);
     if (!queries.length && !indeed.length) continue;
-    out.push({ name, queries, ...(indeed.length ? { indeed } : {}), ...(f.broad === true ? { broad: true } : {}) });
+    const sid = typeof f.source_path_id === "string" && /^[a-z0-9][a-z0-9-]{0,48}$/.test(f.source_path_id) ? f.source_path_id : null;
+    out.push({
+      name, queries, ...(indeed.length ? { indeed } : {}), ...(f.broad === true ? { broad: true } : {}),
+      ...(f.discovered === true ? { discovered: true, ...(sid ? { source_path_id: sid } : {}) } : {}),
+    });
   }
   return out.length ? out : null;
 }

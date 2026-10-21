@@ -21,6 +21,9 @@ import {
   readLimited, readProposal, saveProposal,
 } from "./lib/onboarding";
 import { bunSweepSpawn } from "./lib/sweep";
+import {
+  DiscoveryError, addPath, discoveryPipeline, discoveryStatus, dismissPath, newDiscoveryState, readProposals, resetDiscovery, runProbe,
+} from "./lib/discovery";
 
 const ROOT = resolve(import.meta.dir, "..");
 const PUBLIC = join(import.meta.dir, "public");
@@ -179,6 +182,50 @@ export function createHandler(opts: ServerOptions = {}) {
     }
   }
 
+  const discovery = newDiscoveryState();
+
+  async function handleDiscovery(req: Request, pathname: string): Promise<Response> {
+    const route = pathname.slice("/api/discovery/".length);
+    const busyError = () => new DiscoveryError(409, "busy", "Hay otra tarea en curso; espera a que termine.");
+    try {
+      if (req.method === "GET") {
+        if (route === "status") return json(discoveryStatus(root, runs.current, discovery));
+        if (route === "proposals") return json(readProposals(root));
+        return json({ error: "not_found" }, 404);
+      }
+      if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+      if (!isAllowedOrigin(req.headers.get("origin"), port)) return json({ error: "origin_not_allowed" }, 403);
+      const body = await smallBody(req);
+      switch (route) {
+        case "run": {
+          const run = runs.startPipeline("discover", "Descubrir caminos profesionales", discoveryPipeline(root, toolSpawn, discovery, opts.sweepSpawn));
+          if (!run) throw busyError();
+          return json({ id: run.id });
+        }
+        case "probe": {
+          readProposals(root); // 404 when there is nothing to check
+          const run = runs.startTask("discover", "Comprobar el mercado real", (log) => runProbe(root, discovery, log, opts.sweepSpawn));
+          if (!run) throw busyError();
+          return json({ id: run.id });
+        }
+        case "add":
+          if (runs.busy()) throw busyError();
+          return json(await addPath(toolSpawn, root, body));
+        case "dismiss":
+          return json(dismissPath(root, body));
+        case "reset":
+          if (runs.busy()) throw busyError();
+          resetDiscovery(root);
+          return json({ ok: true });
+        default:
+          return json({ error: "not_found" }, 404);
+      }
+    } catch (err) {
+      if (err instanceof DiscoveryError) return json({ error: err.code, message: err.message, ...(err.details ? { details: err.details } : {}) }, err.status);
+      return onboardingError(err);
+    }
+  }
+
   async function handle(req: Request): Promise<Response> {
     const url = new URL(req.url);
     // DNS-rebinding guard: only answer to our own host names.
@@ -186,6 +233,7 @@ export function createHandler(opts: ServerOptions = {}) {
 
     // Onboarding has its own body limits (upload 2.5 MB, proposal 512 KB) and also takes PUT.
     if (url.pathname.startsWith("/api/onboarding/")) return handleOnboarding(req, url.pathname);
+    if (url.pathname.startsWith("/api/discovery/")) return handleDiscovery(req, url.pathname);
 
     if (req.method === "POST") {
       if (!isAllowedOrigin(req.headers.get("origin"), port)) return json({ error: "origin_not_allowed" }, 403);

@@ -324,7 +324,7 @@ export interface SweepStats {
   perQuery: { portal: string; query: string; added: number }[];
 }
 
-interface RawRow {
+export interface RawRow {
   title?: unknown;
   company?: unknown;
   location?: unknown;
@@ -336,11 +336,11 @@ interface RawRow {
   snippet?: unknown;
 }
 
-const cliPath = (root: string, portal: string) => join(root, ".agents", "skills", `${portal}-search`, "cli", "src", "cli.ts");
-const urlKey = (url: string) => url.trim().replace(/\/+$/, "");
-const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+export const cliPath = (root: string, portal: string) => join(root, ".agents", "skills", `${portal}-search`, "cli", "src", "cli.ts");
+export const urlKey = (url: string) => url.trim().replace(/\/+$/, "");
+export const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
 
-function parseRows(stdout: string): { rows: RawRow[]; total: number | null } | null {
+export function parseRows(stdout: string): { rows: RawRow[]; total: number | null } | null {
   try {
     const v = JSON.parse(stdout);
     if (!Array.isArray(v?.results)) return null;

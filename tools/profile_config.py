@@ -163,6 +163,11 @@ def _families(v):
             fam["indeed"] = indeed
         if item.get("broad") is True:
             fam["broad"] = True
+        if item.get("discovered") is True:  # added from /discover: kept so the dashboard can tell where it came from
+            fam["discovered"] = True
+            sid = item.get("source_path_id")
+            if isinstance(sid, str) and re.match(r"^[a-z0-9][a-z0-9-]{0,48}$", sid):
+                fam["source_path_id"] = sid
         out.append(fam)
     return out or None
 

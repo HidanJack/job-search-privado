@@ -52,6 +52,15 @@ export const ONBOARD_DENY = [
   "Read(cv/**)", "Read(cover_letters/**)", "Read(documents/**)", "Read(.env*)",
 ];
 export const ONBOARD_PERMISSION_MODE = "dontAsk";
+
+/**
+ * /discover reads the candidate's profile plus untrusted job text and may only touch its own
+ * directory: same sandbox as /onboard (dontAsk, every other tool denied).
+ */
+export const DISCOVER_DIR_REL = "ui/state/discovery";
+export const DISCOVER_TOOLS = [`Read(${DISCOVER_DIR_REL}/*)`, `Edit(${DISCOVER_DIR_REL}/*)`];
+export const DISCOVER_DENY = [...ONBOARD_DENY];
+export const DISCOVER_PERMISSION_MODE = ONBOARD_PERMISSION_MODE;
 export const APPLY_TOOLS = [
   ...BASE_TOOLS,
   "Bash(cd cv && lualatex:*)",
@@ -65,7 +74,7 @@ export const APPLY_TOOLS = [
   "Bash(rm -f cover_letters/cover_:*)",
 ];
 
-export type RunKind = "search" | "rank" | "apply" | "market" | "onboard";
+export type RunKind = "search" | "rank" | "apply" | "market" | "onboard" | "discover";
 
 export const DEFAULT_MODEL = "sonnet";
 const MODEL_ALIASES = ["sonnet", "opus", "haiku"];

@@ -280,6 +280,9 @@ ALLOWED_SKILL_TOOLS = {
     # (file writes are matched only through Edit(path) rules in Claude Code; they cover the Write tool.)
     "Read(ui/state/onboarding/*)",
     "Edit(ui/state/onboarding/*)",
+    # /discover reads its input and writes its proposals inside the discovery staging dir, nothing else.
+    "Read(ui/state/discovery/*)",
+    "Edit(ui/state/discovery/*)",
 }
 
 # The tools a shipped .claude/agents/*.md may list. These agents read untrusted
