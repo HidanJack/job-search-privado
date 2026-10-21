@@ -36,6 +36,8 @@ const SECURITY_HEADERS = {
 const STATIC: Record<string, string> = {
   "/": "index.html",
   "/app.js": "app.js",
+  "/onboarding.js": "onboarding.js",
+  "/onboarding-logic.js": "onboarding-logic.js",
   "/styles.css": "styles.css",
 };
 // Strict name pattern (no dots/slashes) doubles as the path-traversal guard.

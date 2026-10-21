@@ -1319,6 +1319,13 @@ async function boot() {
   }
 }
 
+// First-run onboarding (public/onboarding.js) hands control back here once the profile is written.
+window.addEventListener("onboarding:done", () => {
+  $("#run-panel").hidden = true;
+  refreshJobs();
+  refreshCoverage();
+});
+
 boot().catch((err) => {
   $("#jobs-summary").textContent = `No se pudo iniciar el panel: ${err.message}`;
 });

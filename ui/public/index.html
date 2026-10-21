@@ -11,6 +11,7 @@
   <link rel="preload" href="/fonts/dm-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/styles.css">
   <script src="/app.js" defer></script>
+  <script type="module" src="/onboarding.js"></script>
 </head>
 <body>
   <svg class="sprite" aria-hidden="true" focusable="false">
@@ -24,6 +25,142 @@
     <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
     <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 17h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
   </svg>
+
+  <div id="onboarding" class="onb" hidden>
+    <header class="onb-top">
+      <p class="mark"><i aria-hidden="true"></i><span class="mark-name">Libro de vacantes</span></p>
+      <ol id="onb-steps" class="onb-steps" aria-label="Pasos">
+        <li data-step="input"><span>1</span> Tus datos</li>
+        <li data-step="analyzing"><span>2</span> Lectura</li>
+        <li data-step="review"><span>3</span> Revisión</li>
+        <li data-step="done"><span>4</span> Listo</li>
+      </ol>
+    </header>
+
+    <main class="onb-main">
+      <p id="onb-error" class="onb-error" role="alert" hidden></p>
+
+      <section id="onb-input" class="onb-screen" aria-labelledby="onb-input-title" hidden>
+        <div class="onb-lead">
+          <h1 id="onb-input-title" class="onb-title">Empecemos<em>por ti</em></h1>
+          <p class="onb-intro">Lee tu CV, o lo que me cuentes, y arma tu perfil de búsqueda: puestos, palabras clave y sueldo. Antes de guardar nada, tú revisas y corriges cada dato.</p>
+          <p class="onb-privacy">Tu archivo se borra al terminar el análisis. El texto extraído vive solo en <code>ui/state/onboarding</code> hasta que confirmes o canceles. Nada sale de tu computadora, salvo lo que procesa tu propio Claude Code.</p>
+        </div>
+        <form id="onb-form" class="onb-form" novalidate>
+          <fieldset class="onb-block">
+            <legend>Tu CV</legend>
+            <div id="onb-drop" class="onb-drop">
+              <input type="file" id="onb-file" class="sr-only" accept=".pdf,.docx,.txt,.md" aria-describedby="onb-file-hint">
+              <label for="onb-file" class="onb-pick">Elegir archivo</label>
+              <span id="onb-file-name" class="onb-file-name muted">Ninguno elegido</span>
+              <button type="button" id="onb-file-clear" class="ghost small" hidden>Quitar</button>
+            </div>
+            <p id="onb-file-hint" class="field-hint muted">PDF, DOCX, TXT o MD, de hasta 2 MB. También puedes arrastrarlo aquí.</p>
+            <label class="field onb-text">
+              <span class="field-label">O cuéntame qué sabes y qué buscas <span class="muted">(se puede combinar con el archivo)</span></span>
+              <textarea id="onb-text" rows="6" maxlength="20000" placeholder="Cuéntame qué sabes, qué buscas…"></textarea>
+              <span id="onb-text-count" class="field-hint muted" aria-live="off">0 / 20,000</span>
+            </label>
+          </fieldset>
+
+          <fieldset class="onb-block">
+            <legend>Para afinar la búsqueda <span class="muted">(opcional)</span></legend>
+            <div class="onb-row">
+              <label class="field">
+                <span class="field-label">Sueldo mínimo</span>
+                <span class="input-wrap"><span class="prefix">$</span><input id="onb-salary" type="text" inputmode="numeric" autocomplete="off" placeholder="45,000"><span class="suffix">MXN/mes</span></span>
+                <span id="onb-salary-err" class="field-err" hidden></span>
+              </label>
+              <label class="field">
+                <span class="field-label">Ciudad</span>
+                <span class="input-wrap"><input id="onb-city" type="text" autocomplete="address-level2" maxlength="80" placeholder="Guadalajara" class="wide"></span>
+                <span id="onb-city-err" class="field-err" hidden></span>
+              </label>
+            </div>
+            <fieldset class="toggle-group onb-remote">
+              <legend class="field-label">Modalidad que prefieres</legend>
+              <label class="toggle"><input type="radio" name="onb-remote" value="remote"><span>Remoto</span></label>
+              <label class="toggle"><input type="radio" name="onb-remote" value="hybrid"><span>Híbrido</span></label>
+              <label class="toggle"><input type="radio" name="onb-remote" value="onsite"><span>Presencial</span></label>
+              <label class="toggle"><input type="radio" name="onb-remote" value="any"><span>Cualquiera</span></label>
+            </fieldset>
+            <div class="onb-langs">
+              <p class="field-label" id="onb-langs-label">Idiomas que hablas, además del español, y tu nivel</p>
+              <ul id="onb-langs" class="onb-rows" aria-labelledby="onb-langs-label"></ul>
+              <span id="onb-langs-err" class="field-err" hidden></span>
+              <button type="button" id="onb-lang-add" class="ghost small">+ Agregar idioma</button>
+            </div>
+          </fieldset>
+
+          <div class="onb-actions">
+            <button type="submit" id="onb-analyze" class="primary">Analizar mi perfil</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="onb-analyzing" class="onb-screen onb-narrow" aria-labelledby="onb-an-title" hidden>
+        <h1 id="onb-an-title" class="onb-title">Leyendo<em>tu perfil</em></h1>
+        <div class="run-head onb-run-head">
+          <span id="onb-spinner" class="spinner" aria-hidden="true"></span>
+          <strong id="onb-an-state">Trabajando…</strong>
+        </div>
+        <p id="onb-an-now" class="onb-now" role="status" aria-live="polite"></p>
+        <p id="onb-an-cost" class="muted" hidden></p>
+        <p class="muted onb-wait">Puede tardar uno o dos minutos. Puedes dejar esta pestaña abierta.</p>
+        <details class="run-details">
+          <summary>Ver detalle</summary>
+          <ol id="onb-an-log" class="run-log"></ol>
+        </details>
+        <div id="onb-an-fail" class="onb-fail" hidden>
+          <p id="onb-an-fail-msg"></p>
+          <ul id="onb-an-fail-list" class="onb-errlist"></ul>
+        </div>
+        <div class="onb-actions">
+          <button type="button" id="onb-an-cancel" class="secondary">Cancelar</button>
+          <button type="button" id="onb-an-retry" class="primary" hidden>Reintentar</button>
+        </div>
+      </section>
+
+      <section id="onb-review" class="onb-screen" aria-labelledby="onb-rev-title" hidden>
+        <h1 id="onb-rev-title" class="onb-title">Revisa<em>tu perfil</em></h1>
+        <p class="onb-intro">Esto es lo que entendí. Corrige lo que esté mal antes de guardarlo: lo que confirmes es lo que usarán la búsqueda, la calificación y tus CV.</p>
+        <div id="onb-warnings" class="onb-warnings" hidden></div>
+        <div id="onb-flagged" class="onb-flagged" role="alert" hidden></div>
+        <div id="onb-save-errors" class="onb-fail" role="alert" hidden></div>
+        <form id="onb-rev-form" class="onb-rev" novalidate></form>
+        <div class="onb-confirm">
+          <label class="field onb-current">
+            <span class="field-label">Sueldo actual <span class="muted">(opcional, solo se guarda en tu computadora)</span></span>
+            <span class="input-wrap"><span class="prefix">$</span><input id="onb-current" type="text" inputmode="numeric" autocomplete="off" placeholder="Sin llenar"><span class="suffix">MXN/mes</span></span>
+            <span id="onb-current-err" class="field-err" hidden></span>
+          </label>
+        </div>
+        <div class="onb-actions onb-sticky">
+          <span id="onb-dirty" class="onb-dirty muted" role="status" aria-live="polite"></span>
+          <button type="button" id="onb-cancel" class="ghost">Cancelar</button>
+          <button type="button" id="onb-save" class="secondary">Guardar cambios</button>
+          <button type="button" id="onb-confirm" class="primary">Confirmar y guardar mi perfil</button>
+        </div>
+        <p id="onb-confirm-why" class="field-hint muted" role="status" aria-live="polite" hidden></p>
+      </section>
+
+      <section id="onb-done" class="onb-screen onb-narrow" aria-labelledby="onb-done-title" hidden>
+        <h1 id="onb-done-title" class="onb-title">Tu perfil<em>quedó listo</em></h1>
+        <p class="onb-intro">Guardé tu perfil en esta carpeta. Lo siguiente es buscar vacantes que encajen.</p>
+        <h2 class="onb-h2">Archivos escritos</h2>
+        <ul id="onb-written" class="onb-files"></ul>
+        <div id="onb-backups-box" hidden>
+          <h2 class="onb-h2">Copias de respaldo</h2>
+          <p class="muted">Lo que ya existía quedó guardado aquí antes de reemplazarlo.</p>
+          <ul id="onb-backups" class="onb-files"></ul>
+        </div>
+        <div class="onb-actions">
+          <button type="button" id="onb-go" class="secondary">Ir a mis vacantes</button>
+          <button type="button" id="onb-go-search" class="primary">Buscar ahora</button>
+        </div>
+      </section>
+    </main>
+  </div>
 
   <header class="top">
     <div class="top-inner">

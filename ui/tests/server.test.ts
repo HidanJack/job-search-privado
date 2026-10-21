@@ -57,6 +57,21 @@ describe("server", () => {
     expect(data.ranked.length).toBe(4);
   });
 
+  test("serves the onboarding scripts as JavaScript with the CSP headers", async () => {
+    const h = createHandler({ root: tempRoot(), spawner: fakeSpawner([], []) });
+    for (const path of ["/onboarding.js", "/onboarding-logic.js"]) {
+      const r = await get(h, path);
+      expect(r.status).toBe(200);
+      expect(r.headers.get("content-type")).toBe("text/javascript; charset=utf-8");
+      expect(r.headers.get("content-security-policy")).toContain("script-src 'self'");
+      expect((await r.text()).length).toBeGreaterThan(100);
+    }
+    const page = await (await get(h, "/")).text();
+    expect(page).toContain('src="/onboarding.js"');
+    expect(page).not.toMatch(/<script(?![^>]*\ssrc=)[^>]*>/); // no inline scripts (CSP)
+    expect(page).not.toMatch(/\sstyle=/); // no inline styles (CSP)
+  });
+
   test("serves bundled fonts with the font mime type", async () => {
     const h = createHandler({ root: tempRoot(), spawner: fakeSpawner([], []) });
     const r = await get(h, "/fonts/dm-sans-latin-400-normal.woff2");
