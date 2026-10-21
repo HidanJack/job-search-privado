@@ -27,7 +27,7 @@
 
   <header class="top">
     <div class="top-inner">
-      <p class="mark"><i aria-hidden="true"></i><span class="mark-name">Libro de vacantes</span> <span class="mark-sub">de Luis</span></p>
+      <p class="mark"><i aria-hidden="true"></i><span class="mark-name">Libro de vacantes</span> <span class="mark-sub" id="mark-sub" hidden></span></p>
       <nav class="tabs" role="tablist" aria-label="Secciones">
         <button type="button" class="tab active" data-tab="jobs" role="tab" aria-selected="true">Vacantes</button>
         <button type="button" class="tab" data-tab="tracking" role="tab" aria-selected="false">Seguimiento</button>
@@ -55,6 +55,11 @@
 
 
   <main>
+    <p id="config-banner" class="banner" hidden>
+      Primer uso: falta <code>profile_config.json</code>. Copia <code>profile_config.example.json</code> a
+      <code>profile_config.json</code> y pon tu nombre, tus años de experiencia y tus sueldos; la calificación
+      usa esos números (la guía está en el README).
+    </p>
     <p id="profile-banner" class="banner" hidden>
       Tu perfil todavía no está completo. Abre Claude Code en esta carpeta y corre <code>/setup</code>:
       sin perfil, ni la calificación ni los CV van a salir bien.

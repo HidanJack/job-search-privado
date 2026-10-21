@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "
 import { dirname } from "node:path";
 import { MODALITIES, type Modality } from "./jobs";
 import { MAX_SALARY, settingsPath } from "./market";
+import { DEFAULT_PROFILE_CONFIG, loadProfileConfig } from "./profile_config";
 
 /** Search window and view filters, shared by the Vacantes tab and the sweep. */
 export interface SearchSettings {
@@ -23,7 +24,7 @@ export const MAX_PREFILTER_SCORE = 100;
 
 export const DEFAULT_SEARCH: SearchSettings = {
   maxDays: 7,
-  minSalaryMxn: 35000,
+  minSalaryMxn: DEFAULT_PROFILE_CONFIG.salary_floor_mxn, // overridden per user by profile_config.json
   modalities: [...MODALITIES],
   hideEnglish: true,
   includeUnpublishedSalary: true,
@@ -77,7 +78,10 @@ function readFileJson(root: string): Record<string, unknown> {
 /** Reads settings.json["search"]; every invalid field falls back to its default. */
 export function loadSearchSettings(root: string): SearchSettings {
   const raw = readFileJson(root).search;
-  const out: SearchSettings = { ...DEFAULT_SEARCH, modalities: [...DEFAULT_SEARCH.modalities] };
+  const out: SearchSettings = {
+    ...DEFAULT_SEARCH, modalities: [...DEFAULT_SEARCH.modalities],
+    minSalaryMxn: loadProfileConfig(root).salary_floor_mxn,
+  };
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
   for (const [key, check] of Object.entries(VALIDATORS)) {
     const value = (raw as Record<string, unknown>)[key];

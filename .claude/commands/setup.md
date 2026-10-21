@@ -395,6 +395,15 @@ Replace all placeholder tokens in the search queries file with the user's actual
   - Priority 3: Adjacent roles they could pivot into
   - Priority 4: Broader roles (wider net)
 
+### 10. Create `profile_config.json`
+The deterministic tools (prefilter, opportunity/risk scoring, the dashboard header and the skills salary sampler) read their numbers from the gitignored `profile_config.json` at the repo root, never from code. If it does not exist, copy `profile_config.example.json` to `profile_config.json`, then set from the answers already collected (never invent values; ask for what is missing):
+- `name` - the user's name (shown in the dashboard header)
+- `candidate_years` and `years_tolerance` - verifiable professional years, and how many extra years a posting may ask before it counts as a risk
+- `current_salary_mxn` and `salary_floor_mxn` - monthly MXN, from the salary-floor answer
+- `spoken_english` - `true` only when the user speaks English comfortably
+- `prefilter.stack_points`, `prefilter.skill_keep`, `prefilter.stack_only` and `skills.selected` - the user's own stack keywords and skills (the example file holds a neutral starter set)
+Keep every other key as it is in the example. Never commit this file: it is in `.gitignore`.
+
 ---
 
 ## Step 4: Confirm & Next Steps
@@ -412,6 +421,7 @@ Present a summary:
 > - `.claude/skills/job-application-assistant/07-interview-prep.md` - STAR examples from your experience
 > - `cv/main_example.tex` - Your LaTeX CV template
 > - `.claude/skills/job-scraper/search-queries.md` - Job search queries for `/scrape`
+> - `profile_config.json` - Numbers and stack keywords for the prefilter, scoring and dashboard (never committed)
 >
 > **Privacy note:** the files above now contain your personal data and are *tracked by git*.
 > A GitHub fork of the template is always public (forks of public repos cannot be made

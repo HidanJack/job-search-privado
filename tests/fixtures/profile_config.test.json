@@ -1,0 +1,327 @@
+{
+  "name": "Test Person",
+  "candidate_years": 4,
+  "years_tolerance": 2,
+  "current_salary_mxn": 20000,
+  "salary_floor_mxn": 30000,
+  "spoken_english": false,
+  "prefilter": {
+    "skill_keep": [
+      "python",
+      "data",
+      "datos",
+      "ai",
+      "ia",
+      "ml",
+      "llm",
+      "etl",
+      "machine learning",
+      "typescript",
+      "react",
+      "node",
+      "nodejs",
+      "rust",
+      "fastapi",
+      "django",
+      "flask",
+      "automation",
+      "automatizacion",
+      "rpa"
+    ],
+    "stack_only": [
+      {
+        "words": [
+          "sap",
+          "abap"
+        ],
+        "label": "SAP"
+      },
+      {
+        "words": [
+          "murex"
+        ],
+        "label": "Murex"
+      },
+      {
+        "words": [
+          "salesforce"
+        ],
+        "label": "Salesforce"
+      },
+      {
+        "words": [
+          "servicenow"
+        ],
+        "label": "ServiceNow"
+      },
+      {
+        "words": [
+          "workday"
+        ],
+        "label": "Workday"
+      },
+      {
+        "words": [
+          "netsuite"
+        ],
+        "label": "NetSuite"
+      },
+      {
+        "words": [
+          "concur"
+        ],
+        "label": "Concur"
+      },
+      {
+        "words": [
+          "peoplesoft",
+          "oracle ebs",
+          "oracle fusion"
+        ],
+        "label": "Oracle ERP"
+      },
+      {
+        "words": [
+          "dynamics 365",
+          "dynamics crm"
+        ],
+        "label": "Dynamics"
+      },
+      {
+        "words": [
+          "mainframe",
+          "cobol"
+        ],
+        "label": "Mainframe/COBOL"
+      },
+      {
+        "words": [
+          "java"
+        ],
+        "label": "Java"
+      },
+      {
+        "words": [
+          "net",
+          "dotnet",
+          "c#",
+          "asp net",
+          "csharp"
+        ],
+        "label": ".NET"
+      },
+      {
+        "words": [
+          "php",
+          "laravel"
+        ],
+        "label": "PHP"
+      },
+      {
+        "words": [
+          "ruby",
+          "rails"
+        ],
+        "label": "Ruby"
+      },
+      {
+        "words": [
+          "c\\+\\+",
+          "embedded",
+          "firmware"
+        ],
+        "label": "C++/embebido"
+      }
+    ],
+    "stack_points": [
+      {
+        "words": [
+          "python"
+        ],
+        "points": 16
+      },
+      {
+        "words": [
+          "data engineer",
+          "ingeniero de datos",
+          "ingeniera de datos",
+          "etl",
+          "data pipeline",
+          "dwh",
+          "big data",
+          "spark",
+          "databricks",
+          "snowflake",
+          "airflow",
+          "dbt",
+          "kafka"
+        ],
+        "points": 10
+      },
+      {
+        "words": [
+          "ai",
+          "ia",
+          "ml",
+          "llm",
+          "rag",
+          "agents",
+          "agentic",
+          "claude",
+          "machine learning",
+          "inteligencia artificial",
+          "genai",
+          "nlp",
+          "copilot"
+        ],
+        "points": 10
+      },
+      {
+        "words": [
+          "backend",
+          "back end",
+          "back-end",
+          "api",
+          "microservices",
+          "microservicios"
+        ],
+        "points": 6
+      },
+      {
+        "words": [
+          "fastapi",
+          "django",
+          "flask",
+          "pandas",
+          "polars",
+          "ocr",
+          "pytest"
+        ],
+        "points": 6
+      },
+      {
+        "words": [
+          "kubernetes",
+          "k8s",
+          "docker",
+          "aws",
+          "sql",
+          "postgres",
+          "postgresql",
+          "terraform"
+        ],
+        "points": 4
+      },
+      {
+        "words": [
+          "typescript",
+          "react",
+          "node",
+          "nodejs"
+        ],
+        "points": 4
+      },
+      {
+        "words": [
+          "full stack",
+          "fullstack",
+          "full-stack"
+        ],
+        "points": 14
+      },
+      {
+        "words": [
+          "rust"
+        ],
+        "points": 5
+      },
+      {
+        "words": [
+          "rpa",
+          "automation",
+          "automatizacion",
+          "automate"
+        ],
+        "points": 4
+      },
+      {
+        "words": [
+          "data analyst",
+          "analista de datos",
+          "bi analyst",
+          "business intelligence",
+          "data scientist",
+          "analytics"
+        ],
+        "points": 2
+      },
+      {
+        "words": [
+          "devops",
+          "sre",
+          "cloud",
+          "platform",
+          "azure",
+          "qa",
+          "sdet"
+        ],
+        "points": 3
+      }
+    ],
+    "stack_cap": 28,
+    "off_stack": {
+      "words": [
+        "golang",
+        "go",
+        "scala",
+        "elixir",
+        "game",
+        "unity",
+        "trading",
+        "low latency",
+        "low-latency",
+        "pega",
+        "hyland",
+        "looker",
+        "powercampus",
+        "salesforce"
+      ],
+      "points": -8
+    },
+    "spanish_title_bonus": 6
+  },
+  "skills": {
+    "selected": [
+      "rust",
+      "rust_python",
+      "python",
+      "kubernetes",
+      "ocr",
+      "llm",
+      "rag",
+      "ai_engineer",
+      "data_engineer",
+      "etl",
+      "fastapi",
+      "react_native",
+      "fintech",
+      "cfdi",
+      "contable",
+      "astro",
+      "landing_page",
+      "qa_automation",
+      "neo4j"
+    ],
+    "combo_partners": [
+      "fintech",
+      "cfdi",
+      "contable",
+      "ocr",
+      "llm",
+      "rag",
+      "rust",
+      "kubernetes"
+    ],
+    "primary": "python"
+  }
+}

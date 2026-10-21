@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { loadProfileConfig, type ProfileConfig } from "./profile_config";
 
 // Salary sampler for the "Cuánto pagan tus habilidades" section. It runs the
 // portal CLIs (never Claude), keeps only postings relevant to the skill (see
@@ -50,10 +51,31 @@ export const SKILLS: SkillDef[] = [
   { id: "neo4j", label: "Neo4j", queries: ["neo4j"], match: [["neo4j"], ["graph database"], ["\\bcypher\\b"]] },
 ];
 
-/** "Tu combinación": Python AND at least one of these. */
-export const COMBO_PARTNERS = ["fintech", "cfdi", "contable", "ocr", "llm", "rag", "rust", "kubernetes"];
+/** "Tu combinación": the primary skill AND at least one partner (profile_config.json "skills"). */
+export const COMBO_PARTNERS = ["ocr", "llm", "rag", "rust", "kubernetes"]; // used when no selection is given
 export const COMBO_ID = "combo";
-export const COMBO_LABEL = "Python + otra de tus especialidades";
+export const comboLabel = (primaryLabel: string) => `${primaryLabel} + otra de tus especialidades`;
+export const COMBO_LABEL = comboLabel("Python");
+
+export interface SkillSelection {
+  skills: SkillDef[];
+  comboPartners: string[];
+  primary: string;
+}
+
+/** The user's sampled skills, in catalog order; ids that are not in the catalog are dropped. */
+export function skillSelection(cfg: ProfileConfig): SkillSelection {
+  const wanted = new Set(cfg.skills.selected);
+  let skills = SKILLS.filter((s) => wanted.has(s.id));
+  if (!skills.some((s) => s.id === cfg.skills.primary)) {
+    const primary = SKILLS.find((s) => s.id === cfg.skills.primary);
+    if (primary) skills = [...skills, primary];
+  }
+  if (skills.length === 0) skills = [...SKILLS];
+  const ids = new Set(skills.map((s) => s.id));
+  const primary = ids.has(cfg.skills.primary) ? cfg.skills.primary : skills[0].id;
+  return { skills, comboPartners: cfg.skills.combo_partners.filter((id) => ids.has(id) && id !== primary), primary };
+}
 
 const compiled = new Map<string, RegExp[][]>();
 function matchers(def: SkillDef): RegExp[][] {
@@ -376,17 +398,19 @@ interface Prepared {
 export function aggregate(
   jobs: RawJob[],
   fx: Record<string, number>,
-  meta: { generated_at: string; portals: string[]; fx_source?: string },
+  meta: { generated_at: string; portals: string[]; fx_source?: string; selection?: SkillSelection },
 ): SkillAggregate {
+  const selection: SkillSelection = meta.selection ?? { skills: SKILLS, comboPartners: COMBO_PARTNERS, primary: "python" };
+  const catalog = selection.skills;
   const discards: Discards = {
     no_salary: 0, unknown_currency: 0, no_period: 0, noise_low: 0, noise_high: 0, unclassified: 0, irrelevant: 0,
   };
-  const defs = new Map(SKILLS.map((s) => [s.id, s]));
+  const defs = new Map(catalog.map((s) => [s.id, s]));
   const prepared: (Prepared & { skills: Set<string> })[] = [];
   let used = 0;
   let relevantJobs = 0;
   for (const job of jobs) {
-    const skills = new Set(SKILLS.filter((s) => isRelevant(job, s)).map((s) => s.id));
+    const skills = new Set(catalog.filter((s) => isRelevant(job, s)).map((s) => s.id));
     if (skills.size === 0) {
       discards.irrelevant++;
       continue;
@@ -418,11 +442,13 @@ export function aggregate(
     return { id, label, relevant: members.length, groups };
   };
 
-  const skills = SKILLS.map((s) => rowFor(s.id, s.label, (p) => p.skills.has(s.id)));
+  const skills = catalog.map((s) => rowFor(s.id, s.label, (p) => p.skills.has(s.id)));
+  const partners = selection.comboPartners.filter((id) => defs.has(id));
+  const primaryLabel = defs.get(selection.primary)?.label ?? selection.primary;
   const combo = {
-    ...rowFor(COMBO_ID, COMBO_LABEL, (p) => p.skills.has("python") && COMBO_PARTNERS.some((id) => p.skills.has(id))),
-    requires: "python",
-    partners: COMBO_PARTNERS.map((id) => defs.get(id)!.label),
+    ...rowFor(COMBO_ID, comboLabel(primaryLabel), (p) => p.skills.has(selection.primary) && partners.some((id) => p.skills.has(id))),
+    requires: selection.primary,
+    partners: partners.map((id) => defs.get(id)!.label),
   };
   return {
     version: 1,
@@ -517,7 +543,7 @@ function reliableScopes(row: SkillRow): ScopeStat[] {
 export function buildSummary(agg: SkillAggregate): Summary {
   const ranked: RankedRow[] = [];
   const fewData: FewDataRow[] = [];
-  const rows: SkillRow[] = [{ ...agg.combo, label: COMBO_DISPLAY_LABEL }, ...agg.skills];
+  const rows: SkillRow[] = [{ ...agg.combo, label: agg.combo.label || COMBO_DISPLAY_LABEL }, ...agg.skills];
   for (const row of rows) {
     const domain = DOMAIN_SKILL_IDS.includes(row.id);
     const scopes = reliableScopes(row);
@@ -654,7 +680,8 @@ export async function sampleAll(opts: SampleOptions): Promise<SampleResult> {
   const sleep = opts.sleep ?? ((ms: number) => Bun.sleep(ms));
   const now = opts.now ?? (() => new Date());
   const bun = opts.bun ?? process.execPath;
-  const skills = opts.skills ?? SKILLS;
+  const selection = opts.skills ? { skills: opts.skills, comboPartners: COMBO_PARTNERS, primary: "python" } : skillSelection(loadProfileConfig(opts.root));
+  const skills = selection.skills;
   const portals = opts.portals ?? PORTALS;
   const pause = opts.pauseMs ?? PAUSE_MS;
   const log = opts.log ?? (() => {});
@@ -696,7 +723,7 @@ export async function sampleAll(opts: SampleOptions): Promise<SampleResult> {
   const generatedAt = now().toISOString();
   const { fx, source } = readFx(opts.root);
   const list = [...jobs.values()];
-  const agg = aggregate(list, fx, { generated_at: generatedAt, portals: portals.map((p) => p.portal), fx_source: source });
+  const agg = aggregate(list, fx, { generated_at: generatedAt, portals: portals.map((p) => p.portal), fx_source: source, selection });
   const date = generatedAt.slice(0, 10);
   const rawPath = join(rawDir(opts.root), `raw-${date}.json`);
   writeAtomic(rawPath, { fetched_at: generatedAt, fx, calls, jobs: list });

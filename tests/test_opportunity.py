@@ -7,6 +7,9 @@ from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _hermetic  # noqa: F401,E402  (pins profile_config to the test fixture)
+
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "tools"))
 import opportunity as opp  # noqa: E402
@@ -41,10 +44,10 @@ class Opportunity(unittest.TestCase):
         self.assertLess(calc(modality="onsite")["opportunity"], base)
 
     def test_salary_component_anchors(self):
-        self.assertEqual(opp.salary_component(21000, 35000, 21000), 0)
-        self.assertEqual(opp.salary_component(35000, 35000, 21000), 50)
-        self.assertEqual(opp.salary_component(56000, 35000, 21000), 100)
-        self.assertEqual(opp.salary_component(None, 35000, 21000), 40)
+        self.assertEqual(opp.salary_component(20000, 30000, 20000), 0)
+        self.assertEqual(opp.salary_component(30000, 30000, 20000), 50)
+        self.assertEqual(opp.salary_component(48000, 30000, 20000), 100)
+        self.assertEqual(opp.salary_component(None, 30000, 20000), 40)
 
     def test_freshness_decays_after_four_days(self):
         f = opp.freshness_component
@@ -153,6 +156,39 @@ class Recompute(unittest.TestCase):
             seen = json.loads(state.read_text())["seen"]
             self.assertIn("final_priority", seen["a"])
             self.assertNotIn("final_priority", seen["b"])
+
+
+class ProfileDriven(unittest.TestCase):
+    def test_years_ask_is_judged_against_the_configured_experience(self):
+        from unittest import mock
+
+        asks = ranked(gaps=["Piden 8 años de experiencia"])
+        with mock.patch.object(opp, "CANDIDATE_YEARS", 4):
+            strict = opp.compute(asks, TODAY)["risk"]
+        with mock.patch.object(opp, "CANDIDATE_YEARS", 10):
+            senior = opp.compute(asks, TODAY)["risk"]
+        self.assertGreater(strict, senior)
+        self.assertEqual(senior, 0)
+
+    def test_years_message_uses_configured_years(self):
+        from unittest import mock
+
+        with mock.patch.object(opp, "CANDIDATE_YEARS", 5):
+            items = opp.risk_items(ranked(gaps=["Piden 12 años"]), TODAY, 20000)
+        self.assertTrue(any("tienes ~5 verificables" in label for _, label in items))
+
+    def test_spoken_english_ok_removes_english_penalty(self):
+        from unittest import mock
+
+        eng = ranked(posting_language="en")
+        base = opp.compute(eng, TODAY)
+        with mock.patch.object(opp, "SPOKEN_ENGLISH", True):
+            free = opp.compute(eng, TODAY)
+        self.assertLess(free["risk"], base["risk"])
+        self.assertGreater(free["opportunity"], base["opportunity"])
+
+    def test_defaults_come_from_profile_config(self):
+        self.assertEqual(opp.CANDIDATE_YEARS, opp.profile_config.load()["candidate_years"])
 
 
 if __name__ == "__main__":

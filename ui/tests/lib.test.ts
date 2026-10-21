@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ageInDays, filterJobs, inferRoleFamily, loadJobs, normalizeJob, parseFilters, skipJob, MODALITIES } from "../lib/jobs";
-import { parseProfile } from "../lib/profile";
+import { loadProfile, parseProfile } from "../lib/profile";
 import { costNote, APPLY_TOOLS, BASE_TOOLS, INDEED_MCP_TOOLS, SEARCH_TOOLS, buildApplyPrompt, buildArgv, describeStreamLine, parseUiResult, resolveModel } from "../lib/runner";
 import { isAllowedHost, isAllowedOrigin, safeResolve, sanitizeFeedback, validateJobUrl } from "../lib/security";
 import { markApplied, parseCsv, readTracker, trackerStats } from "../lib/tracker";
@@ -65,12 +65,24 @@ describe("age and salary filters", () => {
 });
 
 describe("profile", () => {
+  test("loadProfile exposes the name from profile_config.json and whether it is configured", () => {
+    const dir = mkdtempSync(join(tmpdir(), "profile-cfg-"));
+    try {
+      writeFileSync(join(dir, "CLAUDE.md"), "# Alex\n- **Freshness window:** 4 days\n");
+      expect(loadProfile(dir)).toMatchObject({ ready: true, name: "", configured: false });
+      writeFileSync(join(dir, "profile_config.json"), JSON.stringify({ name: "Alex Example" }));
+      expect(loadProfile(dir)).toMatchObject({ name: "Alex Example", configured: true });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("placeholders mean not ready and fall back to defaults", () => {
     const p = parseProfile("# for [YOUR_NAME]\n- **Freshness window:** 4 days\n- **Salary floor:** [YOUR_SALARY_FLOOR]");
-    expect(p).toEqual({ ready: false, freshnessDays: 4, salaryFloorMxn: 40000 });
+    expect(p).toEqual({ ready: false, freshnessDays: 4, salaryFloorMxn: 30000 });
   });
   test("reads freshness and floor", () => {
-    const p = parseProfile("# Luis\n- **Freshness window:** 7 days\n- **Salary floor:** 45,000 MXN/month");
+    const p = parseProfile("# Alex\n- **Freshness window:** 7 days\n- **Salary floor:** 45,000 MXN/month");
     expect(p).toEqual({ ready: true, freshnessDays: 7, salaryFloorMxn: 45000 });
   });
 });

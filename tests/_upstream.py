@@ -13,6 +13,7 @@ from pathlib import Path
 UPSTREAM = "MadsLorentzen/ai-job-search"
 
 REPO = Path(__file__).resolve().parent.parent
+NOT_UPSTREAM_MARKER = REPO / ".not-upstream"
 
 _HTTPS_PREFIX = "https://github.com/"
 _SSH_PREFIX = "git@github.com:"
@@ -42,9 +43,12 @@ def is_upstream_checkout() -> bool:
 
     ``GITHUB_REPOSITORY`` decides when set (CI). Otherwise the ``origin``
     remote is inspected. When nothing can be determined (git missing,
-    timeout, non-zero exit), upstream is assumed: the guards then run
+    timeout, non-zero exit), upstream is assumed (unless a ``.not-upstream``
+    marker file says this is a derived edition): the guards then run
     exactly as they do today.
     """
+    if NOT_UPSTREAM_MARKER.exists():  # derived edition (tools/make_clean_edition.py writes it)
+        return False
     env_repo = os.environ.get("GITHUB_REPOSITORY")
     if env_repo:
         return env_repo == UPSTREAM

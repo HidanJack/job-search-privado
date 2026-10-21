@@ -175,19 +175,19 @@ class TestLatamLegalSuffixes(unittest.TestCase):
 
     def test_common_forms_strip_to_the_bare_name(self):
         for name in (
-            "Soluciones Analíticas S.A. de C.V.",
-            "Soluciones Analíticas SA de CV",
-            "Soluciones Analíticas S.A.P.I. de C.V.",
-            "Soluciones Analíticas S.A.B. de C.V.",
-            "Soluciones Analíticas S. de R.L. de C.V.",
-            "Soluciones Analíticas S. de R.L.",
-            "Soluciones Analíticas S.C.",
-            "Soluciones Analíticas S.A.S.",
-            "Soluciones Analíticas Ltda.",
-            "Soluciones Analíticas México",
+            "Servicios Ejemplo S.A. de C.V.",
+            "Servicios Ejemplo SA de CV",
+            "Servicios Ejemplo S.A.P.I. de C.V.",
+            "Servicios Ejemplo S.A.B. de C.V.",
+            "Servicios Ejemplo S. de R.L. de C.V.",
+            "Servicios Ejemplo S. de R.L.",
+            "Servicios Ejemplo S.C.",
+            "Servicios Ejemplo S.A.S.",
+            "Servicios Ejemplo Ltda.",
+            "Servicios Ejemplo México",
         ):
             with self.subTest(name=name):
-                self.assertEqual(normalize(name), normalize("Soluciones Analíticas"))
+                self.assertEqual(normalize(name), normalize("Servicios Ejemplo"))
 
     def test_undotted_letters_inside_a_name_survive(self):
         # "sa"/"sc" without the dots are letters of a word, never a legal form.
@@ -195,7 +195,7 @@ class TestLatamLegalSuffixes(unittest.TestCase):
         self.assertEqual(normalize("Oscorp SC Labs"), "oscorpsclabs")
 
     def test_suffix_variant_still_matches(self):
-        self.assertEqual(match_score("Grupo Gabssa", "Grupo Gabssa S.A. de C.V."), 100)
+        self.assertEqual(match_score("Grupo Ejemplo", "Grupo Ejemplo S.A. de C.V."), 100)
 
 
 class TestMatchScoreSubstring(unittest.TestCase):

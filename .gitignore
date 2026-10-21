@@ -127,3 +127,9 @@ company_research/*.json
 
 # gentle-ai skill-registry cache created by headless Claude runs
 .atl/
+
+# Per-user profile numbers/keywords (see profile_config.example.json)
+profile_config.json
+
+# Leak-scanner patterns for the clean edition (contain the very strings being protected)
+clean_edition_patterns.txt

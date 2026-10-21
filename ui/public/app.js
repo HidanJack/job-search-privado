@@ -360,6 +360,10 @@ function renderJobs(data) {
   state.results = data.results || {};
   state.jobs = data.ranked.concat(data.unranked);
   $("#profile-banner").hidden = data.profile.ready;
+  $("#config-banner").hidden = !!data.profile.configured;
+  const markSub = $("#mark-sub");
+  markSub.textContent = data.profile.name ? `de ${data.profile.name}` : "";
+  markSub.hidden = !data.profile.name;
   const box = $("#jobs");
   const first = !state.painted;
   box.classList.toggle("is-first", first);
@@ -765,7 +769,7 @@ async function openReview(url, result, title) {
   const discard = el("button", { type: "button", class: "ghost danger", text: "Descartar" });
   const feedbackBox = el("div", {});
   feedbackBox.hidden = true;
-  const textarea = el("textarea", { placeholder: "¿Qué quieres que cambie? Ej.: resalta más Kubernetes, quita el párrafo de Knoto…", maxlength: "2000" });
+  const textarea = el("textarea", { placeholder: "¿Qué quieres que cambie? Ej.: resalta más Kubernetes, quita el párrafo del proyecto X…", maxlength: "2000" });
   const sendFeedback = el("button", { type: "button", class: "primary", text: "Regenerar con estos cambios" });
   feedbackBox.append(textarea, el("div", { class: "actions" }, sendFeedback));
   const status = el("p", { class: "status-line" });
@@ -1206,7 +1210,7 @@ function renderSkillsTable(data) {
     for (const g of Object.keys(SK_WHERE)) {
       const s = row.groups[g];
       const m = (v) => (v === null ? "—" : moneyFull(v));
-      t.append(el("tr", {}, el("td", { text: row.id === "combo" ? "Python + otra de tus especialidades" : row.label }), el("td", { text: SK_WHERE[g] }), el("td", { text: String(s.n) }),
+      t.append(el("tr", {}, el("td", { text: row.label }), el("td", { text: SK_WHERE[g] }), el("td", { text: String(s.n) }),
         ...(s.insufficient ? [el("td", { colspan: "3", class: "muted", text: s.n ? "Muy pocas vacantes para dar un rango" : "Sin datos" })] : [m(s.p25), m(s.median), m(s.p75)].map((v) => el("td", { text: v })))));
     }
   }

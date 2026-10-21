@@ -16,7 +16,7 @@ function tempRoot(): string {
   cpSync(join(FIXTURES, "seen_jobs.json"), join(root, "job_scraper", "seen_jobs.json"));
   cpSync(join(FIXTURES, "tracker.csv"), join(root, "job_search_tracker.csv"));
   writeFileSync(join(root, "cv", "main_acme.pdf"), "%PDF-1.4 test");
-  writeFileSync(join(root, "CLAUDE.md"), "# Luis\n- **Freshness window:** 4 days\n");
+  writeFileSync(join(root, "CLAUDE.md"), "# Alex\n- **Freshness window:** 4 days\n");
   return root;
 }
 

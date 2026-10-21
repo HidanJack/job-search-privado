@@ -28,7 +28,7 @@ describe("market reference data", () => {
   });
   test("contains no personal data", () => {
     const text = readFileSync(join(import.meta.dir, "..", "data", "market_salaries.json"), "utf8");
-    expect(text).not.toMatch(/currentSalary|targetSalary|luis/i);
+    expect(text).not.toMatch(/currentSalary|targetSalary|alex/i);
   });
   test("rejects malformed entries", () => {
     const bad = (patch: Record<string, unknown>) => {
@@ -62,8 +62,8 @@ describe("readings", () => {
     expect(r[0]).toContain("3 de tus 3");
   });
   test("salary at the average", () => {
-    const r = computeReadings(market, jobs, { currentSalary: 21000, targetSalary: null });
-    expect(r[0]).toBe("Tu sueldo actual ($21,000) está en el promedio de Indeed MX para Python en México ($20,173).");
+    const r = computeReadings(market, jobs, { currentSalary: 20000, targetSalary: null });
+    expect(r[0]).toBe("Tu sueldo actual ($20,000) está en el promedio de Indeed MX para Python en México ($20,173).");
   });
   test("target above the range top, with jobs meeting it", () => {
     const r = computeReadings(market, jobs, { currentSalary: 15000, targetSalary: 50000 });

@@ -5,13 +5,14 @@ import { join } from "node:path";
 import { createHandler } from "../server";
 import type { Spawner } from "../lib/runner";
 import {
-  DEFAULT_FX, PORTALS, SKILLS, addJob, aggregate, aggregatePath, buildSummary, classifyGroup, groupStats, isRelevant, isStale,
+  DEFAULT_FX, PORTALS, SKILLS, skillSelection, addJob, aggregate, aggregatePath, buildSummary, classifyGroup, groupStats, isRelevant, isStale,
   loadAggregate, monthlyMxn, parseSalaryString, percentile, rawDir, readFx, sampleAll, toRawJob, type CliSpawner, type RawJob,
 } from "../lib/skills";
 
 const BASE = "http://127.0.0.1:8787";
 const ORIGIN = { Origin: BASE, Host: "127.0.0.1:8787", "Content-Type": "application/json" };
 const tempRoot = () => mkdtempSync(join(tmpdir(), "job-ui-skills-"));
+import { DEFAULT_PROFILE_CONFIG } from "../lib/profile_config";
 const def = (id: string) => SKILLS.find((s) => s.id === id)!;
 const variant = { name: "t", args: [], openToMx: false, paged: true };
 
@@ -220,6 +221,32 @@ describe("aggregate", () => {
     expect(sum.fewData.find((f) => f.id === "cfdi")).toBeTruthy();
   });
 
+  test("selection from profile_config: sampled skills, combo partners and primary skill", () => {
+    const sel = skillSelection({
+      name: "x", current_salary_mxn: 1, salary_floor_mxn: 1,
+      skills: { selected: ["rust", "kubernetes", "nope"], combo_partners: ["kubernetes", "ghost"], primary: "rust" },
+    });
+    expect(sel.skills.map((x) => x.id)).toEqual(["rust", "kubernetes"]);
+    expect(sel.comboPartners).toEqual(["kubernetes"]);
+    expect(sel.primary).toBe("rust");
+    const jobs = [
+      ...many(8, { title: "Rust Kubernetes engineer", location: "Remote (anywhere)" }),
+      ...many(5, { title: "Python Developer", location: "Remote (anywhere)" }),
+    ];
+    const agg = aggregate(jobs, DEFAULT_FX, { ...meta, selection: sel });
+    expect(agg.skills.map((r) => r.id)).toEqual(["rust", "kubernetes"]);
+    expect(agg.combo.requires).toBe("rust");
+    expect(agg.combo.label).toBe("Rust + otra de tus especialidades");
+    expect(agg.combo.relevant).toBe(8);
+    expect(agg.combo.partners).toEqual(["Kubernetes"]);
+  });
+
+  test("the default selection keeps python as the primary skill", () => {
+    const sel = skillSelection(DEFAULT_PROFILE_CONFIG);
+    expect(sel.primary).toBe("python");
+    expect(sel.skills.some((x) => x.id === "python")).toBe(true);
+  });
+
   test("summary names the combination plainly and lead omits a scope without data", () => {
     const jobs = [
       ...many(8, { title: "Python OCR Dev", location: "Chile" }),
@@ -348,7 +375,7 @@ describe("POST /api/market/refresh", () => {
     release();
     for (let i = 0; i < 400 && h.runs.busy(); i++) await Bun.sleep(5);
     expect(h.runs.current?.status).toBe("done");
-    expect(calls.length).toBeGreaterThan(50);
+    expect(calls.length).toBeGreaterThan(30);
     const data = await (await h.handle(new Request(BASE + "/api/skills", { headers: { Host: "127.0.0.1:8787" } }))).json();
     expect(data.aggregate.version).toBe(1);
     expect(typeof data.summary.ranked.length).toBe("number");

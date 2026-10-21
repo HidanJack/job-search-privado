@@ -20,7 +20,7 @@ function root(search?: Record<string, unknown>, seen: Record<string, unknown> = 
   const doc = JSON.parse(readFileSync(join(dir, "job_scraper", "seen_jobs.json"), "utf8"));
   Object.assign(doc.seen, seen);
   writeFileSync(join(dir, "job_scraper", "seen_jobs.json"), JSON.stringify(doc));
-  writeFileSync(join(dir, "CLAUDE.md"), "# Luis\n- **Freshness window:** 4 days\n- **Salary floor:** 40000 MXN/month\n");
+  writeFileSync(join(dir, "CLAUDE.md"), "# Alex\n- **Freshness window:** 4 days\n- **Salary floor:** 45000 MXN/month\n");
   if (search) writeFileSync(join(dir, "ui", "state", "settings.json"), JSON.stringify({ search }));
   return dir;
 }
@@ -167,13 +167,13 @@ describe("API", () => {
   });
 
   test("search settings override CLAUDE.md for the window and salary floor in the profile", async () => {
-    const h = createHandler({ root: root({ maxDays: 7, minSalaryMxn: 35000 }) });
+    const h = createHandler({ root: root({ maxDays: 7, minSalaryMxn: 36000 }) });
     const data = await (await get(h, "/api/jobs")).json();
     expect(data.profile.freshnessDays).toBe(7);
-    expect(data.profile.salaryFloorMxn).toBe(35000);
+    expect(data.profile.salaryFloorMxn).toBe(36000);
   });
 
-  test("defaults (no saved settings) still beat CLAUDE.md's 4 days / 40000", async () => {
+  test("defaults (no saved settings) still beat CLAUDE.md's 4 days / the default floor", async () => {
     const data = await (await get(createHandler({ root: root() }), "/api/jobs")).json();
     expect(data.profile.freshnessDays).toBe(DEFAULT_SEARCH.maxDays);
     expect(data.profile.salaryFloorMxn).toBe(DEFAULT_SEARCH.minSalaryMxn);

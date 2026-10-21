@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Learned job scorer: free (no LLM, no API) and it improves as Luis's data grows.
+"""Learned job scorer: free (no LLM, no API) and it improves as your data grows.
 
 The handcrafted prefilter (`prefilter.score`) is a title-only keyword heuristic.
 This module learns, from the jobs /rank already judged, which words predict a

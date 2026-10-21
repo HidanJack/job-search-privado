@@ -10,11 +10,12 @@ FORMULAS (all weights live in OPPORTUNITY_WEIGHTS / RISK_POINTS below)
 
   Oportunidad (0-100) = weighted mean of six 0-100 components:
     fit        rank_score (the /rank fit score)
-    salary     0 at/below your current pay (21k), 50 at your floor (35k),
-               100 at 1.6x the floor; unknown salary = 40 (neutral-low)
+    salary     0 at/below your current pay, 50 at your floor, both from
+               profile_config.json; 100 at 1.6x the floor; unknown = 40 (neutral-low)
     freshness  100 -> 80 over the first 4 days, then decays to 20 at 14 days
                and 0 at 30 (applying early matters); unknown age = 50
     language   Spanish posting 100, mixed 70, English 20, unknown 50
+               (all 100 when profile_config.json says spoken_english is true)
     modality   remote 100, hybrid 70, onsite 40, unknown 60
     source     portal quality; averaged with an applicants score when the
                entry stores `applicants` (fewer = better)
@@ -22,16 +23,15 @@ FORMULAS (all weights live in OPPORTUNITY_WEIGHTS / RISK_POINTS below)
   Riesgo (0-100) = sum of additive points, capped at 100:
     spoken English  English posting (assumed spoken English) or a stated
                     spoken-English gap; more when C1/C2/fluent is asked
-    gaps            years required above your verifiable 4 plus a 2-year
-                    tolerance (you have programmed ~15 years, so asks up to 6
-                    cost nothing), each non-language gap from the fit
-                    analysis, "senior" in the title. A degree/licenciatura gap
-                    is never a real risk (your licenciatura is unfinished but
-                    you pass those screens): it adds a token 2 points, once
-    friction        location FLAG/FAIL (US/EU hours do not add risk: the
-                    candidate works night shifts; CST is his own timezone)
+    gaps            years required above your verifiable years plus a
+                    tolerance (both from profile_config.json), each
+                    non-language gap from the fit analysis, "senior" in the
+                    title. A degree/licenciatura gap is never a real risk
+                    (it is a minor gap in /rank, never a knockout): it adds a
+                    token 2 points, once
+    friction        location FLAG/FAIL (timezone differences add no risk)
     ghost job       very old, reposted, no salary and vague analysis
-    salary          unknown salary, or pay at/below your current 21k, or
+    salary          unknown salary, or pay at/below your current pay, or
                     unpaid/commission-only wording
 
   Final priority = round(Oportunidad * (1 - RISK_DISCOUNT * Riesgo / 100)):
@@ -46,9 +46,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import prefilter  # noqa: E402  (settings loader and paths shared with the prefilter)
+import profile_config  # noqa: E402  (per-user numbers, gitignored profile_config.json)
 
-CANDIDATE_YEARS = 4          # verifiable professional years (CVs state these)
-YEARS_TOLERANCE = 2          # ~15 years of hands-on programming: asks up to 6 are realistic
+_PROFILE = profile_config.load()
+CANDIDATE_YEARS = _PROFILE["candidate_years"]    # verifiable professional years (CVs state these)
+YEARS_TOLERANCE = _PROFILE["years_tolerance"]    # asks up to CANDIDATE_YEARS + tolerance cost no risk
+SPOKEN_ENGLISH = _PROFILE["spoken_english"]      # True: English postings are not a handicap
 
 OPPORTUNITY_WEIGHTS = {
     "fit": 0.40, "salary": 0.20, "freshness": 0.15, "language": 0.10, "modality": 0.08, "source": 0.07,
@@ -152,6 +155,8 @@ def source_component(entry: dict) -> float:
 
 def opportunity_components(entry: dict, today: date, floor: int, current: int) -> dict:
     lang = {"es": 100, "mixed": 70, "en": 20}.get(entry.get("posting_language"), 50)
+    if SPOKEN_ENGLISH:
+        lang = 100 if entry.get("posting_language") in ("es", "mixed", "en") else 50
     modality = {"remote": 100, "hybrid": 70, "onsite": 40}.get(entry.get("modality"), 60)
     return {
         "fit": float(_num(entry.get("rank_score")) or 0),
@@ -195,7 +200,7 @@ def risk_items(entry: dict, today: date, current: int) -> list[tuple[int, str]]:
     blob = " ".join(texts)
     gaps = [str(g) for g in entry.get("gaps") or []] if isinstance(entry.get("gaps"), list) else []
 
-    english_gap = entry.get("posting_language") == "en" or any(ENGLISH_GAP.search(g) for g in gaps)
+    english_gap = not SPOKEN_ENGLISH and (entry.get("posting_language") == "en" or any(ENGLISH_GAP.search(g) for g in gaps))
     if english_gap:
         advanced = ENGLISH_ADVANCED.search(" ".join(g for g in gaps if ENGLISH_GAP.search(g)) + " " + str(entry.get("language_note") or ""))
         pts = p["english_posting"] if entry.get("posting_language") == "en" else p["english_stated"]
@@ -214,7 +219,7 @@ def risk_items(entry: dict, today: date, current: int) -> list[tuple[int, str]]:
     limit = CANDIDATE_YEARS + YEARS_TOLERANCE
     years_risk = top > limit
     if years_risk:
-        items.append((min(p["years_max"], int(round((top - limit) * p["years_each"]))), f"piden {top}+ años y tienes ~4 verificables"))
+        items.append((min(p["years_max"], int(round((top - limit) * p["years_each"]))), f"piden {top}+ años y tienes ~{CANDIDATE_YEARS} verificables"))
     degree_gaps = [g for g in gaps if DEGREE.search(g) and not ENGLISH_GAP.search(g)]
     if degree_gaps:
         items.append((p["degree_gap"], "piden título o licenciatura"))

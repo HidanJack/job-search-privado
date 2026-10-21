@@ -37,6 +37,12 @@ def _completed(stdout="", returncode=0):
 
 
 class UpstreamCheckoutTests(unittest.TestCase):
+    def setUp(self):
+        # A derived edition ships a `.not-upstream` marker; these tests exercise the other branches.
+        patcher = mock.patch.object(_upstream, "NOT_UPSTREAM_MARKER", _upstream.REPO / ".marker-never-present")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_env_says_upstream(self):
         with mock.patch.dict(os.environ, {"GITHUB_REPOSITORY": UPSTREAM}):
             with mock.patch.object(_upstream.subprocess, "run") as run:

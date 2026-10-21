@@ -1,0 +1,33 @@
+{
+  "name": "",
+  "candidate_years": 3,
+  "years_tolerance": 2,
+  "current_salary_mxn": 20000,
+  "salary_floor_mxn": 30000,
+  "spoken_english": false,
+  "prefilter": {
+    "skill_keep": ["python", "data", "ai", "ml", "llm", "typescript", "react", "node", "automation"],
+    "stack_only": [
+      { "words": ["sap", "abap"], "label": "SAP" },
+      { "words": ["salesforce"], "label": "Salesforce" },
+      { "words": ["mainframe", "cobol"], "label": "Mainframe/COBOL" }
+    ],
+    "stack_points": [
+      { "words": ["python"], "points": 12 },
+      { "words": ["backend", "back end", "back-end", "api"], "points": 6 },
+      { "words": ["full stack", "fullstack", "full-stack"], "points": 10 },
+      { "words": ["typescript", "react", "node", "nodejs"], "points": 6 },
+      { "words": ["docker", "kubernetes", "aws", "sql", "postgres"], "points": 4 },
+      { "words": ["ai", "ml", "llm", "machine learning", "genai"], "points": 8 },
+      { "words": ["data engineer", "etl", "data pipeline"], "points": 8 }
+    ],
+    "stack_cap": 28,
+    "off_stack": { "words": [], "points": -8 },
+    "spanish_title_bonus": 6
+  },
+  "skills": {
+    "selected": ["python", "kubernetes", "llm", "rag", "ai_engineer", "data_engineer", "etl", "fastapi", "qa_automation"],
+    "combo_partners": ["llm", "rag", "kubernetes"],
+    "primary": "python"
+  }
+}

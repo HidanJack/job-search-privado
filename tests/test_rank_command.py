@@ -13,6 +13,10 @@ import sys
 import unittest
 from pathlib import Path
 
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _hermetic  # noqa: F401,E402  (pins profile_config to the test fixture)
+
 try:
     import yaml  # noqa: F401 - only probing availability for the lint integration test
     _HAVE_YAML = True

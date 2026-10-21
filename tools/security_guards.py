@@ -79,6 +79,9 @@ ALLOWED_PERMISSIONS = {
 # Personal-data ignore rules that must never disappear from .gitignore.
 REQUIRED_IGNORE_RULES = [
     "salary_data.json",
+    # Per-user numbers/keywords and the clean-edition leak patterns (profile_config.py, make_clean_edition.py).
+    "profile_config.json",
+    "clean_edition_patterns.txt",
     # Depth-independent: the job-scraper skill resolves `job_scraper/` relative
     # to its own directory, so the state file lands under .claude/skills/... and
     # a repo-rooted rule silently fails to match it.

@@ -44,8 +44,9 @@ def tracked_document_subfolders():
         cwd=REPO,
         capture_output=True,
         text=True,
-        check=True,
     ).stdout
+    if not out.strip():  # not a git checkout (e.g. an unzipped edition): use the .gitkeep skeleton on disk
+        out = "".join(f"{p.relative_to(REPO).as_posix()}\n" for p in (REPO / "documents").rglob(".gitkeep"))
     folders = set()
     for line in out.splitlines():
         parts = line.split("/")

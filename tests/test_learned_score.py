@@ -7,6 +7,10 @@ import sys
 import unittest
 from datetime import date
 from pathlib import Path
+
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _hermetic  # noqa: F401,E402  (pins profile_config to the test fixture)
 from tempfile import TemporaryDirectory
 
 REPO = Path(__file__).resolve().parent.parent
@@ -185,7 +189,7 @@ class PrefilterIntegration(unittest.TestCase):
                 for i, t in enumerate(GOOD_TITLES + BAD_TITLES)}
         model = ls.train_model({**seen, **pool}, ls.build_labels(seen, None), TODAY)
         state = {k: dict(v) for k, v in pool.items()}
-        prefilter.prefilter_state(state, TODAY, {"minSalaryMxn": 35000, "currentSalary": 21000}, model=model)
+        prefilter.prefilter_state(state, TODAY, {"minSalaryMxn": 30000, "currentSalary": 20000}, model=model)
         kept = [e for e in state.values() if e["status"] == "new"]
         self.assertTrue(kept)
         for e in kept:
@@ -197,7 +201,7 @@ class PrefilterIntegration(unittest.TestCase):
 
     def test_prefilter_state_without_model_is_unchanged(self):
         state = {"a": {"title": "Python Developer", "location": "Remote (Mexico)", "status": "new"}}
-        prefilter.prefilter_state(state, TODAY, {"minSalaryMxn": 35000, "currentSalary": 21000}, model=None)
+        prefilter.prefilter_state(state, TODAY, {"minSalaryMxn": 30000, "currentSalary": 20000}, model=None)
         self.assertNotIn("prefilter_why", state["a"])
         self.assertNotIn("prefilter_hand_score", state["a"])
 

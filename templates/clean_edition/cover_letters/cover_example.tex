@@ -1,0 +1,58 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Cover Letter - example (fictional candidate), Backend Engineer (Python) at a fintech
+%
+% Structural reference for /apply (see 06-cover-letter-templates.md) and the
+% smoke test for cover.cls: it must always compile with xelatex to exactly
+% 1 page. The company paragraph is deliberately category-level because this is
+% an example: /apply must replace it with one verified, company-specific fact.
+% The list sits OUTSIDE \lettercontent{} (whose trailing \\ errors on
+% \end{itemize}) and is wrapped in Raleway-Medium so the bullet font matches.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[]{cover}
+\usepackage{fancyhdr}
+
+\pagestyle{fancy}
+\fancyhf{}
+
+\rfoot{Page \thepage \hspace{0pt}}
+\thispagestyle{empty}
+\renewcommand{\headrulewidth}{0pt}
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     TITLE NAME
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\namesection{}{\Huge{Alex Example}}{  \href{mailto:alex.example@example.com}{alex.example@example.com} | +52 55 0000 0000 |  \urlstyle{same}\href{https://www.linkedin.com/in/alex-example}{LinkedIn}
+}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     MAIN COVER LETTER CONTENT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\currentdate{\today}
+\lettercontent{Dear Hiring Team,}
+
+\lettercontent{Your team automates the reconciliation of payments and invoices, which is exactly the kind of problem I have worked on every day since March 2024 at Acme Analytics, where I build the Python services that clean and consolidate invoice data.}
+
+\lettercontent{Two results map directly to the backend work described in the posting:}
+
+{\raggedright\fontspec[Path = OpenFonts/fonts/raleway/]{Raleway-Medium}\fontsize{11pt}{13pt}\selectfont
+\begin{itemize}
+    \item \textbf{Pipeline speed:} I moved a nightly reconciliation job from row-by-row logic to vectorized Pandas operations; it now runs in 25 minutes instead of 3 hours.
+    \item \textbf{Quality:} I introduced a golden-test harness for the parsers, which caught 14 regressions before release in its first quarter.
+\end{itemize}\par}
+\vspace{6pt}
+
+\lettercontent{I also designed the REST API that three internal teams now use, with contract tests and a documented error model. I can start within the notice period of my current role, work in the Mexico City time zone, and write technical English daily.}
+
+\lettercontent{I look forward to hearing from you.}
+
+\begin{flushright}
+% Note: no trailing \\ inside \closing{} - cover.cls appends its own \\, and a
+% doubled break triggers "There's no line here to end."
+\closing{Kind regards,}
+
+\signature{Alex Example}
+\end{flushright}
+\end{document}

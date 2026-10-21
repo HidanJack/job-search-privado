@@ -262,6 +262,22 @@ If you prefer editing files directly instead of using `/setup`:
 | `07-interview-prep.md` | Your STAR examples from actual experience |
 | `search-queries.md` | Job search queries for your skills and location |
 
+### Per-user numbers: `profile_config.json`
+
+The deterministic tools and the dashboard read their personal numbers from a gitignored `profile_config.json` at the repo root (copy `profile_config.example.json`; `/setup` step 10 fills it). A missing file, malformed JSON or an invalid value falls back to the neutral default, key by key. The dashboard shows a first-run notice until `name` is set. `JOB_SEARCH_PROFILE_CONFIG=/path` points the tools at another file (the test-suite pins it to `tests/fixtures/profile_config.test.json`).
+
+| Key | Used by | Meaning |
+|---|---|---|
+| `name` | UI header | Shown as "Libro de vacantes de <name>"; empty = first-run notice |
+| `candidate_years`, `years_tolerance` | `tools/opportunity.py` | Verifiable years; asks up to years + tolerance carry no risk |
+| `current_salary_mxn`, `salary_floor_mxn` | prefilter, opportunity, UI default floor | Monthly MXN anchors of the salary score; default search floor |
+| `spoken_english` | `tools/opportunity.py` | `true` removes the English-posting penalty |
+| `prefilter.stack_points` / `stack_cap` | `tools/prefilter.py` | `[{"words": [...], "points": n}]`, summed up to the cap |
+| `prefilter.skill_keep`, `stack_only`, `off_stack`, `spanish_title_bonus` | `tools/prefilter.py` | Words that rescue a title, families you do not work on, demoted stacks, Spanish-title bonus |
+| `skills.selected`, `combo_partners`, `primary` | `ui/lib/skills.ts` | Skill ids sampled for the market tab and the "primary + partner" combination |
+
+Words in `prefilter` are regex fragments over accent-folded lowercase titles.
+
 ### Updating your search queries
 
 As your priorities evolve, you can reconfigure just the job search without re-running the full profile setup:

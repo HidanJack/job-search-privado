@@ -4,7 +4,7 @@
 The sweep can add hundreds of postings at once and `/rank` is slow and costs
 LLM usage per job. This scores every `new` job from the fields the scraper
 already stored (title, company, location, portal, posted_date, fit, salary
-when present) against Luis's skills and role families, and:
+when present) against the user's skills and role families (profile_config.json), and:
 
   * marks clearly off-target jobs `prefiltered_out` with a short Spanish
     reason (SAP/Murex/Java-only/.NET-only/mobile-only/sales/marketing/HR/
@@ -35,6 +35,10 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import profile_config  # noqa: E402  (per-user numbers and stack keywords, gitignored profile_config.json)
+
+PROFILE = profile_config.load()
+_PRE = PROFILE["prefilter"]
 
 ROOT = Path(__file__).resolve().parent.parent
 STATE = ROOT / "job_scraper" / "seen_jobs.json"
@@ -46,9 +50,9 @@ DEFAULT_RANK_BATCH = 10
 # Deterministic gate in front of the LLM: `new` jobs scoring below this are never
 # sent to /rank automatically (55 keeps the plausible 55-60 band, e.g. full stack / DevOps titles).
 DEFAULT_MIN_PREFILTER_SCORE = 55
-DEFAULT_MIN_SALARY = 35000
+DEFAULT_MIN_SALARY = PROFILE["salary_floor_mxn"]
 DEFAULT_MAX_DAYS = 7
-CURRENT_SALARY = 21000
+CURRENT_SALARY = PROFILE["current_salary_mxn"]
 
 
 def load_search_settings(path: Path = SETTINGS) -> dict:
@@ -90,13 +94,17 @@ def rx(*words: str) -> "re.Pattern":
     return re.compile(r"(?<![a-z0-9])(?:" + "|".join(words) + r")(?![a-z0-9])")
 
 
+def rx_config(words) -> "re.Pattern":
+    """rx() over words from profile_config.json (regex fragments; a broken one is taken literally)."""
+    try:
+        return rx(*words)
+    except re.error:
+        return rx(*(re.escape(w) for w in words))
+
+
 # ---- exclusion rules (title based) -----------------------------------------
 # A positive skill keyword in the title overrides STACK_ONLY / MOBILE rules.
-SKILL_KEEP = rx(
-    "python", "data", "datos", "ai", "ia", "ml", "llm", "etl", "machine learning",
-    "typescript", "react", "node", "nodejs", "rust", "fastapi", "django", "flask",
-    "automation", "automatizacion", "rpa",
-)
+SKILL_KEEP = rx_config(_PRE["skill_keep"])
 # Engineering-role words: keep a "Marketing Technology Engineer" out of the
 # function-based exclusions.
 ENGINEER_WORDS = rx(
@@ -108,24 +116,8 @@ SENIORITY_LABEL = {
     "staff": "Staff", "principal": "Principal", "director": "Director", "head": "Head",
     "vp": "VP", "vice president": "VP", "chief": "Chief", "cto": "CTO", "distinguished": "Distinguished",
 }
-# (pattern, label) - roles on a stack Luis does not work on.
-STACK_ONLY = [
-    (rx("sap", "abap"), "SAP"),
-    (rx("murex"), "Murex"),
-    (rx("salesforce"), "Salesforce"),
-    (rx("servicenow"), "ServiceNow"),
-    (rx("workday"), "Workday"),
-    (rx("netsuite"), "NetSuite"),
-    (rx("concur"), "Concur"),
-    (rx("peoplesoft", "oracle ebs", "oracle fusion"), "Oracle ERP"),
-    (rx("dynamics 365", "dynamics crm"), "Dynamics"),
-    (rx("mainframe", "cobol"), "Mainframe/COBOL"),
-    (rx("java"), "Java"),
-    (rx("net", "dotnet", "c#", "asp net", "csharp"), ".NET"),
-    (rx("php", "laravel"), "PHP"),
-    (rx("ruby", "rails"), "Ruby"),
-    (rx("c\\+\\+", "embedded", "firmware"), "C++/embebido"),
-]
+# (pattern, label) - roles on a stack the user does not work on (profile_config.json).
+STACK_ONLY = [(rx_config(e["words"]), e["label"]) for e in _PRE["stack_only"]]
 MOBILE = (rx("ios", "android", "swift", "kotlin", "mobile", "movil"), "móvil")
 MOBILE_KEEP = rx("react native", "flutter")
 # (pattern, Spanish label) - business functions that are not engineering.
@@ -271,22 +263,9 @@ AI_ROLE = rx(
 AI_PAIRED_BONUS = 4  # AI/LLM/agents word beside an engineer/developer word: 10 -> 14 points
 TECH_STRONG_POINTS = 38
 TECH_WEAK_POINTS = 24
-# (pattern, points): his stack named in the title. Every hit counts once, capped overall.
-STACK_POINTS = [
-    (rx("python"), 16),
-    (rx("data engineer", "ingeniero de datos", "ingeniera de datos", "etl", "data pipeline", "dwh", "big data", "spark", "databricks", "snowflake", "airflow", "dbt", "kafka"), 10),
-    (rx("ai", "ia", "ml", "llm", "rag", "agents", "agentic", "claude", "machine learning", "inteligencia artificial", "genai", "nlp", "copilot"), 10),
-    (rx("backend", "back end", "back-end", "api", "microservices", "microservicios"), 6),
-    (rx("fastapi", "django", "flask", "pandas", "polars", "ocr", "pytest"), 6),
-    (rx("kubernetes", "k8s", "docker", "aws", "sql", "postgres", "postgresql", "terraform"), 4),
-    (rx("typescript", "react", "node", "nodejs"), 4),
-    (rx("full stack", "fullstack", "full-stack"), 14),
-    (rx("rust"), 5),
-    (rx("rpa", "automation", "automatizacion", "automate"), 4),
-    (rx("data analyst", "analista de datos", "bi analyst", "business intelligence", "data scientist", "analytics"), 2),
-    (rx("devops", "sre", "cloud", "platform", "azure", "qa", "sdet"), 3),
-]
-STACK_CAP = 28
+# (pattern, points): the user's stack named in the title (profile_config.json). Every hit counts once, capped overall.
+STACK_POINTS = [(rx_config(e["words"]), e["points"]) for e in _PRE["stack_points"]]
+STACK_CAP = _PRE["stack_cap"]
 SPANISH_TITLE_WORDS = rx(
     "desarrollador", "desarrolladora", "ingeniero", "ingeniera", "analista", "datos",
     "remoto", "sr", "ssr", "especialista", "arquitecto", "programador", "inteligencia",
@@ -297,8 +276,8 @@ PENALTIES = [
     (rx("architect", "arquitecto", "arquitecta"), -6),
     (rx("senior", "sr"), -1),
     (rx("intern", "internship", "trainee", "practicante", "becario"), -15),
-    # Stacks or gigs that are not his: kept (a skill word may still redeem them) but demoted.
-    (rx("golang", "go", "scala", "elixir", "game", "unity", "trading", "low latency", "low-latency", "pega", "hyland", "looker", "powercampus", "salesforce"), -8),
+    # Stacks or gigs that are not the user's: kept (a skill word may still redeem them) but demoted.
+    *([(rx_config(_PRE["off_stack"]["words"]), _PRE["off_stack"]["points"])] if _PRE["off_stack"]["words"] else []),
     (rx("security", "pentest", "penetration", "cybersecurity", "ciberseguridad"), -6),
     (rx("react native", "mobile", "movil"), -6),
     (rx("contributor", "ai coding tasks", "freelance", "volunteer", "ambassador", "advisor", "founding"), -8),
@@ -334,7 +313,7 @@ def score(entry: dict, today: date, floor: int = DEFAULT_MIN_SALARY, current: in
     import posting_language
 
     if SPANISH_TITLE_WORDS.search(title) or posting_language.detect_title(entry.get("title") or "") == "es":
-        points += 6
+        points += _PRE["spanish_title_bonus"]
     loc = fold(entry.get("location"))
     if loc:
         points += max((v for token, v in LOCATION_POINTS if token in loc), default=0)

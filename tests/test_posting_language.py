@@ -5,6 +5,10 @@ import json
 import sys
 import unittest
 from pathlib import Path
+
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _hermetic  # noqa: F401,E402  (pins profile_config to the test fixture)
 from tempfile import TemporaryDirectory
 from unittest import mock
 

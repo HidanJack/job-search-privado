@@ -5,6 +5,10 @@ import sys
 import unittest
 from datetime import date
 from pathlib import Path
+
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _hermetic  # noqa: F401,E402  (pins profile_config to the test fixture)
 from tempfile import TemporaryDirectory
 
 REPO = Path(__file__).resolve().parent.parent
@@ -83,7 +87,7 @@ class Exclusions(unittest.TestCase):
 
 
 class Scoring(unittest.TestCase):
-    def test_xideral_python_senior_beats_generic_roles(self):
+    def test_spanish_python_senior_beats_generic_roles(self):
         top = out("Desarrollador Python Senior Remoto 2571")["score"]
         for title in ["Software Engineer", "QA Analyst", "Customer Data Analyst"]:
             self.assertGreater(top, out(title, location="Remote (worldwide)")["score"], title)
@@ -182,7 +186,7 @@ class Discrimination(unittest.TestCase):
 
 
 class State(unittest.TestCase):
-    SETTINGS = {"minSalaryMxn": 35000, "currentSalary": 21000}
+    SETTINGS = {"minSalaryMxn": 30000, "currentSalary": 20000}
 
     def test_run_marks_out_keeps_rest_and_never_deletes(self):
         seen = {"a": job("SAP consultant"), "b": job("Python Developer"), "c": job("x", status="ranked")}
@@ -212,9 +216,9 @@ class State(unittest.TestCase):
             p = Path(d) / "s.json"
             self.assertEqual(prefilter.load_search_settings(p)["rankBatch"], 10)
             self.assertEqual(prefilter.load_search_settings(p)["minPrefilterScore"], 55)
-            p.write_text(json.dumps({"currentSalary": 21000, "search": {"rankBatch": 40, "minSalaryMxn": "x"}}))
+            p.write_text(json.dumps({"currentSalary": 20000, "search": {"rankBatch": 40, "minSalaryMxn": "x"}}))
             s = prefilter.load_search_settings(p)
-            self.assertEqual((s["rankBatch"], s["minSalaryMxn"]), (40, 35000))
+            self.assertEqual((s["rankBatch"], s["minSalaryMxn"]), (40, 30000))
 
     def test_min_prefilter_score_accepts_zero_and_rejects_out_of_range(self):
         with TemporaryDirectory() as d:
@@ -296,6 +300,53 @@ class RankIntegration(unittest.TestCase):
             e = json.loads((Path(d) / "seen.json").read_text())["seen"]["py"]
             for field in ("opportunity", "risk", "final_priority", "opportunity_driver", "risk_driver"):
                 self.assertIn(field, e)
+
+
+class ProfileDriven(unittest.TestCase):
+    """Keyword weights and salary defaults come from profile_config.json, not from code."""
+
+    def evaluate(self, doc, title):
+        import os
+
+        with TemporaryDirectory() as d:
+            cfg = Path(d) / "profile_config.json"
+            cfg.write_text(json.dumps(doc), encoding="utf-8")
+            env = {**os.environ, "JOB_SEARCH_PROFILE_CONFIG": str(cfg)}
+            r = subprocess.run([sys.executable, str(TOOL), "evaluate", "--title", title, "--location", "Remote (Mexico)"],
+                               capture_output=True, text=True, env=env, check=True)
+        return json.loads(r.stdout)
+
+    def test_custom_stack_points_raise_the_score(self):
+        plain = self.evaluate({}, "Zig Developer")
+        boosted = self.evaluate({"prefilter": {"stack_points": [{"words": ["zig"], "points": 20}]}}, "Zig Developer")
+        self.assertGreater(boosted["score"], plain["score"])
+
+    def test_custom_stack_only_excludes_a_family(self):
+        self.assertFalse(self.evaluate({}, "Delphi Developer")["out"])
+        got = self.evaluate({"prefilter": {"stack_only": [{"words": ["delphi"], "label": "Delphi"}]}}, "Delphi Developer")
+        self.assertTrue(got["out"])
+        self.assertIn("Delphi", got["reason"])
+
+    def test_salary_defaults_follow_the_config(self):
+        import os
+
+        with TemporaryDirectory() as d:
+            cfg = Path(d) / "profile_config.json"
+            cfg.write_text(json.dumps({"salary_floor_mxn": 51000, "current_salary_mxn": 12000}), encoding="utf-8")
+            env = {**os.environ, "JOB_SEARCH_PROFILE_CONFIG": str(cfg)}
+            code = ("import prefilter; s = prefilter.load_search_settings('/nonexistent/x.json'); "
+                    "print(s['minSalaryMxn'], s['currentSalary'])")
+            r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env,
+                               cwd=REPO / "tools", check=True)
+        self.assertEqual(r.stdout.split(), ["51000", "12000"])
+
+    def test_without_a_config_the_defaults_are_neutral_and_usable(self):
+        import os
+
+        env = {**os.environ, "JOB_SEARCH_PROFILE_CONFIG": "/nonexistent/profile_config.json"}
+        r = subprocess.run([sys.executable, str(TOOL), "evaluate", "--title", "Python Backend Developer"],
+                           capture_output=True, text=True, env=env, check=True)
+        self.assertGreaterEqual(json.loads(r.stdout)["score"], 55)
 
 
 if __name__ == "__main__":

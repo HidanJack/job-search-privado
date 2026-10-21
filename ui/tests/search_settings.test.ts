@@ -16,7 +16,7 @@ function tempRoot(): string {
   const root = mkdtempSync(join(tmpdir(), "job-ui-ss-"));
   mkdirSync(join(root, "job_scraper"));
   cpSync(join(FIXTURES, "seen_jobs.json"), join(root, "job_scraper", "seen_jobs.json"));
-  writeFileSync(join(root, "CLAUDE.md"), "# Luis\n- **Freshness window:** 4 days\n");
+  writeFileSync(join(root, "CLAUDE.md"), "# Alex\n- **Freshness window:** 4 days\n");
   return root;
 }
 const get = (h: ReturnType<typeof createHandler>, path: string) =>
@@ -48,20 +48,28 @@ describe("persistence", () => {
     const root = tempRoot();
     expect(loadSearchSettings(root)).toEqual(DEFAULT_SEARCH);
     expect(DEFAULT_SEARCH.maxDays).toBe(7);
-    expect(DEFAULT_SEARCH.minSalaryMxn).toBe(35000);
-    saveSettings(root, { currentSalary: 21000, targetSalary: null });
+    expect(DEFAULT_SEARCH.minSalaryMxn).toBe(30000);
+    saveSettings(root, { currentSalary: 20000, targetSalary: null });
     expect(loadSearchSettings(root)).toEqual(DEFAULT_SEARCH);
+  });
+
+  test("the default salary floor follows profile_config.json", () => {
+    const root = tempRoot();
+    writeFileSync(join(root, "profile_config.json"), JSON.stringify({ name: "Alex Example", salary_floor_mxn: 51000 }));
+    expect(loadSearchSettings(root).minSalaryMxn).toBe(51000);
+    saveSearchSettings(root, { ...loadSearchSettings(root), minSalaryMxn: 47000 });
+    expect(loadSearchSettings(root).minSalaryMxn).toBe(47000); // an explicit saved value still wins
   });
 
   test("saving search keeps the salary keys, and saving salaries keeps search", () => {
     const root = tempRoot();
-    saveSettings(root, { currentSalary: 21000, targetSalary: 50000 });
+    saveSettings(root, { currentSalary: 20000, targetSalary: 50000 });
     saveSearchSettings(root, { ...DEFAULT_SEARCH, maxDays: 10 });
     const file = JSON.parse(readFileSync(settingsPath(root), "utf8"));
-    expect(file.currentSalary).toBe(21000);
+    expect(file.currentSalary).toBe(20000);
     expect(file.targetSalary).toBe(50000);
     expect(file.search.maxDays).toBe(10);
-    expect(loadSettings(root)).toEqual({ currentSalary: 21000, targetSalary: 50000 });
+    expect(loadSettings(root)).toEqual({ currentSalary: 20000, targetSalary: 50000 });
     saveSettings(root, { currentSalary: 22000, targetSalary: 50000 });
     expect(loadSearchSettings(root).maxDays).toBe(10);
   });
@@ -91,7 +99,7 @@ describe("/api/search-settings", () => {
     expect(res.status).toBe(200);
     const saved = await res.json();
     expect(saved.maxDays).toBe(14);
-    expect(saved.minSalaryMxn).toBe(35000);
+    expect(saved.minSalaryMxn).toBe(30000);
     expect(existsSync(settingsPath(root))).toBe(true);
     const again = await (await get(createHandler({ root }), "/api/search-settings")).json();
     expect(again.search.maxDays).toBe(14);

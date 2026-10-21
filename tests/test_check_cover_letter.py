@@ -13,7 +13,7 @@ LETTER = r"""
 \begin{document}
 \lettercontent{Dear Ana Torres,}
 \lettercontent{Your data platform team is moving ingestion to Airflow, and I built %s.}
-\lettercontent{At Intelitax I rewrote a matching engine in Rust.}
+\lettercontent{At Acme I rewrote a matching engine in Rust.}
 {\begin{itemize}
     \item \textbf{OCR:} 95\%% accuracy on bank statements
 \end{itemize}\par}

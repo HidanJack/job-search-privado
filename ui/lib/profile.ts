@@ -1,14 +1,19 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { DEFAULT_PROFILE_CONFIG, isConfigFilled, loadProfileConfig } from "./profile_config";
 
 export interface Profile {
   ready: boolean;
   freshnessDays: number;
   salaryFloorMxn: number;
+  /** Name from profile_config.json (header of the page); empty until the user fills the file in. */
+  name?: string;
+  /** profile_config.json exists and has the user's name. */
+  configured?: boolean;
 }
 
 export const DEFAULT_FRESHNESS_DAYS = 4;
-export const DEFAULT_SALARY_FLOOR_MXN = 40000;
+export const DEFAULT_SALARY_FLOOR_MXN = DEFAULT_PROFILE_CONFIG.salary_floor_mxn;
 
 /** Reads the dashboard defaults from CLAUDE.md's Identity block. */
 export function parseProfile(text: string): Profile {
@@ -24,6 +29,7 @@ export function parseProfile(text: string): Profile {
 
 export function loadProfile(root: string): Profile {
   const path = join(root, "CLAUDE.md");
-  if (!existsSync(path)) return parseProfile("[YOUR_NAME]");
-  return parseProfile(readFileSync(path, "utf8"));
+  const profile = existsSync(path) ? parseProfile(readFileSync(path, "utf8")) : parseProfile("[YOUR_NAME]");
+  const config = loadProfileConfig(root);
+  return { ...profile, name: config.name, configured: isConfigFilled(config) };
 }

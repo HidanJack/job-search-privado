@@ -20,6 +20,10 @@ import re
 import unittest
 from pathlib import Path
 
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _hermetic  # noqa: F401,E402  (pins profile_config to the test fixture)
+
 REPO = Path(__file__).resolve().parent.parent
 COMMANDS = REPO / ".claude" / "commands"
 GMAIL_SYNC = COMMANDS / "gmail-sync.md"
