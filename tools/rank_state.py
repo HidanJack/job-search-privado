@@ -521,6 +521,20 @@ def cmd_apply(args) -> int:
         age, adjustment = freshness(entry.get("posted_date"), today, args.fresh_days)
         entry["priority_score"] = score + adjustment
         opportunity.apply_scores(entry, today, floor, current_pay)
+        # The scoring agent's posting_guard verdict line ("clean" or the warning
+        # line). Additive and optional: an agent on an older prompt returns none
+        # and nothing is written. Any clean verdict stores as "clean"; a warning
+        # stores without the "posting_guard:" prefix, capped at 200 characters.
+        # A re-score without a guard drops a stale one: absence means "not run",
+        # and last run's verdict would mislabel this run's fetch.
+        guard = result.get("guard")
+        if isinstance(guard, str) and guard.strip():
+            text = guard.strip()
+            if text.lower().startswith("posting_guard:"):
+                text = text[len("posting_guard:"):].strip()
+            entry["guard"] = "clean" if text.lower().startswith("clean") else text[:200]
+        else:
+            entry.pop("guard", None)
 
         rows.append(
             {
@@ -549,6 +563,7 @@ def cmd_apply(args) -> int:
                 "opportunity": entry["opportunity"],
                 "risk": entry["risk"],
                 "final_priority": entry["final_priority"],
+                "guard": entry.get("guard"),
             }
         )
 

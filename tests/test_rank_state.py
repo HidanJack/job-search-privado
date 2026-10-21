@@ -657,6 +657,58 @@ class Apply(RankStateCase):
         self.assertEqual(stored["rank_score"], 90)
         self.assertEqual(stored["strengths"], ["new"])
 
+    # --- posting_guard verdict (`guard`): additive, optional, ported from upstream ---
+    # The scoring agent runs tools/posting_guard.py on each fetched body and
+    # returns the gate's verdict line as `guard`.
+
+    def test_apply_persists_guard_verdict(self):
+        verdict = "posting_guard: \u26a0 1 instruction-like line - review before continuing (1 hidden block removed)"
+        stored = "\u26a0 1 instruction-like line - review before continuing (1 hidden block removed)"
+        self.write_state({"a": entry(status="new"), "b": entry(status="new")})
+        out = self.run_tool("apply", "--results", self.results([
+            scored(guard=verdict),
+            scored(key="b", guard="clean", location_verdict="FAIL"),
+        ]))
+        self.assertEqual(self.read_state()["a"]["guard"], stored)
+        self.assertEqual(out["ranked"][0]["guard"], stored)
+        self.assertEqual(self.read_state()["b"]["guard"], "clean")
+        self.assertEqual(out["vetoed"][0]["guard"], "clean")
+
+    def test_apply_without_guard_key_unchanged(self):
+        self.write_state({"a": entry(status="new")})
+        out = self.run_tool("apply", "--results", self.results([scored()]))
+        self.assertNotIn("guard", self.read_state()["a"])
+        self.assertIsNone(out["ranked"][0]["guard"])
+
+    def test_apply_normalises_the_guard_verdict(self):
+        self.write_state({k: entry(status="new") for k in "abc"})
+        out = self.run_tool("apply", "--results", self.results([
+            scored(key="a", guard="posting_guard: clean"),
+            scored(key="b", guard="posting_guard: clean (8 hidden blocks removed, none instruction-like)"),
+            scored(key="c", guard="posting_guard: \u26a0 1 instruction-like line - review before continuing"),
+        ]))
+        state = self.read_state()
+        self.assertEqual(state["a"]["guard"], "clean")
+        self.assertEqual(state["b"]["guard"], "clean")
+        self.assertEqual(state["c"]["guard"], "\u26a0 1 instruction-like line - review before continuing")
+        self.assertEqual({row["key"]: row["guard"] for row in out["ranked"]}["c"], state["c"]["guard"])
+
+    def test_apply_drops_a_stale_guard_when_rescored_without_one(self):
+        self.write_state({"a": entry(status="ranked", guard="\u26a0 old", rank_score=50, rank_date="2026-08-01")})
+        out = self.run_tool("apply", "--results", self.results([scored()]))
+        self.assertNotIn("guard", self.read_state()["a"])
+        self.assertIsNone(out["ranked"][0]["guard"])
+
+    def test_apply_truncates_and_rejects_non_string_guard(self):
+        self.write_state({"a": entry(status="new"), "b": entry(status="new")})
+        out = self.run_tool("apply", "--results", self.results([
+            scored(guard="x" * 500),
+            scored(key="b", guard={"not": "a string"}),
+        ]))
+        self.assertEqual(len(self.read_state()["a"]["guard"]), 200)
+        self.assertNotIn("guard", self.read_state()["b"])
+        self.assertIsNone([r for r in out["ranked"] if r["key"] == "b"][0]["guard"])
+
 
 def scored(key="a", **over):
     base = {
