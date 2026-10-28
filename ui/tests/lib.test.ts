@@ -267,21 +267,21 @@ describe("English-posting filter, pills and role family", () => {
 
   test("hideUnspoken defaults to on and, for the A2 speaker, hides only explicit English", () => {
     const f = parseFilters(new URLSearchParams(), defaults);
-    expect(f.hideUnspoken).toBe(true);
+    expect(f.hideSpokenGap).toBe(true);
     expect(keys(f, A2_SPEAKER)).toEqual(["legacy", "mixed", "spanish"]);
   });
 
   test("hideUnspoken=0 shows English postings again", () => {
     const f = parseFilters(new URLSearchParams("hideUnspoken=0"), defaults);
-    expect(f.hideUnspoken).toBe(false);
+    expect(f.hideSpokenGap).toBe(false);
     expect(keys(f, A2_SPEAKER)).toContain("english");
   });
 
   test("the old hideEnglish URL parameter and default still work as an alias", () => {
-    expect(parseFilters(new URLSearchParams("hideEnglish=0"), defaults).hideUnspoken).toBe(false);
-    expect(parseFilters(new URLSearchParams("hideEnglish=1"), { ...defaults, hideUnspoken: false }).hideUnspoken).toBe(true);
-    expect(parseFilters(new URLSearchParams(), { ...defaults, hideEnglish: false }).hideUnspoken).toBe(false);
-    expect(parseFilters(new URLSearchParams("hideUnspoken=1&hideEnglish=0"), defaults).hideUnspoken).toBe(true);
+    expect(parseFilters(new URLSearchParams("hideEnglish=0"), defaults).hideSpokenGap).toBe(false);
+    expect(parseFilters(new URLSearchParams("hideEnglish=1"), { ...defaults, hideUnspoken: false }).hideSpokenGap).toBe(true);
+    expect(parseFilters(new URLSearchParams(), { ...defaults, hideEnglish: false }).hideSpokenGap).toBe(false);
+    expect(parseFilters(new URLSearchParams("hideUnspoken=1&hideEnglish=0"), defaults).hideSpokenGap).toBe(true);
   });
 
   test("a friend who speaks English and German hides neither, but hides French", () => {

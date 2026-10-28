@@ -37,11 +37,13 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import company_blocklist  # noqa: E402  (the user's company blocklist)
 import language_levels  # noqa: E402  (which languages the user reads; language advantage)
 import profile_config  # noqa: E402  (per-user numbers and stack keywords, gitignored profile_config.json)
 
 PROFILE = profile_config.load()
 LEVELS = language_levels.user_levels(PROFILE)  # {code: {read, write, speak}}; tests patch this
+BLOCKED = PROFILE["blocked_companies"]  # company blocklist entries; tests patch this
 LANGUAGE_ADVANTAGE_BONUS = 8  # points when the title/tags ask for a language the user speaks at B2+
 _PRE = PROFILE["prefilter"]
 
@@ -236,6 +238,8 @@ def advantage_text(entry: dict) -> str:
 
 def exclusion(entry: dict) -> str | None:
     """Spanish reason the job is clearly off-target, or None to keep it."""
+    if company_blocklist.find_blocked(entry.get("company"), BLOCKED):
+        return company_blocklist.REASON_OUT
     title = fold(entry.get("title"))
     keep_skill = bool(SKILL_KEEP.search(title))
     is_engineer = bool(ENGINEER_WORDS.search(title))

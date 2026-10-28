@@ -202,6 +202,100 @@ def language_gate(posting_language, levels: dict) -> tuple[str, str | None]:
     return "FLAG", f"{head} y tu nivel hablado es {level}."
 
 
+# ---- the real requirement ---------------------------------------------------------------
+# Minimum level each requirement kind implies when the posting states no CEFR level.
+IMPLIED_LEVEL = {"fluent": "C1", "advanced": "C1", "conversational": "B2", "intermediate": "B1", "basic": "A2"}
+_KIND_WORD = {"fluent": "fluido", "conversational": "conversacional", "advanced": "avanzado",
+              "intermediate": "intermedio", "basic": "básico", "technical_read_write": "técnico"}
+UNSPECIFIED_RISK_FACTOR = 0.5   # an unspecified level in a posting written in L: half of today's spoken-gap points
+
+
+def _written_level(levels: dict, code: str):
+    """The candidate's reading/writing level in `code`: the lower of the two (None when either is undeclared)."""
+    read, write = _level(levels, code, "read"), _level(levels, code, "write")
+    if read is None or write is None:
+        return read or write
+    return read if level_rank(read) <= level_rank(write) else write
+
+
+def _classify(r: dict, levels: dict, code: str) -> str:
+    """"optional" | "unspecified" | "covered" | "gap" for one requirement record of language `code`."""
+    if r.get("optional") is True:
+        return "optional"
+    kind, skill = r.get("kind"), r.get("skill")
+    if kind == "unspecified":
+        return "unspecified"
+    wanted = parse_level(r.get("level")) or IMPLIED_LEVEL.get(kind)
+    if skill == "speak" or kind in ("fluent", "conversational"):
+        return "gap" if level_rank(wanted) > level_rank(_level(levels, code, "speak")) or wanted is None else "covered"
+    have = _written_level(levels, code)
+    if wanted is None:  # technical reading/writing with no level: reading ability is enough
+        return "covered" if at_least(have, READ_MIN) else "gap"
+    return "gap" if level_rank(wanted) > level_rank(have) else "covered"
+
+
+def _quote(r: dict) -> str:
+    return f" «{r['evidence']}»" if r.get("evidence") else ""
+
+
+def requirement_assessment(posting_language, requirements, levels: dict) -> dict:
+    """What a posting written in L REALLY asks of the candidate, from its `language_requirements`.
+
+    Returns {"need": "spoken"|"read_write"|"optional"|"unspecified"|"none", "verdict": PASS|FLAG,
+    "note": Spanish text|None, "evidence": quote|None, "risk_factor": 0..1, "legacy": bool}.
+
+      spoken       an explicit requirement above the candidate's level -> FLAG, full spoken-gap risk
+      read_write   only reading/writing/technical/intermediate within the candidate's level -> PASS, no risk
+      optional     "plus / nice to have" -> PASS, no risk
+      unspecified  nothing stated in a posting written in L -> soft FLAG, half the risk
+      none         nothing to assess: spanish/mixed/unknown posting or a comfortable speaker
+
+    `requirements` None means the posting was never analysed: the old rule (a posting in L implies
+    spoken L) applies unchanged (legacy True). An empty list means "analysed, nothing found".
+    """
+    out = {"need": "none", "verdict": "PASS", "note": None, "evidence": None, "risk_factor": 1.0, "legacy": False}
+    code = posting_language
+    if not isinstance(code, str) or code in ("mixed", "unknown", "") or code not in _LANGS:
+        return out
+    if speak_status(levels, code) == "comfortable":
+        return out
+    name = language_name(code)
+    if requirements is None:
+        verdict, note = language_gate(code, levels)
+        return {**out, "need": "unspecified", "verdict": verdict, "note": note, "legacy": True}
+    mine = [r for r in requirements if isinstance(r, dict) and r.get("lang") == code]
+    sorted_by = {"gap": [], "covered": [], "optional": [], "unspecified": []}
+    for r in mine:
+        sorted_by[_classify(r, levels, code)].append(r)
+    speak = _level(levels, code, "speak")
+    if sorted_by["gap"]:
+        r = sorted_by["gap"][0]
+        kw = _KIND_WORD.get(r.get("kind"), "")
+        lvl = f" ({r['level']})" if r.get("level") else ""
+        what = f"{name} {kw}".strip() + lvl if kw else f"{name}{lvl}"
+        if r.get("skill") == "read_write":
+            tail = f"Tu nivel de lectura/escritura es {_written_level(levels, code)}." if _written_level(levels, code) else f"No tienes {name} declarado en tu perfil."
+            what = f"{name} de lectura/escritura{lvl}"
+        elif speak is None:
+            tail = f"No tienes {name} hablado declarado en tu perfil."
+        else:
+            tail = f"Tu nivel hablado es {speak}."
+        return {**out, "need": "spoken", "verdict": "FLAG", "evidence": r.get("evidence"),
+                "note": f"Piden {what}:{_quote(r)}. {tail}" if r.get("evidence") else f"Piden {what}. {tail}", "risk_factor": 1.0}
+    if sorted_by["covered"]:
+        r = sorted_by["covered"][0]
+        lvl = r.get("level") or _written_level(levels, code)
+        return {**out, "need": "read_write", "evidence": r.get("evidence"), "risk_factor": 0.0,
+                "note": f"Piden {name} de lectura/escritura ({lvl}): lo cubres."}
+    if sorted_by["optional"]:
+        r = sorted_by["optional"][0]
+        return {**out, "need": "optional", "evidence": r.get("evidence"), "risk_factor": 0.0,
+                "note": f"{_cap(name)} aparece como un plus, no como requisito."}
+    evidence = next((r.get("evidence") for r in sorted_by["unspecified"] if r.get("evidence")), None)
+    return {**out, "need": "unspecified", "verdict": "FLAG", "evidence": evidence, "risk_factor": UNSPECIFIED_RISK_FACTOR,
+            "note": f"No especifica el nivel; probablemente hay reuniones en {name}."}
+
+
 def gap_label(code: str) -> str:
     """Spanish gap text for a missing spoken language ("Inglés hablado")."""
     return f"{_cap(language_name(code))} hablado"

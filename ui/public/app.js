@@ -116,12 +116,12 @@ function loadSavedFilters() {
 function filtersFromSettings(s) {
   return {
     maxDays: s.maxDays, minSalary: s.minSalaryMxn, includeNoSalary: s.includeUnpublishedSalary,
-    includeUndated: s.includeUndated, hideUnspoken: s.hideUnspoken, modality: s.modalities, rankBatch: s.rankBatch,
+    includeUndated: s.includeUndated, hideSpokenGap: s.hideSpokenGap, modality: s.modalities, rankBatch: s.rankBatch,
     minPrefilterScore: s.minPrefilterScore,
   };
 }
 function settingsPatch(f) {
-  const patch = { includeUnpublishedSalary: f.includeNoSalary, includeUndated: f.includeUndated, hideUnspoken: f.hideUnspoken, modalities: f.modality };
+  const patch = { includeUnpublishedSalary: f.includeNoSalary, includeUndated: f.includeUndated, hideSpokenGap: f.hideSpokenGap, modalities: f.modality };
   const days = Number(f.maxDays);
   if (f.maxDays !== "" && Number.isInteger(days) && days >= 1 && days <= 90) patch.maxDays = days;
   const batch = Number(f.rankBatch);
@@ -166,7 +166,7 @@ function readFilterForm() {
     minPrefilterScore: form.minPrefilterScore.value,
     includeNoSalary: form.includeNoSalary.checked,
     includeUndated: form.includeUndated.checked,
-    hideUnspoken: form.hideUnspoken.checked,
+    hideSpokenGap: form.hideSpokenGap.checked,
     modality: [...form.querySelectorAll("input[name=modality]:checked")].map((i) => i.value),
   };
 }
@@ -178,7 +178,7 @@ function fillFilterForm(f) {
   form.minPrefilterScore.value = f.minPrefilterScore ?? 55;
   form.includeNoSalary.checked = f.includeNoSalary;
   form.includeUndated.checked = f.includeUndated;
-  form.hideUnspoken.checked = f.hideUnspoken !== false; // filters saved before this option existed: on
+  form.hideSpokenGap.checked = f.hideSpokenGap !== false; // filters saved before this option existed: on
   for (const i of form.querySelectorAll("input[name=modality]")) i.checked = f.modality.includes(i.value);
 }
 function filterQuery(f) {
@@ -188,7 +188,7 @@ function filterQuery(f) {
     if (f.minSalary !== "") p.set("minSalary", f.minSalary);
     p.set("includeNoSalary", f.includeNoSalary ? "1" : "0");
     p.set("includeUndated", f.includeUndated ? "1" : "0");
-    p.set("hideUnspoken", f.hideUnspoken === false ? "0" : "1");
+    p.set("hideSpokenGap", f.hideSpokenGap === false ? "0" : "1");
     p.set("modality", f.modality.join(","));
   }
   return p.toString();
@@ -403,7 +403,14 @@ function renderJobs(data) {
       el("span", { class: "chip", text: j.portal ? portalLabel(j.portal) : "portal desconocido" }),
     );
     if (j.role_family) meta.append(el("span", { class: "chip family", text: j.role_family }));
-    if (j.spoken_language) meta.append(el("span", { class: "chip warn", text: `${capitalize(LANG_NAMES[j.spoken_language] || j.spoken_language)} hablado`, title: j.language_note || "" }));
+    // What the posting really asks: spoken (warning), level not stated, or only reading/writing.
+    for (const chip of window.JobLogic.languageChips(j)) meta.append(el("span", { class: chip.cls, text: chip.text, title: chip.title }));
+    const quote = window.JobLogic.languageQuote(j);
+    const quoteBox = $(".lang-quote", card);
+    if (quote) {
+      quoteBox.textContent = `Idioma: ${quote}`;
+      quoteBox.hidden = false;
+    }
     fillIndicators($(".indicators", card), j);
     const salary = $(".salary", card);
     const pay = salaryParts(j);
@@ -425,6 +432,7 @@ function renderJobs(data) {
       applyBtn.textContent = "Volver a generar";
       reviewBtn.addEventListener("click", () => openReview(j.url, state.results[j.url], `${j.title} — ${j.company}`));
     }
+    $(".block-btn", card).addEventListener("click", () => blockCompany(j.company));
     $(".skip-btn", card).addEventListener("click", async () => {
       await api("/api/jobs/skip", { key: j.key });
       toast("Vacante descartada");
@@ -463,6 +471,112 @@ function renderJobs(data) {
     return li;
   }));
   $("#unranked-summary").textContent = queueSummary(pending, data.rankBatch, data.counts && data.counts.prefilteredOut, eligible, data.minPrefilterScore);
+}
+
+// ---------- company blocklist ("Lista negra") ----------
+// In-page confirmation (window.confirm is blocked in some browsers and reads badly): resolves true on confirm.
+function askConfirm(text, okLabel) {
+  const dlg = $("#confirm-dialog");
+  $("#confirm-text").textContent = text;
+  $("#confirm-ok").textContent = okLabel;
+  return new Promise((resolve) => {
+    const done = (value) => {
+      $("#confirm-ok").onclick = null;
+      $("#confirm-cancel").onclick = null;
+      dlg.oncancel = null;
+      if (dlg.open) dlg.close();
+      resolve(value);
+    };
+    $("#confirm-ok").onclick = () => done(true);
+    $("#confirm-cancel").onclick = () => done(false);
+    dlg.oncancel = () => done(false); // Escape; a programmatic close() never fires `cancel`
+    dlg.showModal();
+    $("#confirm-cancel").focus();
+  });
+}
+async function blocklistRequest(method, body) {
+  const res = await fetch("/api/blocked-companies", method === "GET" ? {} : {
+    method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(window.JobLogic.blockErrorText(data));
+  return data;
+}
+function showBlocklistError(text) {
+  const p = $("#blocklist-error");
+  p.textContent = text || "";
+  p.hidden = !text;
+}
+function renderBlocklist(data) {
+  const list = $("#blocklist-list");
+  list.replaceChildren(...data.entries.map((e) => {
+    const view = window.JobLogic.entryView(e, data.matches[e.name] || 0);
+    const li = el("li", { class: "bl-row" });
+    const text = el("span", { class: "bl-text" });
+    text.append(el("strong", { text: view.title }), el("span", { class: "muted", text: view.detail }));
+    const remove = el("button", { type: "button", class: "ghost", text: "Quitar" });
+    remove.addEventListener("click", async () => {
+      try {
+        renderBlocklist(await blocklistRequest("DELETE", { name: e.name }));
+        toast(`${e.name} ya no está en la lista negra`);
+        refreshJobs();
+      } catch (err) {
+        showBlocklistError(err.message);
+      }
+    });
+    li.append(text, remove);
+    return li;
+  }));
+  $("#blocklist-summary").textContent = data.entries.length ? `Lista negra de empresas (${data.entries.length})` : "Lista negra de empresas";
+  const box = $("#blocklist-suggestions-box");
+  box.hidden = !data.suggestions.length;
+  $("#blocklist-suggestions").replaceChildren(...data.suggestions.map((s) => {
+    const li = el("li", { class: "bl-row" });
+    li.append(el("span", { class: "bl-text", text: window.JobLogic.suggestionView(s) }));
+    const btn = el("button", { type: "button", class: "ghost", text: "Bloquear…" });
+    btn.addEventListener("click", () => blockCompany(s.company));
+    li.append(btn);
+    return li;
+  }));
+}
+async function refreshBlocklist() {
+  try {
+    renderBlocklist(await blocklistRequest("GET"));
+  } catch {
+    /* the panel is a nicety */
+  }
+}
+async function blockCompany(name, reason) {
+  if (!name) return;
+  if (!(await askConfirm(window.JobLogic.confirmBlockText(name), "Bloquear"))) return;
+  try {
+    const data = await blocklistRequest("POST", reason ? { name, reason } : { name });
+    renderBlocklist(data);
+    showBlocklistError("");
+    toast(data.added ? `${name} quedó en la lista negra` : `${name} ya estaba en la lista negra`);
+    refreshJobs();
+  } catch (err) {
+    toast(err.message);
+  }
+}
+function wireBlocklist() {
+  $("#blocklist-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const name = form.name.value.trim();
+    if (!name) return;
+    try {
+      const data = await blocklistRequest("POST", { name, ...(form.reason.value.trim() ? { reason: form.reason.value.trim() } : {}) });
+      renderBlocklist(data);
+      showBlocklistError("");
+      form.reset();
+      toast(data.added ? `${name} quedó en la lista negra` : `${name} ya estaba en la lista negra`);
+      refreshJobs();
+    } catch (err) {
+      showBlocklistError(err.message);
+    }
+  });
+  refreshBlocklist();
 }
 
 // Tooltip for the queue: the prefilter score plus what the learned scorer says moves it.
@@ -1318,6 +1432,7 @@ async function boot() {
     saveFilters(readFilterForm());
     refreshJobs();
   });
+  wireBlocklist();
 
   // Reattach to a run that was already going when the page loaded.
   const { run } = await api("/api/run");

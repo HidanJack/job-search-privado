@@ -15,6 +15,17 @@ per-file diff commands.
 
 ### Added
 
+- **Real language requirement** - a posting written in English no longer implies spoken English. Ranked jobs get
+  `language_requirements` (language, speak / read-write, CEFR level, kind and a verbatim quote), written by `/rank`
+  or read without an LLM by `tools/language_requirement.py` (English and Spanish phrasings, other languages through
+  `tools/language_levels.py`; `backfill` re-reads already-ranked jobs through the portal CLIs). The language gate,
+  the spoken-gap risk and the dashboard filter ("hide only what demands a spoken language you lack", key
+  `hideSpokenGap`; `hideUnspoken`/`hideEnglish` stay aliases) follow it, with chips for unspecified and read/write-only
+  postings.
+- **Company blocklist** - `blocked_companies` in `profile_config.json` (normalized names and aliases, whole-word
+  matching), excluded by the prefilter with the reason "Empresa en tu lista negra" (recoverable, never deleted), hidden
+  from the ranked list, managed from the dashboard (`/api/blocked-companies`, "Bloquear empresa", "Lista negra" panel)
+  with suggestions for companies with many old postings (`tools/company_blocklist.py`); nothing is blocked automatically.
 - **Career path discovery (`/discover`)** - proposes role types the candidate is not searching yet, each
   justified with evidence quoted from his own profile. `tools/discovery_input.py` builds the nonce-delimited
   input (profile, evidence bank, best ranked jobs; no contact data or salary figures; job text cleaned by the

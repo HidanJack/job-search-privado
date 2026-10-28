@@ -176,11 +176,18 @@ def language_component(entry: dict) -> float:
     elif isinstance(code, str) and code in language_levels.known_codes():
         level = (LEVELS.get(code) or {}).get("speak")
         score = LANGUAGE_SCORES.get(level, LANGUAGE_UNDECLARED)
+        if language_assessment(entry)["need"] in ("read_write", "optional"):
+            score = max(score, LANGUAGE_MIXED)  # only reading/writing (or a plus) is asked: like a bilingual posting
     else:
         score = LANGUAGE_UNKNOWN
     if advantage_codes(entry):
         score = min(100, score + LANGUAGE_ADVANTAGE_BONUS)
     return float(score)
+
+
+def language_assessment(entry: dict) -> dict:
+    """language_levels.requirement_assessment for this entry (see its docstring)."""
+    return language_levels.requirement_assessment(entry.get("posting_language"), entry.get("language_requirements"), LEVELS)
 
 
 def advantage_codes(entry: dict) -> list:
@@ -252,7 +259,12 @@ def risk_items(entry: dict, today: date, current: int) -> list[tuple[int, str]]:
         stated = language_levels.stated_gap_language(g)
         if stated:
             wanted.setdefault(stated, False)
+    assessed = language_assessment(entry)
     for code, from_posting in wanted.items():
+        # What the posting REALLY asks (language_requirements) scales the points of its own language.
+        factor = assessed["risk_factor"] if code == posting and not assessed["legacy"] else 1.0
+        if factor <= 0:
+            continue
         level = LEVELS.get(code, {}).get("speak")
         scale = 0.0 if language_levels.speaks(LEVELS, code, language_levels.SPEAK_COMFORTABLE) else GAP_SCALE.get(level or "none", GAP_SCALE["none"])
         stated_text = " ".join(g for g in gaps if language_levels.stated_gap_language(g) == code)
@@ -260,14 +272,18 @@ def risk_items(entry: dict, today: date, current: int) -> list[tuple[int, str]]:
         base = p["english_posting"] if from_posting else p["english_stated"]
         pts = int(round(base * scale))
         name = language_levels.language_name(code)
+        unspecified = code == posting and not assessed["legacy"] and assessed["need"] == "unspecified"
         if advanced and language_levels.level_rank(level) < language_levels.level_rank("C1"):
             pts += p["english_advanced"]
             tag = advanced.group(0).upper() if advanced.group(0).lower() in ("c1", "c2") else advanced.group(0).lower()
             label = f"piden {name} hablado {tag}" if tag in ("C1", "C2") else f"piden {name} hablado ({tag})"
+        elif unspecified:
+            label = f"anuncio en {name} sin nivel especificado: puede haber reuniones en {name}"
         elif from_posting:
             label = f"anuncio en {name}: se asume {name} hablado"
         else:
             label = f"piden {name} hablado"
+        pts = int(round(pts * factor))
         if pts:
             items.append((pts, label))
 

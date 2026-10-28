@@ -10,6 +10,7 @@
   <link rel="preload" href="/fonts/cormorant-garamond-latin-300-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/fonts/dm-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/job-logic.js"></script>
   <script src="/app.js" defer></script>
   <script type="module" src="/onboarding.js"></script>
 </head>
@@ -267,7 +268,8 @@
         </fieldset>
         <fieldset class="toggle-group">
           <legend class="field-label">Idioma</legend>
-          <label class="toggle"><input type="checkbox" name="hideUnspoken"><span>Ocultar vacantes en idiomas que no hablo</span></label>
+          <label class="toggle"><input type="checkbox" name="hideSpokenGap"><span>Ocultar solo las que exigen un idioma hablado que no tienes</span></label>
+          <span class="field-hint muted">Las que no dicen el nivel o solo piden leer y escribir se quedan, con una etiqueta.</span>
         </fieldset>
         <fieldset class="toggle-group">
           <legend class="field-label">Incluir también</legend>
@@ -275,6 +277,23 @@
           <label class="toggle"><input type="checkbox" name="includeUndated"><span>Sin fecha</span></label>
         </fieldset>
       </form>
+
+      <details id="blocklist" class="blocklist">
+        <summary id="blocklist-summary">Lista negra de empresas</summary>
+        <p class="muted blocklist-help">Las vacantes de estas empresas no aparecen en tu lista ni se califican. No se borra nada: puedes quitarlas de aquí cuando quieras.</p>
+        <ul id="blocklist-list" class="plain-list blocklist-list"></ul>
+        <form id="blocklist-form" class="blocklist-form" autocomplete="off">
+          <label class="field"><span class="field-label">Empresa</span><input type="text" name="name" maxlength="80" required placeholder="Nombre de la empresa"></label>
+          <label class="field"><span class="field-label">Razón (opcional)</span><input type="text" name="reason" maxlength="200" placeholder="Por qué la bloqueas"></label>
+          <button type="submit" class="secondary small">Agregar a la lista negra</button>
+        </form>
+        <p id="blocklist-error" class="blocklist-error" role="alert" hidden></p>
+        <div id="blocklist-suggestions-box" hidden>
+          <h4 class="blocklist-sub">Empresas con muchas vacantes viejas</h4>
+          <p class="muted blocklist-help">Solo son sugerencias, nunca bloqueo nada sin que lo confirmes.</p>
+          <ul id="blocklist-suggestions" class="plain-list blocklist-list"></ul>
+        </div>
+      </details>
 
       <p class="filters-note">Estos filtros se guardan solos y la búsqueda diaria usa la misma ventana de días.</p>
       <p id="jobs-summary" class="summary"></p>
@@ -402,6 +421,14 @@
     <div id="review-body" class="review-body"></div>
   </dialog>
 
+  <dialog id="confirm-dialog" class="confirm" aria-labelledby="confirm-text">
+    <p id="confirm-text" class="confirm-text"></p>
+    <div class="confirm-actions">
+      <button type="button" id="confirm-cancel" class="secondary small">Cancelar</button>
+      <button type="button" id="confirm-ok" class="primary small">Bloquear</button>
+    </div>
+  </dialog>
+
   <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 
   <template id="card-tpl">
@@ -415,6 +442,7 @@
         <h3 class="title"></h3>
         <p class="company-line"><span class="company"></span><span class="location"><svg aria-hidden="true"><use href="#i-pin"/></svg><span class="location-text"></span></span></p>
         <p class="meta"></p>
+        <p class="lang-quote" hidden tabindex="0"></p>
         <div class="indicators" hidden>
           <p class="ind-line"><span class="ind ind-opp">Oportunidad <b class="ind-opp-num"></b></span><span class="ind-sep" aria-hidden="true">·</span><span class="ind ind-risk">Riesgo <b class="ind-risk-num"></b></span></p>
           <p class="ind-why"><span class="ind-opp-why"></span></p>
@@ -438,6 +466,7 @@
           <button type="button" class="secondary review-btn" hidden><svg class="btn-icon" aria-hidden="true"><use href="#i-doc"/></svg><span>Revisar documentos</span></button>
           <a class="link" target="_blank" rel="noopener noreferrer"><span>Ver vacante</span><svg class="btn-icon" aria-hidden="true"><use href="#i-external"/></svg></a>
           <button type="button" class="ghost skip-btn">Descartar</button>
+          <button type="button" class="ghost block-btn">Bloquear empresa</button>
         </div>
       </div>
     </article>

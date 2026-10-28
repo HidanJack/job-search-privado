@@ -6,7 +6,7 @@ import { PROFILE_CONFIG_FILE } from "./profile_config";
 import {
   DISCOVER_DENY, DISCOVER_DIR_REL, DISCOVER_PERMISSION_MODE, DISCOVER_TOOLS, type PipelineStep, type Run,
 } from "./runner";
-import { loadSearchSettings } from "./search_settings";
+import { loadDiscoverySettings } from "./search_settings";
 import {
   PORTAL_PLANS, bunSweepSpawn, cleanTags, cliPath, isOpenToMexico, jobageArgs, parseRows, text, urlKey, type RawRow, type SweepSpawn,
 } from "./sweep";
@@ -44,6 +44,8 @@ export interface MarketEntry {
   by_portal: Record<string, number>;
   samples: MarketSample[];
   as_of: string;
+  /** Days of postings the demand estimate covers (discovery.window_days, not the application window). */
+  window_days: number;
   calls: number;
   failures: number;
   /** Working calls found nothing: the keyword has no visible demand on these portals. */
@@ -200,7 +202,7 @@ export async function probeMarket(o: ProbeOptions): Promise<MarketMap> {
   const seen = new Map<string, Set<string>>();
   const seenRaw = new Map<string, Set<string>>();
   for (const p of paths) {
-    market[p.id] = { vacancies: 0, raw_results: 0, by_portal: {}, samples: [], as_of: asOf, calls: 0, failures: 0, no_demand_seen: false, unreachable: false };
+    market[p.id] = { vacancies: 0, raw_results: 0, by_portal: {}, samples: [], as_of: asOf, window_days: o.maxDays, calls: 0, failures: 0, no_demand_seen: false, unreachable: false };
     seen.set(p.id, new Set());
     seenRaw.set(p.id, new Set());
   }
@@ -281,7 +283,7 @@ export async function runProbe(root: string, state: DiscoveryState, log: (line: 
     log("No hay propuestas que comprobar.");
     return false;
   }
-  const maxDays = loadSearchSettings(root).maxDays;
+  const maxDays = loadDiscoverySettings(root).windowDays;
   log(`Comprobando el mercado real: últimos ${maxDays} días, ${PROBE_PORTALS.length} portales, hasta ${MAX_PROBE_QUERIES} búsquedas por camino.`);
   state.probing = true;
   try {

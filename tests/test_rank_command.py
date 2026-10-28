@@ -628,7 +628,10 @@ class RankStateToolSpec(unittest.TestCase):
         # experience, behavioral, career) that Step 4 turns into rank_score /
         # rank_verdict, not persisted verbatim; "language" is informational
         # only, per 04-job-evaluation.md's Language Gate section.
-        not_persisted_verbatim = {"key", "status", "language", "scores", "technical", "experience", "behavioral", "career"}
+        # The item fields of the nested `language_requirements` list are persisted as part of that list
+        # (Step 4 names `"language_requirements"` itself), not one by one.
+        nested_requirement_fields = {"lang", "skill", "level", "kind", "evidence", "source", "optional"}
+        not_persisted_verbatim = {"key", "status", "language", "scores", "technical", "experience", "behavioral", "career"} | nested_requirement_fields
         must_persist = set(self._step2_result_fields()) - not_persisted_verbatim
         missing = [f for f in must_persist if f'"{f}"' not in step4]
         self.assertFalse(missing, f"Step 4 does not mention persisting: {missing}")

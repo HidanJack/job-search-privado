@@ -1,6 +1,10 @@
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { isUnspoken, KNOWN_CODES, spokenGapLanguage, userLevels, type LanguageLevel } from "./language_levels";
+import {
+  KNOWN_CODES, parseRequirements, requirementAssessment, spokenGapLanguage, userLevels,
+  type LanguageLevel, type LanguageNeed, type LanguageRequirement,
+} from "./language_levels";
+import { isBlocked, type BlockedCompany } from "./blocklist";
 
 // /scrape can resolve `job_scraper/` relative to its own skill directory, so
 // the state file may live in either place (see .gitignore). The repo-root copy
@@ -38,6 +42,12 @@ export interface Job {
   spoken_english: boolean;
   /** Code of the language the job probably needs spoken and the candidate lacks (any language); null when none. */
   spoken_language: string | null;
+  /** What the posting really asks (tools/language_requirement.py); null = never analysed (old rule applies). */
+  language_requirements: LanguageRequirement[] | null;
+  /** Derived from the requirements and the candidate's levels (see filterJobs); null before that. */
+  language_need: LanguageNeed | null;
+  /** Verbatim quote behind `language_need`, when there is one. */
+  language_evidence: string | null;
   role_family: string | null;
   deadline: string | null;
   modality: Modality;
@@ -57,6 +67,8 @@ export interface Job {
   prefilter_reason: string | null;
   /** The user asked for this job to be ranked in the next run despite a low prefilter score. */
   force_rank: boolean;
+  /** The posting was published again (used to suggest companies for the blocklist). */
+  reposted: boolean;
   /** Opportunity / risk (tools/opportunity.py), computed after /rank. */
   opportunity: number | null;
   risk: number | null;
@@ -70,8 +82,8 @@ export interface Filters {
   minSalaryMxn: number;
   includeNoSalary: boolean;
   includeUndated: boolean;
-  /** Hide postings written in a language the candidate does not speak (spoken level below B1). */
-  hideUnspoken: boolean;
+  /** Hide only the postings that explicitly demand a spoken language above the candidate's level. */
+  hideSpokenGap: boolean;
   modalities: Modality[];
 }
 
@@ -153,6 +165,9 @@ export function normalizeJob(key: string, raw: Record<string, unknown>, today: D
     posting_language: lang,
     spoken_english: needsSpokenEnglish(gate, note, lang),
     spoken_language: spokenLanguageGap(gate, note, lang),
+    language_requirements: parseRequirements(raw.language_requirements),
+    language_need: null,
+    language_evidence: null,
     role_family: inferRoleFamily(title),
     deadline: str(raw.deadline),
     modality,
@@ -168,6 +183,7 @@ export function normalizeJob(key: string, raw: Record<string, unknown>, today: D
     prefilter_why: strList(raw.prefilter_why, 3),
     prefilter_reason: str(raw.prefilter_reason),
     force_rank: raw.force_rank === true,
+    reposted: raw.reposted === true,
     opportunity: num(raw.opportunity),
     risk: num(raw.risk),
     final_priority: num(raw.final_priority),
@@ -201,14 +217,32 @@ function passesAge(j: Job, f: Filters): boolean {
   return j.age_days === null ? f.includeUndated : j.age_days <= f.maxDays;
 }
 
+/**
+ * Fills `language_need` / `language_evidence` from the posting's requirements and the candidate's levels.
+ * Jobs never analysed (no requirements) keep the old rule: a posting in a language below B1 counts as a spoken gap.
+ */
+export function withLanguageNeed(j: Job, languages?: LanguageLevel[]): Job {
+  const a = requirementAssessment(j.posting_language, j.language_requirements, userLevels(languages));
+  // The gate of an analysed posting can stay FLAG for "level not stated": that is not a spoken requirement.
+  const notSpoken = !a.legacy && a.need !== "spoken" && j.spoken_language !== null && j.spoken_language === j.posting_language;
+  return {
+    ...j, language_need: a.need, language_evidence: a.evidence,
+    spoken_language: notSpoken ? null : j.spoken_language,
+    spoken_english: notSpoken && j.spoken_language === "en" ? false : j.spoken_english,
+  };
+}
+
 /** `languages` is profile_config.json's list; without it the legacy default applies (Spanish native, English speak A2). */
-export function filterJobs(jobs: Job[], f: Filters, languages?: LanguageLevel[]): { ranked: Job[]; unranked: Job[] } {
-  const levels = userLevels(languages);
+export function filterJobs(
+  jobs: Job[], f: Filters, languages?: LanguageLevel[], blocked: BlockedCompany[] = [],
+): { ranked: Job[]; unranked: Job[] } {
+  const visible = (j: Job) => !isBlocked(j.company, blocked);
   const ranked = jobs
-    .filter((j) => j.status === "ranked" && !vetoed(j))
+    .filter((j) => j.status === "ranked" && !vetoed(j) && visible(j))
     .filter((j) => passesAge(j, f))
-    // Absence of the field is not evidence of a language: only an explicit one hides.
-    .filter((j) => !(f.hideUnspoken && isUnspoken(j.posting_language, levels)))
+    .map((j) => withLanguageNeed(j, languages))
+    // Absence of the field is not evidence of a language: only an explicit spoken requirement hides.
+    .filter((j) => !(f.hideSpokenGap && j.language_need === "spoken"))
     .filter((j) => (j.salary_mxn_month === null ? f.includeNoSalary : j.salary_mxn_month >= f.minSalaryMxn))
     .filter((j) => f.modalities.includes(j.modality))
     .sort(
@@ -217,7 +251,7 @@ export function filterJobs(jobs: Job[], f: Filters, languages?: LanguageLevel[])
         (a.age_days ?? 9999) - (b.age_days ?? 9999),
     );
   const unranked = jobs
-    .filter((j) => j.status === "new")
+    .filter((j) => j.status === "new" && visible(j))
     .filter((j) => passesAge(j, f))
     // Same order /rank will use: best prefilter score first.
     .sort((a, b) => (b.prefilter_score ?? -1) - (a.prefilter_score ?? -1) || (a.age_days ?? 9999) - (b.age_days ?? 9999));
@@ -229,8 +263,9 @@ export interface FilterDefaults {
   minSalaryMxn: number;
   includeNoSalary?: boolean;
   includeUndated?: boolean;
+  hideSpokenGap?: boolean;
+  /** Older names of `hideSpokenGap`; read as aliases (hideUnspoken first, then hideEnglish). */
   hideUnspoken?: boolean;
-  /** Old name of `hideUnspoken`; read as an alias. */
   hideEnglish?: boolean;
   modalities?: Modality[];
 }
@@ -247,10 +282,12 @@ export function parseFilters(params: URLSearchParams, defaults: FilterDefaults):
     minSalaryMxn: int("minSalary", defaults.minSalaryMxn, 10_000_000),
     includeNoSalary: flag("includeNoSalary", defaults.includeNoSalary ?? true),
     includeUndated: flag("includeUndated", defaults.includeUndated ?? true),
-    // `hideEnglish` is the old name: still read from the URL and the defaults, `hideUnspoken` wins.
-    hideUnspoken: params.has("hideUnspoken")
-      ? params.get("hideUnspoken") === "1"
-      : flag("hideEnglish", defaults.hideUnspoken ?? defaults.hideEnglish ?? true),
+    // `hideUnspoken` and `hideEnglish` are older names: still read from the URL and the defaults, newest name wins.
+    hideSpokenGap: params.has("hideSpokenGap")
+      ? params.get("hideSpokenGap") === "1"
+      : params.has("hideUnspoken")
+        ? params.get("hideUnspoken") === "1"
+        : flag("hideEnglish", defaults.hideSpokenGap ?? defaults.hideUnspoken ?? defaults.hideEnglish ?? true),
     modalities: params.has("modality") ? requested : [...(defaults.modalities ?? MODALITIES)],
   };
 }

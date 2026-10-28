@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { createHandler } from "../server";
 import { saveSettings, settingsPath, loadSettings } from "../lib/market";
 import {
-  DEFAULT_SEARCH, loadSearchSettings, parseSearchPatch, saveSearchSettings,
+  DEFAULT_DISCOVERY_WINDOW_DAYS, DEFAULT_SEARCH, loadDiscoverySettings, loadSearchSettings, parseSearchPatch, saveSearchSettings,
 } from "../lib/search_settings";
 
 const BASE = "http://127.0.0.1:8787";
@@ -27,15 +27,15 @@ const post = (h: ReturnType<typeof createHandler>, path: string, body: unknown, 
 describe("parseSearchPatch", () => {
   test("accepts valid partial objects", () => {
     expect(parseSearchPatch({ maxDays: 14 })).toEqual({ maxDays: 14 });
-    expect(parseSearchPatch({ minSalaryMxn: 0, hideUnspoken: false, modalities: ["remote", "hybrid"] })).toEqual({
-      minSalaryMxn: 0, hideUnspoken: false, modalities: ["remote", "hybrid"],
+    expect(parseSearchPatch({ minSalaryMxn: 0, hideSpokenGap: false, modalities: ["remote", "hybrid"] })).toEqual({
+      minSalaryMxn: 0, hideSpokenGap: false, modalities: ["remote", "hybrid"],
     });
   });
 
   test("the old hideEnglish key is accepted as an alias of hideUnspoken", () => {
-    expect(parseSearchPatch({ hideEnglish: false })).toEqual({ hideUnspoken: false });
-    expect(parseSearchPatch({ hideEnglish: true, maxDays: 3 })).toEqual({ hideUnspoken: true, maxDays: 3 });
-    expect(parseSearchPatch({ hideEnglish: false, hideUnspoken: true })).toEqual({ hideUnspoken: true });
+    expect(parseSearchPatch({ hideEnglish: false })).toEqual({ hideSpokenGap: false });
+    expect(parseSearchPatch({ hideEnglish: true, maxDays: 3 })).toEqual({ hideSpokenGap: true, maxDays: 3 });
+    expect(parseSearchPatch({ hideEnglish: false, hideUnspoken: true })).toEqual({ hideSpokenGap: true });
     expect(parseSearchPatch({ hideEnglish: "no" })).toBeNull();
   });
 
@@ -47,6 +47,37 @@ describe("parseSearchPatch", () => {
       { modalities: "remote" }, { modalities: ["remote", "moon"] }, { modalities: ["remote", "remote"] },
       { maxDays: 7, extra: true },
     ]) expect(parseSearchPatch(bad)).toBeNull();
+  });
+});
+
+describe("discovery window (demand estimation, independent of the application window)", () => {
+  const withDiscovery = (root: string, discovery: unknown) => {
+    const path = settingsPath(root);
+    mkdirSync(join(path, ".."), { recursive: true });
+    writeFileSync(path, JSON.stringify({ search: { maxDays: 3 }, discovery }));
+  };
+  test("defaults to 30 days and ignores the search window", () => {
+    const root = tempRoot();
+    expect(DEFAULT_DISCOVERY_WINDOW_DAYS).toBe(30);
+    expect(loadDiscoverySettings(root).windowDays).toBe(30);
+    withDiscovery(root, undefined);
+    expect(loadDiscoverySettings(root).windowDays).toBe(30);
+    expect(loadSearchSettings(root).maxDays).toBe(3);
+  });
+  test("reads discovery.window_days when valid (1-90 integer) and falls back otherwise", () => {
+    const root = tempRoot();
+    for (const [v, want] of [[45, 45], [1, 1], [90, 90], [0, 30], [91, 30], [2.5, 30], ["20", 30], [null, 30]] as const) {
+      withDiscovery(root, { window_days: v });
+      expect(loadDiscoverySettings(root).windowDays).toBe(want);
+    }
+    withDiscovery(root, "garbage");
+    expect(loadDiscoverySettings(root).windowDays).toBe(30);
+  });
+  test("saving the search block keeps the discovery block", () => {
+    const root = tempRoot();
+    withDiscovery(root, { window_days: 60 });
+    saveSearchSettings(root, { ...DEFAULT_SEARCH });
+    expect(loadDiscoverySettings(root).windowDays).toBe(60);
   });
 });
 
@@ -87,7 +118,7 @@ describe("persistence", () => {
     writeFileSync(settingsPath(root), JSON.stringify({ currentSalary: 1, targetSalary: null, search: { maxDays: 999, hideEnglish: false } }));
     const s = loadSearchSettings(root);
     expect(s.maxDays).toBe(DEFAULT_SEARCH.maxDays);
-    expect(s.hideUnspoken).toBe(false); // migrated from the old hideEnglish key
+    expect(s.hideSpokenGap).toBe(false); // migrated from the old hideEnglish key
   });
 
   test("An older saved settings.json (hideEnglish only) keep working and migrate on save", () => {
@@ -95,10 +126,10 @@ describe("persistence", () => {
     mkdirSync(join(root, "ui", "state"), { recursive: true });
     writeFileSync(settingsPath(root), JSON.stringify({ currentSalary: 25000, targetSalary: 45000, search: { maxDays: 7, hideEnglish: true } }));
     const s = loadSearchSettings(root);
-    expect(s.hideUnspoken).toBe(true);
+    expect(s.hideSpokenGap).toBe(true);
     saveSearchSettings(root, s);
     const saved = JSON.parse(readFileSync(settingsPath(root), "utf8"));
-    expect(saved.search.hideUnspoken).toBe(true);
+    expect(saved.search.hideSpokenGap).toBe(true);
     expect("hideEnglish" in saved.search).toBe(false);
     expect(saved.currentSalary).toBe(25000);
   });
@@ -107,11 +138,11 @@ describe("persistence", () => {
     const root = tempRoot();
     mkdirSync(join(root, "ui", "state"), { recursive: true });
     writeFileSync(settingsPath(root), JSON.stringify({ search: { hideEnglish: true, hideUnspoken: false } }));
-    expect(loadSearchSettings(root).hideUnspoken).toBe(false);
+    expect(loadSearchSettings(root).hideSpokenGap).toBe(false);
     writeFileSync(settingsPath(root), JSON.stringify({ search: { hideEnglish: false, hideUnspoken: "x" } }));
-    expect(loadSearchSettings(root).hideUnspoken).toBe(true); // invalid new value: the default, not the stale alias
+    expect(loadSearchSettings(root).hideSpokenGap).toBe(true); // invalid new value: the default, not the stale alias
     writeFileSync(settingsPath(root), JSON.stringify({ search: { hideUnspoken: "x" } }));
-    expect(loadSearchSettings(root).hideUnspoken).toBe(true);
+    expect(loadSearchSettings(root).hideSpokenGap).toBe(true);
   });
 });
 
@@ -207,7 +238,7 @@ describe("/api/search-settings", () => {
     await post(h, "/api/search-settings", { maxDays: 33, minSalaryMxn: 12345, hideUnspoken: false, includeUndated: false, includeUnpublishedSalary: false, modalities: ["remote"] });
     const data = await (await get(h, "/api/jobs")).json();
     expect(data.filters).toEqual({
-      maxDays: 33, minSalaryMxn: 12345, includeNoSalary: false, includeUndated: false, hideUnspoken: false, modalities: ["remote"],
+      maxDays: 33, minSalaryMxn: 12345, includeNoSalary: false, includeUndated: false, hideSpokenGap: false, modalities: ["remote"],
     });
     const explicit = await (await get(h, "/api/jobs?maxDays=2")).json();
     expect(explicit.filters.maxDays).toBe(2);

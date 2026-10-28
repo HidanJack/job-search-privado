@@ -9,8 +9,8 @@ export interface SearchSettings {
   maxDays: number;
   minSalaryMxn: number;
   modalities: Modality[];
-  /** Hide postings in languages the candidate does not speak (spoken level below B1 in the posting's language). */
-  hideUnspoken: boolean;
+  /** Hide only postings that explicitly demand a spoken language above the candidate's speaking level. */
+  hideSpokenGap: boolean;
   includeUnpublishedSalary: boolean;
   includeUndated: boolean;
   /** How many pending jobs /rank scores per run (best prefilter score first). */
@@ -27,7 +27,7 @@ export const DEFAULT_SEARCH: SearchSettings = {
   maxDays: 7,
   minSalaryMxn: DEFAULT_PROFILE_CONFIG.salary_floor_mxn, // overridden per user by profile_config.json
   modalities: [...MODALITIES],
-  hideUnspoken: true,
+  hideSpokenGap: true,
   includeUnpublishedSalary: true,
   includeUndated: true,
   rankBatch: 10,
@@ -44,7 +44,7 @@ const VALIDATORS: { [K in keyof SearchSettings]: (v: unknown) => boolean } = {
   maxDays: (v) => isInt(v, 1, MAX_SEARCH_DAYS),
   minSalaryMxn: (v) => isInt(v, 0, MAX_SALARY),
   modalities: isModalities,
-  hideUnspoken: isBool,
+  hideSpokenGap: isBool,
   includeUnpublishedSalary: isBool,
   includeUndated: isBool,
   rankBatch: (v) => isInt(v, 1, MAX_RANK_BATCH),
@@ -57,10 +57,13 @@ export function parseSearchPatch(raw: unknown): Partial<SearchSettings> | null {
   const entries = Object.entries(raw);
   if (entries.length === 0) return null;
   const out: Record<string, unknown> = {};
-  // `hideEnglish` is the old name of `hideUnspoken`: accepted as an alias, the new key wins.
+  // `hideUnspoken` and `hideEnglish` are older names of `hideSpokenGap`: accepted as aliases, the newest name wins.
+  const has = (k: string) => k in (raw as object);
   for (const [rawKey, value] of entries) {
-    const key = rawKey === "hideEnglish" ? "hideUnspoken" : rawKey;
-    if (rawKey === "hideEnglish" && "hideUnspoken" in (raw as object)) continue;
+    const alias = rawKey === "hideUnspoken" || rawKey === "hideEnglish";
+    const key = alias ? "hideSpokenGap" : rawKey;
+    if (rawKey === "hideEnglish" && (has("hideSpokenGap") || has("hideUnspoken"))) continue;
+    if (rawKey === "hideUnspoken" && has("hideSpokenGap")) continue;
     const check = (VALIDATORS as Record<string, (v: unknown) => boolean>)[key];
     if (!check || !check(value)) return null;
     out[key] = key === "modalities" ? [...(value as string[])] : value;
@@ -90,8 +93,8 @@ export function loadSearchSettings(root: string): SearchSettings {
   const stored = raw as Record<string, unknown>;
   for (const [key, check] of Object.entries(VALIDATORS)) {
     let value = stored[key];
-    // Settings saved before languages were first-class only have `hideEnglish`: read it as `hideUnspoken`.
-    if (key === "hideUnspoken" && !check(value) && value === undefined) value = stored.hideEnglish;
+    // Older settings only have `hideUnspoken`, and before that `hideEnglish`: read the newest present name.
+    if (key === "hideSpokenGap" && value === undefined) value = stored.hideUnspoken !== undefined ? stored.hideUnspoken : stored.hideEnglish;
     if (value !== undefined && check(value)) (out as unknown as Record<string, unknown>)[key] = value;
   }
   return out;
@@ -105,4 +108,15 @@ export function saveSearchSettings(root: string, search: SearchSettings): void {
   const tmp = `${path}.${process.pid}.tmp`;
   writeFileSync(tmp, JSON.stringify(doc, null, 2) + "\n", { encoding: "utf8", mode: 0o600 });
   renameSync(tmp, path);
+}
+
+/** Demand estimation for career-path discovery: a wider window than the user's application window. */
+export const DEFAULT_DISCOVERY_WINDOW_DAYS = 30;
+export interface DiscoverySettings { windowDays: number }
+
+/** Reads settings.json["discovery"].window_days (integer 1-90); anything else falls back to 30. */
+export function loadDiscoverySettings(root: string): DiscoverySettings {
+  const raw = readFileJson(root).discovery;
+  const v = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>).window_days : undefined;
+  return { windowDays: isInt(v, 1, MAX_SEARCH_DAYS) ? v : DEFAULT_DISCOVERY_WINDOW_DAYS };
 }

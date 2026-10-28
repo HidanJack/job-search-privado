@@ -131,3 +131,115 @@ export function spokenGapLanguage(text: string): string | null {
   }
   return null;
 }
+
+// ---- the real requirement (mirror of language_levels.requirement_assessment) -----------------
+export type ReqSkill = "speak" | "read_write" | "any";
+export type ReqKind = "fluent" | "conversational" | "advanced" | "intermediate" | "basic" | "technical_read_write" | "unspecified";
+export interface LanguageRequirement {
+  lang: string;
+  skill: ReqSkill;
+  level: Cefr | null;
+  kind: ReqKind;
+  evidence: string | null;
+  source: "llm" | "regex" | "none" | "llm_assumption";
+  optional?: boolean;
+}
+/** spoken: explicit gap; read_write: covered; optional: a plus; unspecified: level not stated; none: nothing to assess. */
+export type LanguageNeed = "spoken" | "read_write" | "optional" | "unspecified" | "none";
+export interface LanguageAssessment {
+  need: LanguageNeed;
+  verdict: "PASS" | "FLAG";
+  note: string | null;
+  evidence: string | null;
+  riskFactor: number;
+  /** True when the posting was never analysed (no `language_requirements`): the old rule applies. */
+  legacy: boolean;
+}
+
+const REQ_SKILLS: ReqSkill[] = ["speak", "read_write", "any"];
+const REQ_KINDS: ReqKind[] = ["fluent", "conversational", "advanced", "intermediate", "basic", "technical_read_write", "unspecified"];
+const IMPLIED_LEVEL: Record<string, Cefr> = { fluent: "C1", advanced: "C1", conversational: "B2", intermediate: "B1", basic: "A2" };
+const KIND_WORD: Record<string, string> = {
+  fluent: "fluido", conversational: "conversacional", advanced: "avanzado", intermediate: "intermedio", basic: "básico", technical_read_write: "técnico",
+};
+export const UNSPECIFIED_RISK_FACTOR = 0.5;
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Defensive read of a stored `language_requirements`: null when it is not a list (never analysed). */
+export function parseRequirements(raw: unknown): LanguageRequirement[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: LanguageRequirement[] = [];
+  for (const item of raw.slice(0, 12)) {
+    if (!item || typeof item !== "object") continue;
+    const r = item as Record<string, unknown>;
+    if (typeof r.lang !== "string" || !KNOWN_CODES.includes(r.lang)) continue;
+    const level = parseLevel(r.level);
+    out.push({
+      lang: r.lang,
+      skill: REQ_SKILLS.includes(r.skill as ReqSkill) ? (r.skill as ReqSkill) : "any",
+      level: level && level !== "native" ? level : null,
+      kind: REQ_KINDS.includes(r.kind as ReqKind) ? (r.kind as ReqKind) : "unspecified",
+      evidence: typeof r.evidence === "string" && r.evidence.trim() ? r.evidence.slice(0, 160) : null,
+      source: r.source === "llm" || r.source === "none" || r.source === "llm_assumption" ? r.source : "regex",
+      ...(r.optional === true ? { optional: true } : {}),
+    });
+  }
+  return out;
+}
+
+function writtenLevel(levels: Levels, code: string): Cefr | null {
+  const read = level(levels, code, "read"), write = level(levels, code, "write");
+  if (read === null || write === null) return read ?? write;
+  return levelRank(read) <= levelRank(write) ? read : write;
+}
+
+function classify(r: LanguageRequirement, levels: Levels, code: string): "optional" | "unspecified" | "covered" | "gap" {
+  if (r.optional) return "optional";
+  if (r.kind === "unspecified") return "unspecified";
+  const wanted = r.level ?? IMPLIED_LEVEL[r.kind] ?? null;
+  if (r.skill === "speak" || r.kind === "fluent" || r.kind === "conversational") {
+    return wanted === null || levelRank(wanted) > levelRank(level(levels, code, "speak")) ? "gap" : "covered";
+  }
+  const have = writtenLevel(levels, code);
+  if (wanted === null) return atLeast(have, READ_MIN) ? "covered" : "gap";
+  return levelRank(wanted) > levelRank(have) ? "gap" : "covered";
+}
+
+export function requirementAssessment(postingLanguage: string | null, requirements: LanguageRequirement[] | null, levels: Levels): LanguageAssessment {
+  const none: LanguageAssessment = { need: "none", verdict: "PASS", note: null, evidence: null, riskFactor: 1, legacy: false };
+  const code = postingLanguage;
+  if (!code || code === "mixed" || code === "unknown" || !KNOWN_CODES.includes(code)) return none;
+  if (speakStatus(levels, code) === "comfortable") return none;
+  const name = languageName(code);
+  if (requirements === null) {
+    // Old rule: a posting written in L implies spoken L unless the candidate speaks it at B1+ (see isUnspoken).
+    const gap = isUnspoken(code, levels);
+    return { ...none, need: gap ? "spoken" : "unspecified", verdict: gap ? "FLAG" : "PASS", legacy: true };
+  }
+  const groups = { gap: [] as LanguageRequirement[], covered: [] as LanguageRequirement[], optional: [] as LanguageRequirement[], unspecified: [] as LanguageRequirement[] };
+  for (const r of requirements) if (r.lang === code) groups[classify(r, levels, code)].push(r);
+  const speak = level(levels, code, "speak");
+  if (groups.gap.length) {
+    const r = groups.gap[0];
+    const kw = KIND_WORD[r.kind] ?? "";
+    const lvl = r.level ? ` (${r.level})` : "";
+    let what = kw ? `${name} ${kw}${lvl}` : `${name}${lvl}`;
+    let tail: string;
+    if (r.skill === "read_write") {
+      const w = writtenLevel(levels, code);
+      tail = w ? `Tu nivel de lectura/escritura es ${w}.` : `No tienes ${name} declarado en tu perfil.`;
+      what = `${name} de lectura/escritura${lvl}`;
+    } else tail = speak === null ? `No tienes ${name} hablado declarado en tu perfil.` : `Tu nivel hablado es ${speak}.`;
+    return { ...none, need: "spoken", verdict: "FLAG", evidence: r.evidence, riskFactor: 1,
+      note: r.evidence ? `Piden ${what}: «${r.evidence}». ${tail}` : `Piden ${what}. ${tail}` };
+  }
+  if (groups.covered.length) {
+    const r = groups.covered[0];
+    return { ...none, need: "read_write", evidence: r.evidence, riskFactor: 0, note: `Piden ${name} de lectura/escritura (${r.level ?? writtenLevel(levels, code)}): lo cubres.` };
+  }
+  if (groups.optional.length) {
+    return { ...none, need: "optional", evidence: groups.optional[0].evidence, riskFactor: 0, note: `${cap(name)} aparece como un plus, no como requisito.` };
+  }
+  const evidence = groups.unspecified.find((r) => r.evidence)?.evidence ?? null;
+  return { ...none, need: "unspecified", verdict: "FLAG", evidence, riskFactor: UNSPECIFIED_RISK_FACTOR, note: `No especifica el nivel; probablemente hay reuniones en ${name}.` };
+}

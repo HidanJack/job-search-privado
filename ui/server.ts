@@ -3,6 +3,9 @@ import { join, resolve } from "node:path";
 import { bunCommandRunner, getDailyStatus, setDaily, type CommandRunner } from "./lib/daily";
 import { filterJobs, forceRankJob, loadJobs, parseFilters, prefilteredJobs, recoverJob, skipJob, splitByGate } from "./lib/jobs";
 import { runTool } from "./lib/prefilter";
+import {
+  BlocklistError, addBlocked, findBlocked, isBlocked, parseNewEntry, readBlocked, removeBlocked, suggestCompanies,
+} from "./lib/blocklist";
 import { loadSearchSettings, parseSearchPatch, saveSearchSettings } from "./lib/search_settings";
 import {
   coverageLine, countIndeed, finalizeCoverage, readLastSweep, runConfiguredSweep, type SweepSaver, type SweepSpawn,
@@ -42,6 +45,7 @@ const STATIC: Record<string, string> = {
   "/app.js": "app.js",
   "/onboarding.js": "onboarding.js",
   "/onboarding-logic.js": "onboarding-logic.js",
+  "/job-logic.js": "job-logic.js",
   "/styles.css": "styles.css",
 };
 // Strict name pattern (no dots/slashes) doubles as the path-traversal guard.
@@ -226,6 +230,41 @@ export function createHandler(opts: ServerOptions = {}) {
     }
   }
 
+  /** GET/POST/DELETE /api/blocked-companies: the company blocklist in profile_config.json. */
+  async function handleBlocklist(req: Request): Promise<Response> {
+    try {
+      const snapshot = () => {
+        const entries = readBlocked(root);
+        const jobs = loadJobs(root, new Date());
+        const matches: Record<string, number> = {};
+        for (const e of entries) matches[e.name] = jobs.filter((j) => findBlocked(j.company, [e])).length;
+        return { entries, matches, suggestions: suggestCompanies(jobs, entries) };
+      };
+      if (req.method === "GET") return json(snapshot());
+      if (req.method !== "POST" && req.method !== "DELETE") return json({ error: "method_not_allowed" }, 405);
+      if (!isAllowedOrigin(req.headers.get("origin"), port)) return json({ error: "origin_not_allowed" }, 403);
+      const body = await readJsonBody(req);
+      if (body === null) return json({ error: "bad_request", message: "Envía un objeto JSON." }, 400);
+      if (req.method === "DELETE") {
+        if (typeof body.name !== "string" || !body.name.trim() || body.name.length > 200) {
+          return json({ error: "invalid_name", message: "Falta el nombre de la empresa." }, 400);
+        }
+        const res = removeBlocked(root, body.name);
+        return res.removed ? json({ ...snapshot(), removed: true }) : json({ error: "not_found", message: "Esa empresa no está en la lista negra." }, 404);
+      }
+      const entry = parseNewEntry(body, todayIso());
+      const res = addBlocked(root, entry);
+      // Pending jobs of that company are excluded by the deterministic prefilter (recoverable, no LLM). Never while a
+      // run is writing the same state file: the next sweep or /rank runs the prefilter first anyway.
+      let prefilter: "ok" | "skipped" | "error" = "skipped";
+      if (res.added && !runs.busy()) prefilter = (await runTool(root, "prefilter", () => {}, opts.sweepSpawn)) ? "ok" : "error";
+      return json({ ...snapshot(), added: res.added, prefilter });
+    } catch (err) {
+      if (err instanceof BlocklistError) return json({ error: err.code, message: err.message }, err.status);
+      throw err;
+    }
+  }
+
   async function handle(req: Request): Promise<Response> {
     const url = new URL(req.url);
     // DNS-rebinding guard: only answer to our own host names.
@@ -234,6 +273,7 @@ export function createHandler(opts: ServerOptions = {}) {
     // Onboarding has its own body limits (upload 2.5 MB, proposal 512 KB) and also takes PUT.
     if (url.pathname.startsWith("/api/onboarding/")) return handleOnboarding(req, url.pathname);
     if (url.pathname.startsWith("/api/discovery/")) return handleDiscovery(req, url.pathname);
+    if (url.pathname === "/api/blocked-companies") return handleBlocklist(req);
 
     if (req.method === "POST") {
       if (!isAllowedOrigin(req.headers.get("origin"), port)) return json({ error: "origin_not_allowed" }, 403);
@@ -265,11 +305,12 @@ export function createHandler(opts: ServerOptions = {}) {
           minSalaryMxn: saved.minSalaryMxn,
           includeNoSalary: saved.includeUnpublishedSalary,
           includeUndated: saved.includeUndated,
-          hideUnspoken: saved.hideUnspoken,
+          hideSpokenGap: saved.hideSpokenGap,
           modalities: saved.modalities,
         });
         const all = loadJobs(root, new Date());
-        const { ranked, unranked } = filterJobs(all, filters, loadProfileConfig(root).languages);
+        const config = loadProfileConfig(root);
+        const { ranked, unranked } = filterJobs(all, filters, config.languages, config.blocked_companies);
         const prefiltered = prefilteredJobs(all);
         const gate = splitByGate(all.filter((j) => j.status === "new"), saved.minPrefilterScore);
         const shown = splitByGate(unranked, saved.minPrefilterScore);
@@ -279,6 +320,7 @@ export function createHandler(opts: ServerOptions = {}) {
           gated: gate.gated.length,
           rankedTotal: all.filter((j) => j.status === "ranked").length,
           prefilteredOut: prefiltered.length,
+          blockedHidden: all.filter((j) => (j.status === "ranked" || j.status === "new") && isBlocked(j.company, config.blocked_companies)).length,
         };
         // The search settings are the one source of truth for the window and the
         // salary floor; CLAUDE.md's values are only the first-run defaults.

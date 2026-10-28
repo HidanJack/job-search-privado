@@ -82,6 +82,7 @@ Archivo por usuario, **ignorado por git**, en la raíz. Si falta o un valor no e
 | `current_salary_mxn`, `salary_floor_mxn` | Sueldo mensual actual y mínimo aceptable (MXN). Anclas del puntaje de sueldo y piso por defecto del filtro. |
 | `languages` | Tus idiomas con nivel MCER (A1–C2 o `native`) para leer, escribir y hablar: `[{"language": "German", "read": "B2", "write": "B1", "speak": "B1"}]` (el código ISO se deduce del nombre; el español se da por nativo si no lo pones). Ver «Idiomas» abajo. |
 | `spoken_english` | Interruptor heredado: solo se lee si `languages` está vacío (`true` = inglés hablado B2, `false` = A2); si declaras idiomas se deduce de tu nivel hablado de inglés. |
+| `blocked_companies` | Tu lista negra: `[{"name": "Acme Spam Corp", "aliases": ["Acme"], "reason": "vacantes basura", "added": "2026-10-28"}]`. Ver «Lista negra de empresas» abajo. Viene vacía. |
 | `search.families` | Familias de búsqueda del barrido: `[{"name": "Python backend", "queries": [{"text": "python developer", "lang": "en"}]}]`. Cada consulta lleva su idioma. Sin esto se usa un conjunto genérico. Opcionales por familia: `indeed` (cadenas explícitas para Indeed) y `broad` (solo en búsquedas amplias). Ver el plan sin consultar nada: `bun run ui/sweep.ts --dry-run`; las cadenas de Indeed: `python3 tools/profile_config.py queries --portal indeed`. |
 | `prefilter.stack_points` | Tu stack en el título: `[{"words": ["python"], "points": 12}]` (suma, con tope `stack_cap`). |
 | `prefilter.skill_keep` | Palabras que salvan un título de las exclusiones por «otro stack». |
@@ -91,6 +92,14 @@ Archivo por usuario, **ignorado por git**, en la raíz. Si falta o un valor no e
 | `skills.selected`, `skills.combo_partners`, `skills.primary` | Habilidades del cuadro «Cuánto pagan tus habilidades» (ids del catálogo en `ui/lib/skills.ts`). |
 
 Las palabras de `prefilter` son fragmentos de expresión regular sin acentos y en minúsculas.
+
+## Lista negra de empresas
+
+Si una empresa solo te hace perder tiempo, bloquéala: botón **Bloquear empresa** en cada tarjeta, o el panel «Lista negra de empresas» del filtro de Vacantes (ahí también las quitas o agregas una por nombre, con una razón opcional). Se guarda en `profile_config.json` → `blocked_companies` (con copia del archivo anterior en `ui/state/backups/`).
+
+- El nombre se compara sin mayúsculas, acentos ni puntuación y sin sufijos legales («S.A. de C.V.», Inc, LLC, Ltd…): coincide si el nombre completo o un alias es igual, o si el nombre de la empresa contiene el bloqueado como palabras completas («TV Spam Deportes» contiene «TV Spam»; «Spamalot» no contiene «Spam»).
+- El prefiltro (sin IA) marca sus vacantes pendientes como descartadas con el motivo «Empresa en tu lista negra»; se pueden recuperar y nunca se borran. Las ya calificadas se ocultan de la lista principal pero siguen guardadas.
+- «Empresas con muchas vacantes viejas» solo **sugiere** (8 vacantes o más y mediana de más de 30 días, o muchas republicadas); nunca bloquea sin tu confirmación. Por consola: `python3 tools/company_blocklist.py suggest` y `python3 tools/company_blocklist.py count`.
 
 ## Privacidad
 
@@ -116,7 +125,8 @@ Tus idiomas son datos de primera clase: funcionan igual con cualquier combinaci�
 - **Filtro de idioma al calificar**: un anuncio escrito en el idioma L se supone que pide L hablado. Si hablas L a nivel B2 o más (o nativo) no pasa nada; con B1 queda una alerta suave; con menos de B1 o sin ese idioma queda una alerta con una nota que nombra el idioma y tu nivel («La vacante está escrita en alemán… tu nivel hablado es A2»). Un anuncio bilingüe solo exige poder leer.
 - **Oportunidad y riesgo**: el puntaje de idioma sigue tu nivel hablado en el idioma del anuncio (nativo 100, C1/C2 90, B2 70, B1 45, A2 20, sin nivel 10) y el riesgo crece con la distancia a B2. Si el anuncio pide un idioma que tú hablas a B2 o más y no es el suyo («German speaking», «DACH», «bilingual English/German»), suma una ventaja y una nota corta.
 - **Prefiltro**: se descartan los títulos en un idioma que no puedes leer (sin nivel de lectura A2 o mejor), con el motivo «Anuncio en <idioma>»; los que piden un idioma que hablas suben un poco de puntaje.
-- **Panel**: «Ocultar vacantes en idiomas que no hablo» esconde los anuncios en idiomas donde tu nivel hablado es menor a B1.
+- **Lo que el anuncio realmente pide**: que esté escrito en inglés no significa que pida inglés hablado. `/rank` guarda `language_requirements` (qué idioma, si es hablado o solo lectura/escritura, el nivel y una **cita textual** del anuncio) y `tools/language_requirement.py` lo lee sin IA con frases en español e inglés («fluent English», «inglés conversacional», «English B2», «read and write technical English», «interviews in English», «English is a plus»…). Un requisito hablado por encima de tu nivel deja una alerta con la cita («Piden inglés conversacional: «…». Tu nivel hablado es A2.»); si solo piden leer y escribir (o intermedio dentro de tu nivel) o es un plus, pasa sin riesgo de idioma; si no dicen el nivel queda una alerta suave con la mitad del riesgo. Para vacantes ya calificadas: `python3 tools/language_requirement.py backfill --write --backup ui/state/seen_jobs.backup.json` vuelve a leer cada anuncio con el comando `detail` del portal (sin IA, 2 consultas a la vez y con pausa) y después `python3 tools/opportunity.py recompute --write`.
+- **Panel**: «Ocultar solo las que exigen un idioma hablado que no tienes» esconde únicamente los anuncios con un requisito hablado explícito por encima de tu nivel. Los que no dicen el nivel se muestran con la etiqueta «Nivel de inglés no especificado» y los que solo piden leer/escribir con «Solo lectura/escritura»; la cita del anuncio aparece en la tarjeta. (La clave guardada ahora es `hideSpokenGap`; `hideUnspoken` y `hideEnglish` siguen leyéndose como alias.)
 - **CV y carta**: van en el idioma del anuncio solo si lo escribes a nivel B2 o más; si no, en inglés (si lo escribes a B2+), y si no, en español.
 
 La detección del idioma del anuncio no usa IA: cuenta palabras funcionales por idioma (`tools/posting_language.py`, `python3 tools/posting_language.py detect --text "…"`). Los títulos muy cortos y neutros («Software Engineer») no se pueden clasificar y no se descartan.

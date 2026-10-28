@@ -56,6 +56,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import opportunity  # noqa: E402  (Oportunidad/Riesgo, computed when scores are written)
 import prefilter  # noqa: E402  (deterministic ordering and rankBatch setting)
 import language_levels  # noqa: E402  (CEFR levels and the language gate)
+import language_requirement  # noqa: E402  (the REAL language requirement of a posting)
 import profile_config  # noqa: E402  (the candidate's declared languages)
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -419,15 +420,29 @@ def band(score: int) -> str:
 
 
 def enforce_language_rule(entry: dict, gate: bool = True, gaps: bool = True, levels: dict | None = None) -> None:
-    """Strict rule: a posting written in language L implies spoken L is needed.
+    """A posting written in language L: raise the language gate and the spoken-language gap when needed.
 
-    When the candidate's spoken level in L is below B2 (language_levels.language_gate),
-    a missed flag is raised (a FAIL is never softened) and the spoken-language gap is
-    added once. "mixed" and unknown postings raise nothing. Shared with
-    tools/posting_language.py's backfill.
+    Without `language_requirements` the strict legacy rule applies: a posting in L implies spoken L,
+    flagged when the candidate's spoken level in L is below B2 (a FAIL is never softened). With them
+    (language_levels.requirement_assessment) only what the posting really asks counts: an explicit
+    spoken requirement flags and adds the gap, reading/writing or a "plus" passes, an unspecified level
+    is a soft flag. "mixed" and unknown postings raise nothing. Shared with tools/posting_language.py's backfill.
     """
+    lv = LEVELS if levels is None else levels
     code = entry.get("posting_language")
-    verdict, note = language_levels.language_gate(code, LEVELS if levels is None else levels)
+    reqs = entry.get("language_requirements")
+    if isinstance(reqs, list):
+        if gate:
+            language_requirement.apply(entry, lv)
+        a = language_levels.requirement_assessment(code, reqs, lv)
+        if gaps and a["need"] == "spoken" and not any(
+            marker in str(g).lower() for g in entry.get("gaps", []) for marker in language_levels.gap_markers(code)
+        ):
+            entry["gaps"] = ([language_levels.gap_label(code)] + list(entry.get("gaps", [])))[:3]
+        elif gaps and a["need"] in ("read_write", "optional", "unspecified"):
+            language_requirement.apply(entry, lv)
+        return
+    verdict, note = language_levels.language_gate(code, lv)
     if verdict == "PASS":
         return
     if gate and entry.get("language_gate") == "PASS":
@@ -466,6 +481,8 @@ def cmd_apply(args) -> int:
         if result.get("status") == "expired":
             entry["status"] = "expired"
             entry.pop("force_rank", None)
+            if isinstance(result.get("reason"), str) and result["reason"].strip():
+                entry["expired_reason"] = result["reason"].strip()[:200]  # why it was retired; never deletes anything
             expired.append(
                 {"key": key, "title": entry.get("title"), "company": entry.get("company"), "url": entry.get("url")}
             )
@@ -511,6 +528,11 @@ def cmd_apply(args) -> int:
         # The agent never guesses a language from text it did not send; entries
         # scored without `posting_language` are filled by tools/posting_language.py
         # (`backfill`), which reuses enforce_language_rule below.
+        # What the posting really asks of the candidate: the agent's list, else the regex extractor on
+        # the text the result carries; neither leaves the entry on the legacy rule.
+        requirements = language_requirement.from_result(result, entry.get("posting_language"))
+        if requirements is not None:
+            entry["language_requirements"] = requirements
         enforce_language_rule(entry, gaps=False)
         # Absence is not a correction: a fetch that degraded to a listing page
         # returns no deadline, and blanking a stored one would erase a real

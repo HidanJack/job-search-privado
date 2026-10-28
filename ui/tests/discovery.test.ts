@@ -3,7 +3,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHandler } from "../server";
-import { GENERIC_WORDS, MAX_PROBE_PATHS, MAX_PROBE_QUERIES, PROBE_PORTALS, coreTokens, isRelevant, pickQueries, probeMarket } from "../lib/discovery";
+import { GENERIC_WORDS, MAX_PROBE_PATHS, MAX_PROBE_QUERIES, PROBE_PORTALS, coreTokens, isRelevant, pickQueries, probeMarket, runProbe, newDiscoveryState, loadMarketFile } from "../lib/discovery";
 import { DISCOVER_DENY, DISCOVER_TOOLS, buildArgv, type SpawnedProcess, type Spawner } from "../lib/runner";
 import { planSweep, queriesFromConfig, type SweepSpawn } from "../lib/sweep";
 import { loadProfileConfig } from "../lib/profile_config";
@@ -347,6 +347,42 @@ describe("GET /api/discovery/status", () => {
     expect((await h.handle(new Request(BASE + "/api/discovery/status", { headers: { Host: "evil.example" } }))).status).toBe(403);
     expect((await h.handle(new Request(BASE + "/api/discovery/status", { method: "DELETE", headers: ORIGIN }))).status).toBe(405);
     expect((await get(h, "/api/discovery/nope")).status).toBe(404);
+  });
+});
+
+describe("market probe window", () => {
+  const rootWithProposals = (settings?: unknown) => {
+    const root = tempRoot();
+    mkdirSync(dir(root), { recursive: true });
+    writeFileSync(dir(root, "proposals.json"), JSON.stringify(PROPOSAL));
+    if (settings !== undefined) writeFileSync(join(root, "ui", "state", "settings.json"), JSON.stringify(settings));
+    return root;
+  };
+  const run = async (root: string) => {
+    const seen: ReturnType<typeof parse>[] = [];
+    const spawn: SweepSpawn = async (argv) => { seen.push(parse(argv)); return ok([]); };
+    await runProbe(root, newDiscoveryState(), () => {}, spawn);
+    return seen;
+  };
+  test("estimates demand over 30 days by default, not the user's 7-day application window", async () => {
+    const root = rootWithProposals({ search: { maxDays: 7 } });
+    const seen = await run(root);
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((s) => s.jobage === "30")).toBe(true);
+    expect(Object.values(loadMarketFile(root)).every((m) => m.window_days === 30)).toBe(true);
+  });
+  test("discovery.window_days overrides it and is recorded in market.json", async () => {
+    const root = rootWithProposals({ search: { maxDays: 7 }, discovery: { window_days: 45 } });
+    const seen = await run(root);
+    expect(seen.every((s) => s.jobage === "45")).toBe(true);
+    expect(Object.values(loadMarketFile(root)).every((m) => m.window_days === 45)).toBe(true);
+  });
+  test("the window filters postings by age", async () => {
+    const m = await probeMarket({ ...opts(async (argv) => parse(argv).portal === "himalayas" ? ok([row(1, { date: "2026-10-01T00:00:00Z" })]) : ok([])), paths: PATHS(1), maxDays: 30 });
+    expect(m["path-1"].vacancies).toBe(1);
+    expect(m["path-1"].window_days).toBe(30);
+    const n = await probeMarket({ ...opts(async (argv) => parse(argv).portal === "himalayas" ? ok([row(1, { date: "2026-10-01T00:00:00Z" })]) : ok([])), paths: PATHS(1), maxDays: 7 });
+    expect(n["path-1"].vacancies).toBe(0);
   });
 });
 

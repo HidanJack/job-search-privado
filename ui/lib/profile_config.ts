@@ -22,6 +22,7 @@ export interface SearchFamily {
   discovered?: boolean;
   source_path_id?: string;
 }
+import { parseBlockedCompanies, type BlockedCompany } from "./blocklist";
 import { languageCode, type Cefr } from "./language_levels";
 export type { Cefr };
 export interface ConfigLanguage {
@@ -38,6 +39,8 @@ export interface ProfileConfig {
   current_salary_mxn: number;
   salary_floor_mxn: number;
   languages: ConfigLanguage[];
+  /** Companies the user never wants to see (hidden in the dashboard, excluded by the prefilter). */
+  blocked_companies: BlockedCompany[];
   search: { families: SearchFamily[] };
   skills: { selected: string[]; combo_partners: string[]; primary: string };
 }
@@ -63,6 +66,7 @@ export const DEFAULT_PROFILE_CONFIG: ProfileConfig = {
   current_salary_mxn: 20000,
   salary_floor_mxn: 30000,
   languages: [],
+  blocked_companies: [],
   search: { families: DEFAULT_FAMILIES },
   skills: {
     selected: ["python", "kubernetes", "llm", "rag", "ai_engineer", "data_engineer", "etl", "fastapi", "qa_automation"],
@@ -144,6 +148,7 @@ export function parseProfileConfig(raw: unknown): ProfileConfig {
   if (isMoney(r.salary_floor_mxn)) cfg.salary_floor_mxn = r.salary_floor_mxn;
   const langs = parseLanguages(r.languages);
   if (langs) cfg.languages = langs;
+  if ("blocked_companies" in r) cfg.blocked_companies = parseBlockedCompanies(r.blocked_companies);
   const search = r.search;
   if (search && typeof search === "object" && !Array.isArray(search)) {
     const fams = parseFamilies((search as Record<string, unknown>).families);

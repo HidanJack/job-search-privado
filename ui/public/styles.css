@@ -853,3 +853,43 @@ select:focus, input[type="text"]:focus, input[type="email"]:focus { outline: 0; 
   .onb-sec { margin-top: 40px; }
 }
 .onb-questions .ghost { margin-left: 4px; }
+
+/* ---------- language requirement quote on the card ---------- */
+.lang-quote {
+  margin: 6px 0 0; font-size: 13px; color: var(--dim); font-style: italic;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 62ch; cursor: default;
+}
+.lang-quote:hover, .lang-quote:focus, .card:focus-within .lang-quote { white-space: normal; overflow: visible; }
+
+/* ---------- company blocklist ---------- */
+.blocklist { margin: 22px 0 6px; border-top: 1px solid var(--line2); }
+.blocklist summary { padding: 14px 0; cursor: pointer; font-size: 14px; color: var(--dim); list-style: none; }
+.blocklist summary::-webkit-details-marker { display: none; }
+.blocklist summary::after {
+  content: ""; display: inline-block; width: 7px; height: 7px; margin-left: 10px;
+  border-right: 1px solid currentColor; border-bottom: 1px solid currentColor; transform: rotate(45deg) translateY(-3px);
+  transition: transform .2s var(--ease-out);
+}
+.blocklist[open] summary::after { transform: rotate(225deg) translateY(-3px); }
+.blocklist-help { font-size: 13.5px; max-width: 62ch; margin: 0 0 12px; }
+.blocklist-sub { margin: 18px 0 4px; font-size: 14px; font-weight: 500; }
+.blocklist-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.bl-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.bl-text { display: flex; flex-wrap: wrap; gap: 4px 12px; min-width: 0; font-size: 14px; }
+.blocklist-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px 18px; margin: 14px 0 6px; }
+.blocklist-form .field { min-width: 220px; flex: 1 1 220px; }
+.blocklist-form input[type="text"] {
+  width: 100%; padding: 9px 10px; font: inherit; color: var(--ink); background: transparent;
+  border: 1px solid var(--line2); border-radius: 0;
+}
+.blocklist-form input[type="text"]:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
+.blocklist-error { color: var(--gap); font-size: 13.5px; margin: 6px 0; }
+
+/* ---------- in-page confirmation ---------- */
+.confirm {
+  width: min(440px, 92vw); padding: 24px; margin: auto;
+  background: var(--bg); color: var(--ink); border: 1px solid var(--line2); border-radius: 0;
+}
+.confirm::backdrop { background: var(--backdrop); backdrop-filter: blur(3px); }
+.confirm-text { margin: 0 0 20px; line-height: 1.5; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 12px; }

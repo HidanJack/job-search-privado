@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import company_blocklist  # noqa: E402  (blocked_companies validation)
 import language_levels  # noqa: E402  (CEFR parsing and language codes shared with the language gate)
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -80,6 +81,9 @@ DEFAULTS: dict = {
     # prefilter's "cannot read it" rule and the sweep's language-advantage queries. [] = not declared:
     # Spanish native + English B2/B2 with speak B2 (spoken_english true) or A2 (false) are assumed.
     "languages": [],
+    # Companies you never want to see: [{"name", "aliases": [], "reason", "added": "YYYY-MM-DD"}].
+    # The prefilter excludes their pending postings (recoverable) and the dashboard hides the ranked ones.
+    "blocked_companies": [],
     # Portal sweep and Indeed step: role families with their queries (see _families).
     "search": {"families": DEFAULT_FAMILIES},
     "skills": {
@@ -225,6 +229,8 @@ def _apply(cfg: dict, raw: dict) -> None:
         if langs and not isinstance(raw.get("spoken_english"), bool):
             # the legacy flag follows the declared English speaking level
             cfg["spoken_english"] = language_levels.speaks(language_levels.user_levels(cfg), "en", language_levels.SPEAK_COMFORTABLE)
+    if "blocked_companies" in raw:
+        cfg["blocked_companies"] = company_blocklist.parse_entries(raw["blocked_companies"])
     search = raw.get("search")
     if isinstance(search, dict):
         fams = _families(search.get("families"))
